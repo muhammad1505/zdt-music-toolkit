@@ -5,7 +5,7 @@ import time
 import subprocess
 try:
     import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 except ImportError:
     print("Modul pyTelegramBotAPI (telebot) belum terinstall!")
     sys.exit(1)
