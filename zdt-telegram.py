@@ -115,7 +115,40 @@ def download_audio_cmd(message):
 def auto_download_audio(message):
     text = message.text
     if "http" not in text:
-        bot.reply_to(message, "🤔 Saya kurang paham. Kirim link media atau ketik /help untuk panduan.")
+        gemini_key_file = os.path.expanduser("~/.config/zdt/gemini_key")
+        if os.path.exists(gemini_key_file):
+            try:
+                with open(gemini_key_file, "r") as f:
+                    gemini_key = f.read().strip()
+                if gemini_key:
+                    bot.send_chat_action(message.chat.id, 'typing')
+                    import urllib.request, json
+                    prompt = "Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Jawab santai max 3 kalimat."
+                    
+                    if gemini_key.startswith("sk-or-"):
+                        url = "https://openrouter.ai/api/v1/chat/completions"
+                        headers = {"Authorization": f"Bearer {gemini_key}", "Content-Type": "application/json"}
+                        payload = {"model": "google/gemma-2-9b-it:free", "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": text}], "max_tokens": 100}
+                    else:
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+                        headers = {"Content-Type": "application/json"}
+                        payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 100}}
+                    
+                    data = json.dumps(payload).encode("utf-8")
+                    req = urllib.request.Request(url, data=data, headers=headers)
+                    with urllib.request.urlopen(req, timeout=10) as response:
+                        res = json.loads(response.read().decode())
+                        if gemini_key.startswith("sk-or-"):
+                            content = res.get("choices", [{}])[0].get("message", {}).get("content", "Error bro.")
+                        else:
+                            content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "Error bro.")
+                        bot.reply_to(message, content.strip())
+                        return
+            except Exception as e:
+                bot.reply_to(message, f"Aduh otak AI gua lagi pusing bro wkwk. Error: {str(e)}")
+                return
+        
+        bot.reply_to(message, "🤔 Maksud lu apa nih? Kirim link media aja langsung buat disedot, atau ketik /start untuk lihat fitur!")
         return
         
     url = [word for word in text.split() if "http" in word][0]
