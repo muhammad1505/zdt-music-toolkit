@@ -1,0 +1,60 @@
+#!/bin/bash
+# release.sh - Script otomatis untuk merilis versi baru ZDT
+# Usage: ./release.sh [patch|minor|major]
+
+BUMP_TYPE=${1:-patch}
+
+# Ambil versi saat ini dari zdt.sh
+CURRENT_VERSION=$(grep '^readonly APP_VERSION=' zdt.sh | cut -d'"' -f2)
+
+if [ -z "$CURRENT_VERSION" ]; then
+    echo "Gagal menemukan APP_VERSION di zdt.sh!"
+    exit 1
+fi
+
+IFS='.' read -ra VER <<< "$CURRENT_VERSION"
+
+MAJOR=${VER[0]}
+MINOR=${VER[1]}
+PATCH=${VER[2]}
+
+if [ "$BUMP_TYPE" = "patch" ]; then
+    if [ "$PATCH" -eq 9 ]; then
+        MINOR=$((MINOR + 1))
+        PATCH=0
+    else
+        PATCH=$((PATCH + 1))
+    fi
+elif [ "$BUMP_TYPE" = "minor" ]; then
+    MINOR=$((MINOR + 1))
+    PATCH=0
+elif [ "$BUMP_TYPE" = "major" ]; then
+    MAJOR=$((MAJOR + 1))
+    MINOR=0
+    PATCH=0
+else
+    echo "Tipe bump tidak valid. Gunakan: patch, minor, atau major"
+    exit 1
+fi
+
+NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+
+echo "🚀 Bumping version: v$CURRENT_VERSION -> v$NEW_VERSION"
+
+# Replace di zdt.sh
+sed -i "s/readonly APP_VERSION=\"$CURRENT_VERSION\"/readonly APP_VERSION=\"$NEW_VERSION\"/" zdt.sh
+
+# Replace di README.md (khusus baris instalasi)
+sed -i "s/ZDT (v$CURRENT_VERSION+)/ZDT (v$NEW_VERSION+)/" README.md
+
+# Terapkan juga ke instalasi lokal
+if [ -f "$HOME/.local/bin/zdt" ]; then
+    sed -i "s/readonly APP_VERSION=\"$CURRENT_VERSION\"/readonly APP_VERSION=\"$NEW_VERSION\"/" "$HOME/.local/bin/zdt"
+fi
+
+# Push ke GitHub
+git add zdt.sh README.md
+git commit -m "Release: Version $NEW_VERSION"
+git push
+
+echo "✅ Berhasil merilis v$NEW_VERSION ke GitHub!"

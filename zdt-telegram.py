@@ -128,24 +128,58 @@ def auto_download_audio(message):
                     if gemini_key.startswith("sk-or-"):
                         url = "https://openrouter.ai/api/v1/chat/completions"
                         headers = {"Authorization": f"Bearer {gemini_key}", "Content-Type": "application/json"}
-                        payload = {"model": "google/gemma-2-9b-it:free", "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": text}], "max_tokens": 100}
+                        messages = [{"role": "system", "content": prompt}, {"role": "user", "content": text}]
+                        
+                        fallback_arrays = [
+                            ["meta-llama/llama-3.3-70b-instruct:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-4-31b-it:free"],
+                            ["nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.2-3b-instruct:free", "openai/gpt-oss-120b:free"],
+                            ["liquid/lfm-2.5-1.2b-instruct:free", "openrouter/free"]
+                        ]
+                        reply_text = ""
+                        import urllib.error
+                        for models in fallback_arrays:
+                            payload = {"models": models, "messages": messages, "max_tokens": 100}
+                            data = json.dumps(payload).encode("utf-8")
+                            req = urllib.request.Request(url, data=data, headers=headers)
+                            try:
+                                with urllib.request.urlopen(req, timeout=10) as response:
+                                    res = json.loads(response.read().decode())
+                                    if "error" in res:
+                                        reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
+                                    else:
+                                        content = res.get("choices", [{}])[0].get("message", {}).get("content")
+                                        reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                                    break
+                            except urllib.error.HTTPError as e:
+                                err_msg = e.read().decode()
+                                reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {err_msg}'
+                                if e.code == 429:
+                                    continue
+                                break
+                            except Exception as e:
+                                reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {str(e)}'
+                                break
+                        bot.reply_to(message, reply_text)
+                        return
                     else:
-                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
                         headers = {"Content-Type": "application/json"}
                         payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 100}}
-                    
-                    data = json.dumps(payload).encode("utf-8")
-                    req = urllib.request.Request(url, data=data, headers=headers)
-                    with urllib.request.urlopen(req, timeout=10) as response:
-                        res = json.loads(response.read().decode())
-                        if gemini_key.startswith("sk-or-"):
-                            content = res.get("choices", [{}])[0].get("message", {}).get("content", "Error bro.")
-                        else:
-                            content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "Error bro.")
-                        bot.reply_to(message, content.strip())
+                        data = json.dumps(payload).encode("utf-8")
+                        req = urllib.request.Request(url, data=data, headers=headers)
+                        with urllib.request.urlopen(req, timeout=10) as response:
+                            res = json.loads(response.read().decode())
+                            if "error" in res:
+                                reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
+                            else:
+                                content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
+                                reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                        bot.reply_to(message, reply_text)
                         return
             except Exception as e:
-                bot.reply_to(message, f"Aduh otak AI gua lagi pusing bro wkwk. Error: {str(e)}")
+                import urllib.error
+                err_msg = e.read().decode() if isinstance(e, urllib.error.HTTPError) else str(e)
+                bot.reply_to(message, f"Aduh otak AI gua lagi pusing bro wkwk. Error: {err_msg}")
                 return
         
         bot.reply_to(message, "🤔 Maksud lu apa nih? Kirim link media aja langsung buat disedot, atau ketik /start untuk lihat fitur!")
