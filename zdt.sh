@@ -38,6 +38,30 @@ set -uo pipefail
 readonly APP_VERSION="3.0.0"
 readonly APP_NAME="Zaki Downloader Tools"
 readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
+readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
+CONF_AUDIO_CODEC="1"
+CONF_AUDIO_BITRATE="1"
+CONF_VIDEO_CODEC="2"
+CONF_VIDEO_QUAL="1"
+CONF_VIDEO_FMT="4"
+
+_load_config() {
+    if [ -f "$ZDT_CONFIG_FILE" ]; then
+        source "$ZDT_CONFIG_FILE"
+    fi
+}
+
+_save_config() {
+    mkdir -p "$(dirname "$ZDT_CONFIG_FILE")" 2>/dev/null
+    cat > "$ZDT_CONFIG_FILE" <<CONFEOF
+CONF_AUDIO_CODEC="$CONF_AUDIO_CODEC"
+CONF_AUDIO_BITRATE="$CONF_AUDIO_BITRATE"
+CONF_VIDEO_CODEC="$CONF_VIDEO_CODEC"
+CONF_VIDEO_QUAL="$CONF_VIDEO_QUAL"
+CONF_VIDEO_FMT="$CONF_VIDEO_FMT"
+CONFEOF
+}
+
 
 # ==========================================
 # PORTABILITY LAYER
@@ -634,6 +658,49 @@ print(name + ext)
         fi
         mv -- "$file" "$dir/$newbase" && echo -e "    ${GREEN}${ICO_OK} Dirapikan:${RESET} $newbase"
         _log "INFO" "Renamed: $base -> $newbase"
+        
+        # AUTO-TAGGER METADATA (Berdasarkan nama file bersih)
+        local final_file="$dir/$newbase"
+        if [[ -f "$ZDT_VENV_DIR/bin/python" ]]; then
+            "$ZDT_VENV_DIR/bin/python" -c "
+import sys, os
+try:
+    import mutagen
+    from mutagen.easyid3 import EasyID3
+    from mutagen.mp4 import MP4
+    from mutagen.flac import FLAC
+    file_path = sys.argv[1]
+    name_noext = os.path.splitext(os.path.basename(file_path))[0]
+    artist = 'Unknown Artist'
+    title = name_noext
+    if ' - ' in name_noext:
+        parts = name_noext.split(' - ', 1)
+        artist = parts[0].strip()
+        title = parts[1].strip()
+    
+    if file_path.lower().endswith('.mp3'):
+        try:
+            audio = EasyID3(file_path)
+        except mutagen.id3.ID3NoHeaderError:
+            audio = mutagen.File(file_path, easy=True)
+            audio.add_tags()
+        audio['title'] = title
+        audio['artist'] = artist
+        audio.save()
+    elif file_path.lower().endswith('.m4a'):
+        audio = MP4(file_path)
+        audio['\xa9nam'] = title
+        audio['\xa9ART'] = artist
+        audio.save()
+    elif file_path.lower().endswith('.flac'):
+        audio = FLAC(file_path)
+        audio['title'] = title
+        audio['artist'] = artist
+        audio.save()
+except Exception:
+    pass
+" "$final_file" 2>/dev/null
+        fi
     else
         echo -e "    ${GRAY}${ICO_CHECK_OK} Sudah rapi:${RESET} $base"
     fi
@@ -870,13 +937,37 @@ _kompres_audio_batch() {
     echo ""
 
     local current=0
+    local bg_pids=()
+    local max_jobs=$(nproc 2>/dev/null || echo 4)
+    [ "$max_jobs" -gt 4 ] && max_jobs=4 # Batasi max 4 biar gak berat
+
     while IFS= read -r file; do
         ((current++))
         local percent=$((current * 100 / total_files))
         printf "  [%3d%%] %s ...\n" "$percent" "$(basename "$file")"
-        _kompres_audio_file "$file" "$codec" "$bitrate" "$ext_pilih"
-        echo -e "  ──────────────────────────────────────────────────"
+        
+        # Jalankan di latar belakang
+        _kompres_audio_file "$file" "$codec" "$bitrate" "$ext_pilih" >/dev/null 2>&1 &
+        bg_pids+=($!)
+        
+        # Tunggu jika worker penuh
+        if [ ${#bg_pids[@]} -ge $max_jobs ]; then
+            wait -n 2>/dev/null
+            # Hapus pid yang udah kelar
+            local new_pids=()
+            for pid in "${bg_pids[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then
+                    new_pids+=("$pid")
+                fi
+            done
+            bg_pids=("${new_pids[@]}")
+        fi
     done < <(find "${find_args[@]}" 2>/dev/null)
+    
+    # Tunggu sisa proses
+    wait 2>/dev/null
+    echo -e "  ──────────────────────────────────────────────────"
+
 
     echo -e "  ${GREEN}${ICO_OK} 100% Kompresi Selesai!${RESET}"
     _log "INFO" "Audio compression complete: $current files processed"
@@ -985,13 +1076,32 @@ _kompres_video_batch() {
     echo ""
 
     local current=0
+    local bg_pids=()
+    local max_jobs=$(nproc 2>/dev/null || echo 2)
+    [ "$max_jobs" -gt 2 ] && max_jobs=2 # Video berat, batasi max 2
+
     while IFS= read -r file; do
         ((current++))
         local percent=$((current * 100 / total_files))
         printf "  [%3d%%] %s ...\n" "$percent" "$(basename "$file")"
-        _kompres_video_file "$file" "$codec" "$v_qual" "$target_ext"
-        echo -e "  ──────────────────────────────────────────────────"
+        
+        _kompres_video_file "$file" "$codec" "$v_qual" "$target_ext" >/dev/null 2>&1 &
+        bg_pids+=($!)
+        
+        if [ ${#bg_pids[@]} -ge $max_jobs ]; then
+            wait -n 2>/dev/null
+            local new_pids=()
+            for pid in "${bg_pids[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then
+                    new_pids+=("$pid")
+                fi
+            done
+            bg_pids=("${new_pids[@]}")
+        fi
     done < <(find "${find_args[@]}" 2>/dev/null)
+    wait 2>/dev/null
+    echo -e "  ──────────────────────────────────────────────────"
+
 
     echo -e "  ${GREEN}${ICO_OK} 100% Kompresi Selesai!${RESET}"
     _log "INFO" "Video compression complete: $current files processed"
@@ -2211,6 +2321,50 @@ bersih_nama() {
 # ==========================================
 # FUNGSI UTAMA: UPDATE TOOLS
 # ==========================================
+update_zdt_script() {
+    print_header "AUTO-UPDATER ZDT SCRIPT"
+    echo -e "  ${YELLOW}${ICO_ARROW} Mengecek versi terbaru dari GitHub...${RESET}"
+    local latest_script
+    if ! latest_script=$(curl -sL https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt.sh); then
+        echo -e "  ${RED}${ICO_FAIL} Gagal terhubung ke GitHub!${RESET}"
+        return 1
+    fi
+    local latest_version
+    latest_version=$(echo "$latest_script" | grep '^readonly APP_VERSION=' | head -1 | cut -d'"' -f2)
+    
+    if [ -z "$latest_version" ]; then
+        echo -e "  ${RED}${ICO_FAIL} Gagal mendeteksi versi terbaru!${RESET}"
+        return 1
+    fi
+    
+    if [ "$latest_version" = "$APP_VERSION" ]; then
+        echo -e "  ${GREEN}${ICO_OK} Anda menggunakan versi terbaru (v$APP_VERSION)!${RESET}"
+    else
+        echo -e "  ${CYAN}${ICO_ARROW} Versi baru tersedia: v$latest_version (Saat ini: v$APP_VERSION)${RESET}"
+        echo -e -n "  ${BOLD}[?] Lakukan pembaruan sekarang? (y/n): ${RESET}"
+        read -r -n 1 gas_up
+        echo ""
+        if [[ "$gas_up" =~ ^[Yy]$ ]]; then
+            echo -e "  ${YELLOW}${ICO_ARROW} Mengunduh dan menimpa script...${RESET}"
+            local script_path
+            script_path=$(_realpath "$0")
+            echo "$latest_script" > "$script_path"
+            chmod +x "$script_path"
+            
+            # Jika terinstal global, timpa juga
+            if command -v zdt >/dev/null 2>&1; then
+                local global_path
+                global_path=$(command -v zdt)
+                cp "$script_path" "$global_path" 2>/dev/null || sudo cp "$script_path" "$global_path" 2>/dev/null || true
+            fi
+            
+            echo -e "  ${GREEN}${ICO_OK} Pembaruan Selesai! Menjalankan ulang aplikasi...${RESET}"
+            sleep 2
+            exec "$script_path" "$@"
+        fi
+    fi
+}
+
 update_tools() {
     print_header "UPDATE ALAT TEMPUR"
     echo -e -n "  ${BOLD}[?] Lanjut Update Tools? (y/n, 0=Batal): ${RESET}"
@@ -2354,7 +2508,7 @@ install_missing_tools() {
     # 4. Install Python tools di dalam VENV
     local pip_cmd="$ZDT_VENV_DIR/bin/pip"
     if [ -f "$pip_cmd" ]; then
-        local pip_tools=("yt-dlp" "spotdl" "syncedlyrics")
+        local pip_tools=("yt-dlp" "spotdl" "syncedlyrics" "mutagen")
         
         echo -e "  ${CYAN}${ICO_ARROW} Menginstal tools Python: ${YELLOW}${pip_tools[*]}${RESET}"
         echo -e "  ${GRAY}Ini mungkin memakan waktu beberapa menit, harap tunggu...${RESET}"
@@ -3428,6 +3582,7 @@ fi
 install_global() {
     _setup_colors
     _setup_unicode
+    _load_config
     echo -e "  ${CYAN}${ICO_ARROW} MENGINSTAL ZDT SECARA GLOBAL${RESET}"
     
     # Deteksi target folder (biasanya ~/.local/bin untuk user biasa, atau /usr/local/bin)
