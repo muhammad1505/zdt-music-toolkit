@@ -149,11 +149,11 @@ def auto_download_audio(message):
                     import urllib.request, json
                     
                     abs_path = os.path.expanduser("~/Music/ZDT")
-                    conf_file = os.path.expanduser("~/.config/zdt/zdt_conf")
+                    conf_file = os.path.expanduser("~/.config/zdt/config")
                     if os.path.exists(conf_file):
                         with open(conf_file, 'r') as cf:
                             for line in cf:
-                                if line.startswith("TARGET_DIR="):
+                                if line.startswith("storage_dir="):
                                     val = line.strip().split('=', 1)[1].strip('"').strip("'")
                                     abs_path = os.path.expanduser(val)
                                     break
