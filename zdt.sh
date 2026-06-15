@@ -3652,6 +3652,7 @@ _parse_args() {
                 ;;
             update|--update)
                 _setup_colors
+                _setup_unicode
                 update_zdt_script
                 exit 0
                 ;;
