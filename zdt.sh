@@ -2830,7 +2830,7 @@ system_info() {
     echo -e "  ${BOLD}TOOL STATUS:${RESET}"
     local tools=("python3" "pip3" "ffmpeg" "spotdl" "yt-dlp" "syncedlyrics" "flask" "watchdog" "telebot")
     for tool in "${tools[@]}"; do
-        if command -v "$tool" >/dev/null 2>&1 || [ -f "$ZDT_VENV_DIR/bin/python" ] && [[ "$tool" == "flask" || "$tool" == "watchdog" || "$tool" == "telebot" || "$tool" == "syncedlyrics" ]]; then
+        if command -v "$tool" >/dev/null 2>&1 || { [ -f "$ZDT_VENV_DIR/bin/python" ] && [[ "$tool" == "flask" || "$tool" == "watchdog" || "$tool" == "telebot" || "$tool" == "syncedlyrics" || "$tool" == "spotdl" || "$tool" == "yt-dlp" ]]; }; then
             local ver=""
             case "$tool" in
                 python3)      ver=$($tool --version 2>&1 | head -1) ;;
