@@ -35,7 +35,7 @@ set -uo pipefail
 # ==========================================
 # CONSTANTS
 # ==========================================
-readonly APP_VERSION="3.1.1"
+readonly APP_VERSION="3.0.3"
 readonly APP_NAME="Zaki Downloader Tools"
 readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
 readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
@@ -367,7 +367,7 @@ _acquire_lock() {
     if [ -f "$LOCK_FILE" ]; then
         local old_pid
         old_pid=$(cat "$LOCK_FILE" 2>/dev/null)
-        if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+        if [ -n "$old_pid" ] && [ "$old_pid" != "$$" ] && kill -0 "$old_pid" 2>/dev/null; then
             echo -e "  ${RED}${ICO_FAIL} Instance lain sedang berjalan (PID: $old_pid)!${RESET}"
             echo -e "  ${YELLOW}Tutup dulu instance tersebut, atau hapus: $LOCK_FILE${RESET}"
             return 1
@@ -2469,6 +2469,80 @@ bersih_nama() {
 # ==========================================
 # FUNGSI UTAMA: UPDATE TOOLS
 # ==========================================
+start_watch_daemon() {
+    print_header "ZDT AUTO-WATCH DAEMON"
+    if ! _check_dependency "python3" "true"; then return 1; fi
+    
+    local watch_script="$HOME/.local/share/zdt/zdt-watch.py"
+    if [ ! -f "$watch_script" ]; then
+        echo -e "  ${RED}${ICO_FAIL} Script zdt-watch.py tidak ditemukan!${RESET}"
+        return 1
+    fi
+
+    local watch_dir="${TARGET_DIR:-$(pwd)}"
+    
+    echo -e "  ${YELLOW}${ICO_ARROW} Menjalankan Watchdog Daemon...${RESET}"
+    echo -e "  ${CYAN}${ICO_OK} Memantau folder: ${BOLD}$watch_dir${RESET}"
+    echo -e "  ${GRAY}  (Tekan Ctrl+C untuk mematikan daemon)${RESET}"
+    echo ""
+    
+    if [ -f "$ZDT_VENV_DIR/bin/python" ]; then
+        "$ZDT_VENV_DIR/bin/python" "$watch_script" "$watch_dir"
+    else
+        python3 "$watch_script" "$watch_dir"
+    fi
+}
+
+start_telegram_bot() {
+    print_header "ZDT TELEGRAM REMOTE"
+    
+    local token_file="$HOME/.config/zdt/telegram_token.txt"
+    if [ ! -f "$token_file" ]; then
+        echo -e "  ${RED}${ICO_FAIL} Token Telegram belum di-setup!${RESET}"
+        echo -e "  ${YELLOW}${ICO_ARROW} Pilih menu [T] untuk memasukkan token terlebih dahulu.${RESET}"
+        return 1
+    fi
+    
+    if ! _check_dependency "python3" "true"; then return 1; fi
+    
+    local tele_script="$HOME/.local/share/zdt/zdt-telegram.py"
+    if [ ! -f "$tele_script" ]; then
+        echo -e "  ${RED}${ICO_FAIL} Script zdt-telegram.py tidak ditemukan!${RESET}"
+        return 1
+    fi
+    
+    echo -e "  ${YELLOW}${ICO_ARROW} Menjalankan Telegram Bot...${RESET}"
+    echo -e "  ${CYAN}${ICO_OK} Bot aktif! Silakan kirim pesan ke Bot Telegram Anda.${RESET}"
+    echo -e "  ${GRAY}  (Tekan Ctrl+C untuk mematikan bot)${RESET}"
+    echo ""
+    
+    if [ -f "$ZDT_VENV_DIR/bin/python" ]; then
+        "$ZDT_VENV_DIR/bin/python" "$tele_script" "$ROOT_DIR"
+    else
+        python3 "$tele_script" "$ROOT_DIR"
+    fi
+}
+
+setup_telegram_bot() {
+    print_header "SETUP TELEGRAM BOT"
+    echo -e "  ${CYAN}${ICO_ARROW} Cara mendapatkan token Telegram:${RESET}"
+    echo -e "  ${GRAY}1. Buka aplikasi Telegram di HP/PC.${RESET}"
+    echo -e "  ${GRAY}2. Cari dan chat akun @BotFather.${RESET}"
+    echo -e "  ${GRAY}3. Ketik /newbot dan ikuti instruksi.${RESET}"
+    echo -e "  ${GRAY}4. Copy token API yang diberikan (misal: 123456:ABC-DEF...).${RESET}\n"
+    
+    echo -e -n "  ${BOLD}[?] Paste Token Bot Anda (Kosongkan untuk batal): ${RESET}"
+    local bot_token
+    read -r bot_token
+    
+    if [ -n "$bot_token" ]; then
+        mkdir -p "$HOME/.config/zdt"
+        echo "$bot_token" > "$HOME/.config/zdt/telegram_token.txt"
+        echo -e "\n  ${GREEN}${ICO_OK} Token berhasil disimpan!${RESET}"
+        echo -e "  ${YELLOW}${ICO_ARROW} Anda bisa menjalankan bot dengan ZDT --telegram atau pilih Menu T.${RESET}"
+    fi
+}
+
 start_web_dashboard() {
     print_header "ZDT WEB DASHBOARD"
     if ! _check_dependency "python3" "true"; then return 1; fi
@@ -2679,7 +2753,7 @@ install_missing_tools() {
     # 4. Install Python tools di dalam VENV
     local pip_cmd="$ZDT_VENV_DIR/bin/pip"
     if [ -f "$pip_cmd" ]; then
-        local pip_tools=("yt-dlp" "spotdl" "syncedlyrics" "mutagen" "flask" "werkzeug")
+        local pip_tools=("yt-dlp" "spotdl" "syncedlyrics" "mutagen" "flask" "werkzeug" "watchdog" "pyTelegramBotAPI")
         
         echo -e "  ${CYAN}${ICO_ARROW} Menginstal tools Python: ${YELLOW}${pip_tools[*]}${RESET}"
         echo -e "  ${GRAY}Ini mungkin memakan waktu beberapa menit, harap tunggu...${RESET}"
@@ -2841,6 +2915,17 @@ tampilkan_dokumentasi() {
     Mengubah Judul, Nama Artis, dan menambahkan gambar (Cover Art) ke dalam
     file MP3/M4A/FLAC Anda secara manual.
     ${WHITE}Cara Pakai:${RESET} Pilih menu M. Pilih lagu, lalu ketik judul dan path gambar.
+
+  ${CYAN}• [O] Auto-Watch Daemon${RESET}
+    Menyalakan fitur pemantau folder di latar belakang. Jika Anda menambahkan
+    file musik mentah ke dalam folder tersebut, ZDT akan otomatis merapikannya
+    (Bersih Nama, Tag ID3, Lirik) tanpa perlu Anda perintah secara manual.
+    ${WHITE}Cara Pakai:${RESET} Pilih menu O, atau jalankan zdt --watch.
+
+  ${CYAN}• [T] Telegram Remote Downloader${RESET}
+    Menghubungkan ZDT dengan Bot Telegram Anda. Anda bisa mendownload musik
+    dari jarak jauh cukup dengan mengirim link ke chat Bot Telegram Anda.
+    ${WHITE}Cara Pakai:${RESET} Pilih menu T untuk setup Token. Lalu jalankan zdt --telegram.
 
 
   ${CYAN}• [V] Hapus Vokal AI (Demucs Pro)${RESET}
@@ -3405,6 +3490,20 @@ zaki_assistant() {
                 edit_metadata_manual
                 print_bot_header
                 bot_prompt="Beres ngedit metadata. Apalagi nih bro?"
+            elif [[ "$lower_input" == "auto watch" ]] || [[ "$lower_input" == "nyalakan watcher" ]] || [[ "$lower_input" == "auto bersih" ]]; then
+                printf "  ${CYAN}║${RESET} 🤖 ${WHITE}%-45s${RESET} ${CYAN}║${RESET}\n" "Otw nyalain Auto-Watch Daemon bos..."
+                echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
+                sleep 1
+                start_watch_daemon
+                print_bot_header
+                bot_prompt="Daemon Auto-Watch udah berhenti. Mau lanjut ngapain?"
+            elif [[ "$lower_input" == "telegram bot" ]] || [[ "$lower_input" == "telegram" ]] || [[ "$lower_input" == "remote telegram" ]]; then
+                printf "  ${CYAN}║${RESET} 🤖 ${WHITE}%-45s${RESET} ${CYAN}║${RESET}\n" "Otw ngebuka Telegram Remote Controller..."
+                echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
+                sleep 1
+                start_telegram_bot
+                print_bot_header
+                bot_prompt="Bot Telegram udah dimatikan. Lanjut apa lagi bos?"
             elif [[ "$lower_input" == "hapus api key" ]] || [[ "$lower_input" == "reset api key" ]] || [[ "$lower_input" == "matikan ai" ]] || [[ "$lower_input" == "cabut otak" ]]; then
                 printf "  ${CYAN}║${RESET} 🤖 ${WHITE}%-45s${RESET} ${CYAN}║${RESET}\n" "Yakin nih mau nyabut otak gua? (y/n)"
                 printf "  ${CYAN}║${RESET} 💬 ${BOLD}Pilihan: ❯ ${RESET}%-35s${CYAN}║${RESET}\n" ""
@@ -3445,7 +3544,7 @@ try:
     dir_contents = sys.argv[4] if len(sys.argv) > 4 else ""
     abs_path = sys.argv[5] if len(sys.argv) > 5 else ""
     app_version = sys.argv[6] if len(sys.argv) > 6 else ""
-    prompt = f'Peranmu Zaki-Bot, asisten terminal gaul pada ZDT Music Toolkit versi {app_version}. Jika user ngobrol biasa, jawab santai max 3 kalimat. Info penting: Lokasi penyimpanan saat ini ada di "{abs_path}" dengan isi file: {dir_contents}. ATURAN SUPER PENTING: 1) Download AUDIO/LAGU (Youtube/Soundcloud) balas HANYA dgn: [AUTO_ACTION: gas download audio ytsearch1:judul lagu]. Gunakan LINK jika user ngasih link. 2) Download SPOTIFY balas HANYA dgn: [AUTO_ACTION: gas download spotify spotsearch:judul lagu]. 3) Download VIDEO balas HANYA dgn: [AUTO_ACTION: gas download video ytsearch1:judul]. 4) NONTON/PLAY/PUTAR balas HANYA dgn: [AUTO_ACTION: tonton ytsearch1:judul]. 5) Keluar/Tutup balas: [AUTO_ACTION: keluar]. 6) Pisahkan vokal/demucs balas: [AUTO_ACTION: hapus vokal]. 7) Cari Lirik balas: [AUTO_ACTION: sync lirik]. 8) Buat playlist balas: [AUTO_ACTION: bikin playlist]. 9) Rapikan/bersihkan nama file balas: [AUTO_ACTION: bersih nama]. 10) Ubah/seting direktori penyimpanan balas: [AUTO_ACTION: ubah storage]. 11) Cek update/perbarui aplikasi balas: [AUTO_ACTION: cek update]. 12) Hapus semua/bersihkan direktori balas: [AUTO_ACTION: hapus semua]. 13) Hapus satu file/lagu balas: [AUTO_ACTION: hapus file]. 14) Buka folder/direktori balas: [AUTO_ACTION: buka folder]. 15) Suara/volume max balas: [AUTO_ACTION: suara max]. 16) Suara/volume min balas: [AUTO_ACTION: suara min]. 17) Buka dokumentasi/panduan balas: [AUTO_ACTION: dokumentasi]. 18) Kompres media balas: [AUTO_ACTION: kompres media]. 19) Buka Web Dashboard balas: [AUTO_ACTION: web dashboard]. 20) Sinkronisasi Spotify Playlist balas: [AUTO_ACTION: spotify sync]. 21) Edit metadata/cover art balas: [AUTO_ACTION: edit metadata]. Sistem akan jalankan otomatis.'
+    prompt = f'Peranmu Zaki-Bot, asisten terminal gaul pada ZDT Music Toolkit versi {app_version}. Jika user ngobrol biasa, jawab santai max 3 kalimat. Info penting: Lokasi penyimpanan saat ini ada di "{abs_path}" dengan isi file: {dir_contents}. ATURAN SUPER PENTING: 1) Download AUDIO/LAGU (Youtube/Soundcloud) balas HANYA dgn: [AUTO_ACTION: gas download audio ytsearch1:judul lagu]. Gunakan LINK jika user ngasih link. 2) Download SPOTIFY balas HANYA dgn: [AUTO_ACTION: gas download spotify spotsearch:judul lagu]. 3) Download VIDEO balas HANYA dgn: [AUTO_ACTION: gas download video ytsearch1:judul]. 4) NONTON/PLAY/PUTAR balas HANYA dgn: [AUTO_ACTION: tonton ytsearch1:judul]. 5) Keluar/Tutup balas: [AUTO_ACTION: keluar]. 6) Pisahkan vokal/demucs balas: [AUTO_ACTION: hapus vokal]. 7) Cari Lirik balas: [AUTO_ACTION: sync lirik]. 8) Buat playlist balas: [AUTO_ACTION: bikin playlist]. 9) Rapikan/bersihkan nama file balas: [AUTO_ACTION: bersih nama]. 10) Ubah/seting direktori penyimpanan balas: [AUTO_ACTION: ubah storage]. 11) Cek update/perbarui aplikasi balas: [AUTO_ACTION: cek update]. 12) Hapus semua/bersihkan direktori balas: [AUTO_ACTION: hapus semua]. 13) Hapus satu file/lagu balas: [AUTO_ACTION: hapus file]. 14) Buka folder/direktori balas: [AUTO_ACTION: buka folder]. 15) Suara/volume max balas: [AUTO_ACTION: suara max]. 16) Suara/volume min balas: [AUTO_ACTION: suara min]. 17) Buka dokumentasi/panduan balas: [AUTO_ACTION: dokumentasi]. 18) Kompres media balas: [AUTO_ACTION: kompres media]. 19) Buka Web Dashboard balas: [AUTO_ACTION: web dashboard]. 20) Sinkronisasi Spotify Playlist balas: [AUTO_ACTION: spotify sync]. 21) Edit metadata/cover art balas: [AUTO_ACTION: edit metadata]. 22) Nyalakan Auto-Watch Daemon balas: [AUTO_ACTION: auto watch]. 23) Nyalakan/Setup Telegram Bot balas: [AUTO_ACTION: telegram bot]. Sistem akan jalankan otomatis.'
     
     if key.startswith("sk-or-"):
         url = "https://openrouter.ai/api/v1/chat/completions"
@@ -3896,6 +3995,34 @@ _parse_args() {
                     exit 0
                 fi
                 ;;
+            --clean-file)
+                shift
+                if [ -n "${1:-}" ]; then
+                    _bersih_satu_nama "$1"
+                    exit 0
+                fi
+                ;;
+            --watch|watch)
+                _setup_colors
+                _setup_unicode
+                start_watch_daemon
+                exit 0
+                ;;
+            --spotify-sync)
+                shift
+                if [ -n "${1:-}" ]; then
+                    _setup_colors
+                    _setup_unicode
+                    sync_spotify_playlist "$1"
+                    exit 0
+                fi
+                ;;
+            --telegram|telegram)
+                _setup_colors
+                _setup_unicode
+                start_telegram_bot
+                exit 0
+                ;;
             --web|web)
                 _setup_colors
                 _setup_unicode
@@ -4200,6 +4327,9 @@ main() {
             printf -v mm "%-20s" "Edit Metadata"
             printf -v emp "%-25s" ""
 
+            printf -v mt "%-20s" "Telegram Bot"
+            printf -v mo "%-20s" "Auto-Watch Daemon"
+
             FRAME+="  ${CYAN}║${RESET} ${WHITE}[1]${RESET} ${GREEN}${m1}${RESET} ${WHITE}[6]${RESET} ${WHITE}${m6}${RESET}${CYAN}║${RESET}\n"
             FRAME+="  ${CYAN}║${RESET} ${WHITE}[2]${RESET} ${RED}${m2}${RESET} ${WHITE}[7]${RESET} ${YELLOW}${m7}${RESET}${CYAN}║${RESET}\n"
             FRAME+="  ${CYAN}║${RESET} ${WHITE}[3]${RESET} ${MAGENTA}${m3}${RESET} ${WHITE}[8]${RESET} ${CYAN}${m8}${RESET}${CYAN}║${RESET}\n"
@@ -4210,9 +4340,11 @@ main() {
             if [ "$RUNTIME_ENV" != "termux" ]; then
                 FRAME+="  ${CYAN}║${RESET} ${WHITE}[S]${RESET} ${MAGENTA}${ms}${RESET} ${WHITE}[V]${RESET} ${GREEN}${mv}${RESET}${CYAN}║${RESET}\n"
                 FRAME+="  ${CYAN}║${RESET} ${WHITE}[W]${RESET} ${CYAN}${mw}${RESET} ${WHITE}[P]${RESET} ${GREEN}${mp}${RESET}${CYAN}║${RESET}\n"
-                FRAME+="  ${CYAN}║${RESET} ${WHITE}[M]${RESET} ${YELLOW}${mm}${RESET} ${WHITE}[X]${RESET} ${RED}${mx}${RESET}${CYAN}║${RESET}\n"
+                FRAME+="  ${CYAN}║${RESET} ${WHITE}[M]${RESET} ${YELLOW}${mm}${RESET} ${WHITE}[O]${RESET} ${CYAN}${mo}${RESET}${CYAN}║${RESET}\n"
+                FRAME+="  ${CYAN}║${RESET} ${WHITE}[T]${RESET} ${CYAN}${mt}${RESET} ${WHITE}[X]${RESET} ${RED}${mx}${RESET}${CYAN}║${RESET}\n"
             else
                 FRAME+="  ${CYAN}║${RESET} ${WHITE}[S]${RESET} ${MAGENTA}${ms}${RESET} ${WHITE}[X]${RESET} ${RED}${mx}${RESET}${CYAN}║${RESET}\n"
+                FRAME+="  ${CYAN}║${RESET} ${WHITE}[O]${RESET} ${CYAN}${mo}${RESET} ${WHITE}[T]${RESET} ${CYAN}${mt}${RESET}${CYAN}║${RESET}\n"
             fi
 
             if [ "$missing_tools" -gt 0 ]; then
@@ -4269,6 +4401,8 @@ main() {
             9) system_info ;;
             [Xx]) hapus_semua ;;
             [Ss]) setup_storage_dir ;;
+            [Oo]) start_watch_daemon ;;
+            [Tt]) setup_telegram_bot ;;
             [Ww]) start_web_dashboard ;;
             [Pp]) sync_spotify_playlist ;;
             [Mm]) edit_metadata_manual ;;
