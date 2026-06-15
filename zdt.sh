@@ -3650,6 +3650,11 @@ _parse_args() {
             --install)
                 install_global
                 ;;
+            update|--update)
+                _setup_colors
+                update_zdt_script
+                exit 0
+                ;;
             --log-file)
                 shift
                 if [ -n "${1:-}" ]; then
@@ -3672,6 +3677,7 @@ Usage: $APP_NAME [OPTIONS]
 
 Options:
   --install         Instal script ini secara global (bisa diakses via perintah 'zdt')
+  --update          Update script ZDT ke versi terbaru dari GitHub
   --debug           Aktifkan mode debug (verbose logging)
   --no-color        Nonaktifkan warna output
   --no-unicode      Nonaktifkan karakter unicode/emoji
