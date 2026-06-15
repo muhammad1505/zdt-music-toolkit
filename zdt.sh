@@ -3377,6 +3377,34 @@ zaki_assistant() {
                 update_zdt_script
                 print_bot_header
                 bot_prompt="Proses update selesai dieksekusi. Ada lagi bos?"
+            elif [[ "$lower_input" == "kompres media" ]] || [[ "$lower_input" == "kompres file" ]]; then
+                printf "  ${CYAN}║${RESET} 🤖 ${WHITE}%-45s${RESET} ${CYAN}║${RESET}\n" "Otw buka menu Kompres Media..."
+                echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
+                sleep 1
+                kompres_media
+                print_bot_header
+                bot_prompt="Mantap, ukuran file udah pada kecingkrang wkwk. Mau ngapain lagi?"
+            elif [[ "$lower_input" == "web dashboard" ]] || [[ "$lower_input" == "buka web" ]]; then
+                printf "  ${CYAN}║${RESET} 🤖 ${WHITE}%-45s${RESET} ${CYAN}║${RESET}\n" "Otw nyalain Web Dashboard..."
+                echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
+                sleep 1
+                start_web_dashboard
+                print_bot_header
+                bot_prompt="Server Web udah mati. Lanjut ngapain nih bro?"
+            elif [[ "$lower_input" == "spotify sync" ]] || [[ "$lower_input" == "sync spotify" ]]; then
+                printf "  ${CYAN}║${RESET} 🤖 ${WHITE}%-45s${RESET} ${CYAN}║${RESET}\n" "Otw nyinkronin Spotify Playlist lu..."
+                echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
+                sleep 1
+                sync_spotify_playlist
+                print_bot_header
+                bot_prompt="Playlist udah tersinkronisasi bro. Lagu baru udah masuk!"
+            elif [[ "$lower_input" == "edit metadata" ]] || [[ "$lower_input" == "ubah metadata" ]] || [[ "$lower_input" == "ganti cover" ]]; then
+                printf "  ${CYAN}║${RESET} 🤖 ${WHITE}%-45s${RESET} ${CYAN}║${RESET}\n" "Otw buka Editor Metadata..."
+                echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
+                sleep 1
+                edit_metadata_manual
+                print_bot_header
+                bot_prompt="Beres ngedit metadata. Apalagi nih bro?"
             elif [[ "$lower_input" == "hapus api key" ]] || [[ "$lower_input" == "reset api key" ]] || [[ "$lower_input" == "matikan ai" ]] || [[ "$lower_input" == "cabut otak" ]]; then
                 printf "  ${CYAN}║${RESET} 🤖 ${WHITE}%-45s${RESET} ${CYAN}║${RESET}\n" "Yakin nih mau nyabut otak gua? (y/n)"
                 printf "  ${CYAN}║${RESET} 💬 ${BOLD}Pilihan: ❯ ${RESET}%-35s${CYAN}║${RESET}\n" ""
@@ -3417,7 +3445,7 @@ try:
     dir_contents = sys.argv[4] if len(sys.argv) > 4 else ""
     abs_path = sys.argv[5] if len(sys.argv) > 5 else ""
     app_version = sys.argv[6] if len(sys.argv) > 6 else ""
-    prompt = f'Peranmu Zaki-Bot, asisten terminal gaul pada ZDT Music Toolkit versi {app_version}. Jika user ngobrol biasa, jawab santai max 3 kalimat. Info penting: Lokasi penyimpanan saat ini ada di "{abs_path}" dengan isi file: {dir_contents}. ATURAN SUPER PENTING: 1) Download AUDIO/LAGU (Youtube/Soundcloud) balas HANYA dgn: [AUTO_ACTION: gas download audio ytsearch1:judul lagu]. Gunakan LINK jika user ngasih link. 2) Download SPOTIFY balas HANYA dgn: [AUTO_ACTION: gas download spotify spotsearch:judul lagu]. 3) Download VIDEO balas HANYA dgn: [AUTO_ACTION: gas download video ytsearch1:judul]. 4) NONTON/PLAY/PUTAR balas HANYA dgn: [AUTO_ACTION: tonton ytsearch1:judul]. 5) Keluar/Tutup balas: [AUTO_ACTION: keluar]. 6) Pisahkan vokal/demucs balas: [AUTO_ACTION: hapus vokal]. 7) Cari Lirik balas: [AUTO_ACTION: sync lirik]. 8) Buat playlist balas: [AUTO_ACTION: bikin playlist]. 9) Rapikan/bersihkan nama file balas: [AUTO_ACTION: bersih nama]. 10) Ubah/seting direktori penyimpanan balas: [AUTO_ACTION: ubah storage]. 11) Cek update/perbarui aplikasi balas: [AUTO_ACTION: cek update]. Sistem akan jalankan otomatis.'
+    prompt = f'Peranmu Zaki-Bot, asisten terminal gaul pada ZDT Music Toolkit versi {app_version}. Jika user ngobrol biasa, jawab santai max 3 kalimat. Info penting: Lokasi penyimpanan saat ini ada di "{abs_path}" dengan isi file: {dir_contents}. ATURAN SUPER PENTING: 1) Download AUDIO/LAGU (Youtube/Soundcloud) balas HANYA dgn: [AUTO_ACTION: gas download audio ytsearch1:judul lagu]. Gunakan LINK jika user ngasih link. 2) Download SPOTIFY balas HANYA dgn: [AUTO_ACTION: gas download spotify spotsearch:judul lagu]. 3) Download VIDEO balas HANYA dgn: [AUTO_ACTION: gas download video ytsearch1:judul]. 4) NONTON/PLAY/PUTAR balas HANYA dgn: [AUTO_ACTION: tonton ytsearch1:judul]. 5) Keluar/Tutup balas: [AUTO_ACTION: keluar]. 6) Pisahkan vokal/demucs balas: [AUTO_ACTION: hapus vokal]. 7) Cari Lirik balas: [AUTO_ACTION: sync lirik]. 8) Buat playlist balas: [AUTO_ACTION: bikin playlist]. 9) Rapikan/bersihkan nama file balas: [AUTO_ACTION: bersih nama]. 10) Ubah/seting direktori penyimpanan balas: [AUTO_ACTION: ubah storage]. 11) Cek update/perbarui aplikasi balas: [AUTO_ACTION: cek update]. 12) Hapus semua/bersihkan direktori balas: [AUTO_ACTION: hapus semua]. 13) Hapus satu file/lagu balas: [AUTO_ACTION: hapus file]. 14) Buka folder/direktori balas: [AUTO_ACTION: buka folder]. 15) Suara/volume max balas: [AUTO_ACTION: suara max]. 16) Suara/volume min balas: [AUTO_ACTION: suara min]. 17) Buka dokumentasi/panduan balas: [AUTO_ACTION: dokumentasi]. 18) Kompres media balas: [AUTO_ACTION: kompres media]. 19) Buka Web Dashboard balas: [AUTO_ACTION: web dashboard]. 20) Sinkronisasi Spotify Playlist balas: [AUTO_ACTION: spotify sync]. 21) Edit metadata/cover art balas: [AUTO_ACTION: edit metadata]. Sistem akan jalankan otomatis.'
     
     if key.startswith("sk-or-"):
         url = "https://openrouter.ai/api/v1/chat/completions"
