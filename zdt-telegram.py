@@ -165,7 +165,57 @@ def auto_download_audio(message):
                     except Exception:
                         dir_contents = "Gagal membaca direktori."
 
-                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Jawab santai max 3 kalimat. Info penting: Lokasi penyimpanan saat ini ada di "{abs_path}" dengan isi file: {dir_contents}.'
+                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Jawab santai max 3 kalimat. Info penting: Lokasi penyimpanan saat ini ada di "{abs_path}" dengan isi file: {dir_contents}. ATURAN SUPER PENTING: 1) Download AUDIO/LAGU balas dgn: [AUTO_ACTION: gas download audio ytsearch1:judul]. 2) Download VIDEO balas dgn: [AUTO_ACTION: gas download video ytsearch1:judul]. 3) Pisahkan vokal balas: [AUTO_ACTION: hapus vokal]. 4) Kompres media balas: [AUTO_ACTION: kompres media]. 5) Cari Lirik balas: [AUTO_ACTION: sync lirik]. 6) Rapikan nama file balas: [AUTO_ACTION: bersih nama]. 7) Buat Playlist balas: [AUTO_ACTION: bikin playlist]. 8) Hapus semua/bersihkan direktori balas: [AUTO_ACTION: hapus semua].'
+
+                    def process_reply(reply_text):
+                        if "[AUTO_ACTION:" in reply_text:
+                            import re
+                            match = re.search(r"\[AUTO_ACTION:\s*(.+?)\]", reply_text)
+                            if match:
+                                action = match.group(1).strip()
+                                if action.startswith("gas download audio"):
+                                    url = action.replace("gas download audio", "").strip()
+                                    bot.reply_to(message, f"⏳ *Sedang Mendownload Audio...*\n📍 `Server` memproses link.", parse_mode="Markdown")
+                                    subprocess.Popen([zdt_bin, "--download-audio", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                elif action.startswith("gas download video"):
+                                    url = action.replace("gas download video", "").strip()
+                                    bot.reply_to(message, f"⏳ *Sedang Mendownload Video...*\n📍 `Server` memproses link.", parse_mode="Markdown")
+                                    subprocess.Popen([zdt_bin, "--download-video", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                elif action == "hapus vokal":
+                                    bot.reply_to(message, "⏳ Memisahkan vokal di background...")
+                                    subprocess.Popen([zdt_bin, "--extract-vocal-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                elif action == "kompres media":
+                                    bot.reply_to(message, "⏳ Mengkompres media di background...")
+                                    subprocess.Popen([zdt_bin, "--kompres-media-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                elif action == "sync lirik":
+                                    bot.reply_to(message, "⏳ Menyinkronkan lirik di background...")
+                                    subprocess.Popen([zdt_bin, "--sync-lirik-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                elif action == "bersih nama":
+                                    bot.reply_to(message, "⏳ Merapikan nama file di background...")
+                                    subprocess.Popen([zdt_bin, "--bersih-nama-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                elif action == "bikin playlist":
+                                    bot.reply_to(message, "⏳ Membuat playlist di background...")
+                                    subprocess.Popen([zdt_bin, "--bikin-playlist-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                elif action == "hapus semua":
+                                    bot.reply_to(message, "🧹 Sedang menghapus semua file di direktori...")
+                                    import shutil
+                                    for filename in os.listdir(abs_path):
+                                        file_path = os.path.join(abs_path, filename)
+                                        try:
+                                            if os.path.isfile(file_path) or os.path.islink(file_path):
+                                                os.unlink(file_path)
+                                            elif os.path.isdir(file_path):
+                                                shutil.rmtree(file_path)
+                                        except: pass
+                                    bot.reply_to(message, "✅ Direktori berhasil dibersihkan!")
+                                else:
+                                    bot.reply_to(message, f"❌ Aksi {action} belum didukung di Telegram.")
+                                
+                                clean_reply = re.sub(r"\[AUTO_ACTION:.*?\]", "", reply_text).strip()
+                                if clean_reply:
+                                    bot.reply_to(message, clean_reply)
+                                return
+                        bot.reply_to(message, reply_text)
                     
                     if gemini_key.startswith("sk-or-"):
                         url = "https://openrouter.ai/api/v1/chat/completions"
@@ -201,7 +251,7 @@ def auto_download_audio(message):
                             except Exception as e:
                                 reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {str(e)}'
                                 break
-                        bot.reply_to(message, reply_text)
+                        process_reply(reply_text)
                         return
                     else:
                         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
@@ -216,7 +266,7 @@ def auto_download_audio(message):
                             else:
                                 content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
                                 reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
-                        bot.reply_to(message, reply_text)
+                        process_reply(reply_text)
                         return
             except Exception as e:
                 import urllib.error
