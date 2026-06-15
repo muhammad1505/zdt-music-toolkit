@@ -3611,9 +3611,9 @@ try:
         messages.append({"role": "user", "content": user_msg})
         
         fallback_arrays = [
-            ["google/gemini-2.0-flash-lite-preview-02-05:free", "google/gemini-2.0-pro-exp-02-05:free", "google/gemini-2.0-flash-exp:free"],
-            ["google/gemini-exp-1206:free", "google/gemma-2-9b-it:free", "meta-llama/llama-3.3-70b-instruct:free"],
-            ["qwen/qwen-2.5-coder-32b-instruct:free", "openrouter/free"]
+            ["meta-llama/llama-3.3-70b-instruct:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-4-31b-it:free"],
+            ["nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.2-3b-instruct:free", "openai/gpt-oss-120b:free"],
+            ["liquid/lfm-2.5-1.2b-instruct:free", "openrouter/free"]
         ]
         text = ""
         import urllib.error
