@@ -16,7 +16,7 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 
 ## Instalasi 🚀
 
-ZDT (v3.0.0+) dirancang untuk berjalan di berbagai lingkungan berbasis Linux (Ubuntu/Debian, Arch, Fedora, Termux, WSL) menggunakan isolasi **Python Virtual Environment (VENV)** yang aman dan mematuhi PEP 668.
+ZDT (v4.0.0+) dirancang untuk berjalan di berbagai lingkungan berbasis Linux (Ubuntu/Debian, Arch, Fedora, Termux, WSL) menggunakan isolasi **Python Virtual Environment (VENV)** yang aman dan mematuhi PEP 668.
 
 ### Metode 1: Instalasi Melalui Skrip (Direkomendasikan)
 ```bash
