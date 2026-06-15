@@ -23,6 +23,23 @@ if not TOKEN:
     sys.exit(1)
 
 bot = telebot.TeleBot(TOKEN)
+
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+telebot.logger.setLevel(logging.INFO)
+
+def listener(messages):
+    for m in messages:
+        if m.content_type == 'text':
+            user = m.from_user.first_name if m.from_user else "Unknown"
+            logging.info(f"Pesan masuk dari {user} (ID: {m.chat.id}): {m.text}")
+
+bot.set_update_listener(listener)
+
 zdt_bin = "/home/zaki/.local/bin/zdt"
 if not os.path.exists(zdt_bin):
     zdt_bin = "/home/zaki/zdt.sh"
