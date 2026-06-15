@@ -10,6 +10,9 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 - **Hapus Vokal (Demucs)**: Pisahkan instrumen dan vokal lagu menggunakan AI.
 - **Kompres Media (Multi-Processing)**: Perkecil ukuran file audio/video secara massal. Berkat mesin *multi-processing*, ZDT mampu mengompres 4 lagu atau 2 video secara paralel sehingga proses menjadi jauh lebih ngebut!
 - **Playlist Generator**: Buat file `.m3u` secara instan dari direktori musik Anda.
+- **Web Dashboard (Local UI)**: Jalankan `zdt --web` untuk menyalakan server lokal dan mendownload lagu langsung dari browser di HP Anda.
+- **Spotify Incremental Sync**: Daftarkan Playlist Spotify Anda dan ZDT hanya akan mendownload lagu baru yang belum ada di dalam folder.
+- **Metadata & Cover Art Editor**: Ubah Judul, Artis, dan injeksi gambar sebagai Cover Art lagu secara manual melalui antarmuka terminal.
 - **Over-The-Air (OTA) Updater**: Perbarui versi skrip ZDT Anda langsung dari GitHub ke sistem Anda cukup dengan satu tombol dari dalam aplikasi!
 - **File Konfigurasi**: Simpan preferensi resolusi video dan kualitas audio favorit Anda sehingga Anda tidak perlu ditanya berulang-ulang saat mengunduh (*tersimpan di `~/.config/zdt/config.env`*).
 - **Zaki AI Assistant (Pro)**: Asisten cerdas berbasis Gemini AI. Cukup *chat* pakai bahasa sehari-hari ("Bro tolong pisahin dong vokal lagu terakhir", dll), lalu AI yang akan mengeksekusi komandonya!

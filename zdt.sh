@@ -2203,6 +2203,51 @@ auto_sync_lirik() {
 # ==========================================
 # FUNGSI UTAMA: GENERATOR PLAYLIST
 # ==========================================
+sync_spotify_playlist() {
+    print_header "SPOTIFY PLAYLIST SYNC"
+    
+    if ! command -v spotdl >/dev/null 2>&1; then
+        echo -e "  ${RED}${ICO_FAIL} SpotDL belum terinstall! Gunakan Menu [A] dulu.${RESET}"
+        return 1
+    fi
+
+    local target_dir
+    if ! pilih_folder_target; then return 0; fi
+    target_dir="$TARGET_DIR"
+
+    # Load from config or ask
+    local playlist_url=""
+    if [ -f "$HOME/.config/zdt/spotify_playlist.txt" ]; then
+        playlist_url=$(cat "$HOME/.config/zdt/spotify_playlist.txt")
+        echo -e "  ${CYAN}${ICO_ARROW} Playlist tersimpan: ${YELLOW}$playlist_url${RESET}"
+        echo -e -n "  ${BOLD}[?] Gunakan playlist ini? (Y/n/0=Kembali): ${RESET}"
+        local pakai_lama
+        read -r -n 1 pakai_lama; echo ""
+        if [ "$pakai_lama" = "0" ]; then return 0; fi
+        if [[ "$pakai_lama" =~ ^[Nn]$ ]]; then
+            playlist_url=""
+        fi
+    fi
+
+    if [ -z "$playlist_url" ]; then
+        echo -e -n "  ${BOLD}[?] Paste link Spotify Playlist: ${RESET}"
+        read -r playlist_url
+        if [ -z "$playlist_url" ]; then return 0; fi
+        mkdir -p "$HOME/.config/zdt"
+        echo "$playlist_url" > "$HOME/.config/zdt/spotify_playlist.txt"
+    fi
+
+    echo -e "  ${YELLOW}${ICO_ARROW} Memulai sinkronisasi playlist (Mencari lagu baru)...${RESET}"
+    cd "$target_dir" || return 1
+    
+    # Run spotdl with save-errors and m3u for sync tracking
+    spotdl download "$playlist_url" --m3u "sync_playlist.m3u" --save-errors "sync_errors.txt" --format m4a --bitrate 128k
+    
+    echo -e "  ${GREEN}${ICO_OK} Sinkronisasi Selesai!${RESET}"
+    _log "INFO" "Spotify Sync Completed: $playlist_url"
+}
+
+
 bikin_playlist() {
     print_header "GENERATOR PLAYLIST (.m3u)"
     local step=1
@@ -2257,6 +2302,109 @@ bikin_playlist() {
 # ==========================================
 # FUNGSI UTAMA: BERSIH NAMA FILE MANUAL
 # ==========================================
+edit_metadata_manual() {
+    print_header "METADATA & COVER ART EDITOR"
+    if [ ! -f "$ZDT_VENV_DIR/bin/python" ]; then
+        echo -e "  ${RED}${ICO_FAIL} VENV Python tidak tersedia. Jalankan Menu [A] dulu.${RESET}"
+        return 1
+    fi
+
+    echo -e "  ${CYAN}${ICO_ARROW} Menampilkan daftar file audio di folder saat ini...${RESET}"
+    local count=0
+    local files=()
+    while IFS= read -r f; do
+        ((count++))
+        files+=("$f")
+        printf "    %2d. %s\n" "$count" "$(basename "$f")"
+    done < <(ls -t "${TARGET_DIR:-$(pwd)}"/*.{mp3,m4a,flac} 2>/dev/null | head -n 20)
+
+    if [ "$count" -eq 0 ]; then
+        echo -e "  ${RED}${ICO_FAIL} Tidak ada file audio di direktori ini!${RESET}"
+        return 0
+    fi
+
+    echo -e -n "\n  ${BOLD}[?] Pilih nomor lagu (0=Kembali): ${RESET}"
+    local pilih_file
+    read -r pilih_file
+    if [ -z "$pilih_file" ] || [ "$pilih_file" = "0" ] || [ "$pilih_file" -gt "$count" ]; then
+        return 0
+    fi
+
+    local selected_file="${files[$((pilih_file-1))]}"
+    echo -e "  ${YELLOW}Terpilih:${RESET} $(basename "$selected_file")\n"
+
+    echo -e -n "  ${CYAN}Judul Lagu baru (Kosongkan jika tidak diubah): ${RESET}"
+    local new_title; read -r new_title
+    
+    echo -e -n "  ${CYAN}Nama Artis baru (Kosongkan jika tidak diubah): ${RESET}"
+    local new_artist; read -r new_artist
+    
+    echo -e -n "  ${CYAN}Path gambar untuk Cover Art (Kosongkan jika tidak diubah): ${RESET}"
+    local new_cover; read -r new_cover
+    
+    # Hilangkan tanda kutip jika ditarik/drag-and-drop
+    new_cover=$(echo "$new_cover" | tr -d '"' | tr -d "'")
+
+    echo -e "  ${YELLOW}${ICO_ARROW} Menyuntikkan metadata...${RESET}"
+    "$ZDT_VENV_DIR/bin/python" -c "
+import sys, os
+try:
+    from mutagen.easyid3 import EasyID3
+    from mutagen.mp4 import MP4, MP4Cover
+    from mutagen.flac import FLAC, Picture
+    import mutagen.id3
+    
+    file_path = sys.argv[1]
+    title = sys.argv[2]
+    artist = sys.argv[3]
+    cover_path = sys.argv[4]
+
+    ext = file_path.lower()
+    
+    if ext.endswith('.mp3'):
+        try: audio = mutagen.id3.ID3(file_path)
+        except: 
+            audio = mutagen.id3.ID3()
+            audio.save(file_path)
+        if title: audio.add(mutagen.id3.TIT2(encoding=3, text=title))
+        if artist: audio.add(mutagen.id3.TPE1(encoding=3, text=artist))
+        if cover_path and os.path.exists(cover_path):
+            with open(cover_path, 'rb') as c:
+                audio.add(mutagen.id3.APIC(encoding=3, mime='image/jpeg', type=3, desc='Cover', data=c.read()))
+        audio.save()
+
+    elif ext.endswith('.m4a'):
+        audio = MP4(file_path)
+        if title: audio['\xa9nam'] = title
+        if artist: audio['\xa9ART'] = artist
+        if cover_path and os.path.exists(cover_path):
+            with open(cover_path, 'rb') as c:
+                audio['covr'] = [MP4Cover(c.read(), imageformat=MP4Cover.FORMAT_JPEG)]
+        audio.save()
+
+    elif ext.endswith('.flac'):
+        audio = FLAC(file_path)
+        if title: audio['title'] = title
+        if artist: audio['artist'] = artist
+        if cover_path and os.path.exists(cover_path):
+            pic = Picture()
+            pic.type = 3
+            pic.mime = 'image/jpeg'
+            with open(cover_path, 'rb') as c:
+                pic.data = c.read()
+            audio.clear_pictures()
+            audio.add_picture(pic)
+        audio.save()
+        
+    print('SUCCESS')
+except Exception as e:
+    print(f'ERROR: {str(e)}')
+" "$selected_file" "$new_title" "$new_artist" "$new_cover"
+
+    echo -e "  ${GREEN}${ICO_OK} Metadata berhasil diperbarui!${RESET}"
+}
+
+
 bersih_nama() {
     print_header "PEMBERSIH NAMA FILE MANUAL"
 
@@ -2321,7 +2469,30 @@ bersih_nama() {
 # ==========================================
 # FUNGSI UTAMA: UPDATE TOOLS
 # ==========================================
+start_web_dashboard() {
+    print_header "ZDT WEB DASHBOARD"
+    if ! _check_dependency "python3" "true"; then return 1; fi
+    
+    local web_script="$HOME/.local/share/zdt/zdt-web.py"
+    if [ ! -f "$web_script" ]; then
+        echo -e "  ${RED}${ICO_FAIL} Script zdt-web.py tidak ditemukan di $web_script${RESET}"
+        return 1
+    fi
+    
+    echo -e "  ${YELLOW}${ICO_ARROW} Menjalankan Local Web Server (Flask)...${RESET}"
+    echo -e "  ${CYAN}${ICO_OK} Silakan buka browser dan akses: ${BOLD}http://localhost:5000${RESET}"
+    echo -e "  ${GRAY}  (Tekan Ctrl+C untuk mematikan server)${RESET}"
+    echo ""
+    
+    if [ -f "$ZDT_VENV_DIR/bin/python" ]; then
+        "$ZDT_VENV_DIR/bin/python" "$web_script" "$ROOT_DIR"
+    else
+        python3 "$web_script" "$ROOT_DIR"
+    fi
+}
+
 update_zdt_script() {
+
     print_header "AUTO-UPDATER ZDT SCRIPT"
     echo -e "  ${YELLOW}${ICO_ARROW} Mengecek versi terbaru dari GitHub...${RESET}"
     local latest_script
@@ -2508,7 +2679,7 @@ install_missing_tools() {
     # 4. Install Python tools di dalam VENV
     local pip_cmd="$ZDT_VENV_DIR/bin/pip"
     if [ -f "$pip_cmd" ]; then
-        local pip_tools=("yt-dlp" "spotdl" "syncedlyrics" "mutagen")
+        local pip_tools=("yt-dlp" "spotdl" "syncedlyrics" "mutagen" "flask" "werkzeug")
         
         echo -e "  ${CYAN}${ICO_ARROW} Menginstal tools Python: ${YELLOW}${pip_tools[*]}${RESET}"
         echo -e "  ${GRAY}Ini mungkin memakan waktu beberapa menit, harap tunggu...${RESET}"
@@ -2655,6 +2826,22 @@ tampilkan_dokumentasi() {
     disimpan ke dalam folder tersebut (misal: /sdcard/Music).
     ${WHITE}Cara Pakai:${RESET} Pilih menu S. Ketik path folder yang diinginkan atau
     pilih folder saat ini.
+
+  ${CYAN}• [W] ZDT Web Dashboard (Local UI)${RESET}
+    Menyalakan Local Web Server. Anda bisa mendownload lagu via browser HP/PC
+    tanpa harus menyentuh terminal.
+    ${WHITE}Cara Pakai:${RESET} Pilih menu W, lalu buka link http://localhost:5000 di browser.
+
+  ${CYAN}• [P] Spotify Playlist Sync Manager${RESET}
+    Menyinkronkan (download) sebuah Playlist Spotify. ZDT akan menyimpan
+    link playlist Anda dan hanya mendownload lagu-lagu baru yang belum ada.
+    ${WHITE}Cara Pakai:${RESET} Pilih menu P. Masukkan link playlist, lalu tunggu ZDT bekerja.
+
+  ${CYAN}• [M] Metadata & Cover Art Editor${RESET}
+    Mengubah Judul, Nama Artis, dan menambahkan gambar (Cover Art) ke dalam
+    file MP3/M4A/FLAC Anda secara manual.
+    ${WHITE}Cara Pakai:${RESET} Pilih menu M. Pilih lagu, lalu ketik judul dan path gambar.
+
 
   ${CYAN}• [V] Hapus Vokal AI (Demucs Pro)${RESET}
     Memisahkan suara vokal penyanyi dan musik instrumen menggunakan 
@@ -3648,6 +3835,38 @@ _parse_args() {
             --no-unicode)
                 NO_UNICODE=1
                 ;;
+            --download-audio)
+                shift
+                if [ -n "${1:-}" ]; then
+                    AUTO_DOWNLOAD_URL="$1"
+                    LAST_DOWNLOAD_QUERY="$1"
+                    _setup_colors
+                    _setup_unicode
+                    if [[ "$1" == *"spotify.com"* ]]; then
+                        download_spotdl
+                    else
+                        download_ytdlp
+                    fi
+                    exit 0
+                fi
+                ;;
+            --download-video)
+                shift
+                if [ -n "${1:-}" ]; then
+                    AUTO_DOWNLOAD_URL="$1"
+                    LAST_DOWNLOAD_QUERY="$1"
+                    _setup_colors
+                    _setup_unicode
+                    download_video
+                    exit 0
+                fi
+                ;;
+            --web|web)
+                _setup_colors
+                _setup_unicode
+                start_web_dashboard
+                exit 0
+                ;;
             --install)
                 install_global
                 ;;
@@ -3941,6 +4160,9 @@ main() {
             printf -v ms "%-20s" "Setup Folder"
             printf -v mv "%-20s" "Hapus Vokal AI"
             printf -v mx "%-20s" "Hapus Semua"
+            printf -v mw "%-20s" "Web Dashboard"
+            printf -v mp "%-20s" "Spotify Sync"
+            printf -v mm "%-20s" "Edit Metadata"
             printf -v emp "%-25s" ""
 
             FRAME+="  ${CYAN}║${RESET} ${WHITE}[1]${RESET} ${GREEN}${m1}${RESET} ${WHITE}[6]${RESET} ${WHITE}${m6}${RESET}${CYAN}║${RESET}\n"
@@ -3952,7 +4174,8 @@ main() {
             
             if [ "$RUNTIME_ENV" != "termux" ]; then
                 FRAME+="  ${CYAN}║${RESET} ${WHITE}[S]${RESET} ${MAGENTA}${ms}${RESET} ${WHITE}[V]${RESET} ${GREEN}${mv}${RESET}${CYAN}║${RESET}\n"
-                FRAME+="  ${CYAN}║${RESET} ${WHITE}[X]${RESET} ${RED}${mx}${RESET}${emp}${CYAN}║${RESET}\n"
+                FRAME+="  ${CYAN}║${RESET} ${WHITE}[W]${RESET} ${CYAN}${mw}${RESET} ${WHITE}[P]${RESET} ${GREEN}${mp}${RESET}${CYAN}║${RESET}\n"
+                FRAME+="  ${CYAN}║${RESET} ${WHITE}[M]${RESET} ${YELLOW}${mm}${RESET} ${WHITE}[X]${RESET} ${RED}${mx}${RESET}${CYAN}║${RESET}\n"
             else
                 FRAME+="  ${CYAN}║${RESET} ${WHITE}[S]${RESET} ${MAGENTA}${ms}${RESET} ${WHITE}[X]${RESET} ${RED}${mx}${RESET}${CYAN}║${RESET}\n"
             fi
@@ -4011,6 +4234,10 @@ main() {
             9) system_info ;;
             [Xx]) hapus_semua ;;
             [Ss]) setup_storage_dir ;;
+            [Ww]) start_web_dashboard ;;
+            [Pp]) sync_spotify_playlist ;;
+            [Mm]) edit_metadata_manual ;;
+
             [Vv])
                 if [ "$RUNTIME_ENV" != "termux" ]; then
                     hapus_vokal
