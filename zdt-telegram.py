@@ -32,6 +32,19 @@ logging.basicConfig(
 )
 telebot.logger.setLevel(logging.INFO)
 
+# Monkey-patch reply_to and send_message to log outgoing responses
+original_reply_to = bot.reply_to
+def logging_reply_to(message, text, **kwargs):
+    logging.info(f"Bot membalas ke {message.chat.id}: {text}")
+    return original_reply_to(message, text, **kwargs)
+bot.reply_to = logging_reply_to
+
+original_send_message = bot.send_message
+def logging_send_message(chat_id, text, **kwargs):
+    logging.info(f"Bot mengirim pesan ke {chat_id}: {text}")
+    return original_send_message(chat_id, text, **kwargs)
+bot.send_message = logging_send_message
+
 def listener(messages):
     for m in messages:
         if m.content_type == 'text':
