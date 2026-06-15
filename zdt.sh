@@ -3214,7 +3214,7 @@ zaki_assistant() {
                 current_abs_path=$(_realpath "${TARGET_DIR:-$(pwd)}")
                 
                 local ai_response
-                ai_response=$(python3 - "$ZDT_GEMINI_KEY" "$user_input" "$prev_bot_prompt" "$dir_contents" "$current_abs_path" << 'EOF'
+                ai_response=$(python3 - "$ZDT_GEMINI_KEY" "$user_input" "$prev_bot_prompt" "$dir_contents" "$current_abs_path" "$APP_VERSION" << 'EOF'
 import urllib.request, json, sys
 try:
     key = sys.argv[1]
@@ -3222,7 +3222,8 @@ try:
     prev_msg = sys.argv[3] if len(sys.argv) > 3 else ""
     dir_contents = sys.argv[4] if len(sys.argv) > 4 else ""
     abs_path = sys.argv[5] if len(sys.argv) > 5 else ""
-    prompt = f'Peranmu Zaki-Bot, asisten terminal gaul. Jika user ngobrol biasa, jawab santai max 3 kalimat. Info penting: Lokasi penyimpanan/direktori saat ini ada di "{abs_path}" dengan isi file: {dir_contents}. ATURAN SUPER PENTING: 1) Download AUDIO/LAGU (Youtube/Soundcloud) balas HANYA dgn: [AUTO_ACTION: gas download audio ytsearch1:judul lagu]. Gunakan LINK jika user ngasih link. 2) Download SPOTIFY balas HANYA dgn: [AUTO_ACTION: gas download spotify spotsearch:judul lagu]. 3) Download VIDEO balas HANYA dgn: [AUTO_ACTION: gas download video ytsearch1:judul]. 4) NONTON/PLAY/PUTAR balas HANYA dgn: [AUTO_ACTION: tonton ytsearch1:judul]. 5) Keluar/Tutup balas: [AUTO_ACTION: keluar]. 6) Pisahkan vokal/demucs balas: [AUTO_ACTION: hapus vokal]. 7) Cari Lirik balas: [AUTO_ACTION: sync lirik]. 8) Buat playlist balas: [AUTO_ACTION: bikin playlist]. 9) Rapikan/bersihkan nama file balas: [AUTO_ACTION: bersih nama]. 10) Ubah/seting direktori penyimpanan balas: [AUTO_ACTION: ubah storage]. Sistem akan jalankan otomatis.'
+    app_version = sys.argv[6] if len(sys.argv) > 6 else ""
+    prompt = f'Peranmu Zaki-Bot, asisten terminal gaul pada ZDT Music Toolkit versi {app_version}. Jika user ngobrol biasa, jawab santai max 3 kalimat. Info penting: Lokasi penyimpanan saat ini ada di "{abs_path}" dengan isi file: {dir_contents}. ATURAN SUPER PENTING: 1) Download AUDIO/LAGU (Youtube/Soundcloud) balas HANYA dgn: [AUTO_ACTION: gas download audio ytsearch1:judul lagu]. Gunakan LINK jika user ngasih link. 2) Download SPOTIFY balas HANYA dgn: [AUTO_ACTION: gas download spotify spotsearch:judul lagu]. 3) Download VIDEO balas HANYA dgn: [AUTO_ACTION: gas download video ytsearch1:judul]. 4) NONTON/PLAY/PUTAR balas HANYA dgn: [AUTO_ACTION: tonton ytsearch1:judul]. 5) Keluar/Tutup balas: [AUTO_ACTION: keluar]. 6) Pisahkan vokal/demucs balas: [AUTO_ACTION: hapus vokal]. 7) Cari Lirik balas: [AUTO_ACTION: sync lirik]. 8) Buat playlist balas: [AUTO_ACTION: bikin playlist]. 9) Rapikan/bersihkan nama file balas: [AUTO_ACTION: bersih nama]. 10) Ubah/seting direktori penyimpanan balas: [AUTO_ACTION: ubah storage]. Sistem akan jalankan otomatis.'
     
     if key.startswith("sk-or-"):
         url = "https://openrouter.ai/api/v1/chat/completions"
