@@ -2627,11 +2627,10 @@ tampilkan_dokumentasi() {
     ${WHITE}Cara Pakai:${RESET} Pilih menu 3, paste link video. Script akan menanyakan
     kualitas resolusi yang diinginkan (contoh: 1080p, 720p).
 
-  ${CYAN}• [4] Kompres Media Cerdas${RESET}
+  ${CYAN}• [4] Kompres Media Cerdas (Multi-Processing)${RESET}
     Memperkecil ukuran file musik (M4A/MP3) atau video tanpa mengurangi 
-    kualitas yang terdengar (lossy compression).
-    ${WHITE}Cara Pakai:${RESET} Pilih menu 4, lalu pilih apakah akan mengompres satu file
-    atau semua file di dalam folder aktif.
+    kualitas yang terdengar. Mampu mengompres hingga 4 file secara paralel!
+    ${WHITE}Cara Pakai:${RESET} Pilih menu 4. Preferensi kualitas Anda akan otomatis disimpan ke dalam file konfigurasi ~/.config/zdt/config.env.
 
   ${CYAN}• [5] Auto Sync Lirik (.lrc)${RESET}
     Mencari dan mendownload lirik berjalan (.lrc) yang pas dengan ketukan
@@ -2639,11 +2638,11 @@ tampilkan_dokumentasi() {
     ${WHITE}Cara Pakai:${RESET} Pilih menu 5. Script otomatis memindai lagu di folder
     dan mengunduh lirik untuk lagu yang belum memiliki lirik.
 
-  ${CYAN}• [6] Bersih Nama File (Smart Renamer)${RESET}
+  ${CYAN}• [6] Smart Renamer & Auto-Tagger Metadata${RESET}
     Menghapus teks kotor seperti '(Official Music Video)', '(Lyrics)', 
-    atau embel-embel channel dari nama file.
+    lalu otomatis menyuntikkan ID3 Metadata (Judul & Artis) menggunakan Mutagen.
     ${WHITE}Cara Pakai:${RESET} Pilih menu 6. Script akan me-rename otomatis semua 
-    lagu yang kotor supaya rapi.
+    lagu, lalu menyuntikkan metadatanya secara permanen.
 
   ${CYAN}• [7] Bikin Playlist (.m3u8)${RESET}
     Membuat file playlist (.m3u8) sekali klik agar lagu di dalam folder
@@ -2664,10 +2663,14 @@ tampilkan_dokumentasi() {
     menghasilkan 2 file: Vokal Only dan Instrumen Only.
     ${RED}⚠ Syarat:${RESET} Hanya tersedia di PC/Linux (RAM min 4GB). Tidak di HP.
 
-  ${CYAN}• [8] Update Tools Terpusat${RESET}
-    Memperbarui mesin utama (SpotDL, YT-DLP) ke versi terbaru agar 
-    download tidak sering error karena perubahan algoritma YouTube/Spotify.
+  ${CYAN}• [8] Update Alat Tempur (SpotDL & YT-DLP)${RESET}
+    Memperbarui mesin utama ke versi terbaru agar download tidak sering error
+    karena perubahan algoritma YouTube/Spotify.
     ${WHITE}Cara Pakai:${RESET} Pilih menu 8. Script akan update otomatis via internet.
+
+  ${CYAN}• [U] Cek Pembaruan ZDT Script (Auto-Updater)${RESET}
+    Fitur Over-The-Air (OTA) untuk mengecek kode terbaru langsung dari GitHub.
+    ${WHITE}Cara Pakai:${RESET} Pilih menu U. Skrip otomatis diunduh dan dipasang menimpa versi lama.
 
   ${CYAN}• [9] Info Sistem & Diagnostik${RESET}
     Mengecek RAM, status Storage, versi Sistem Operasi, dan dependensi
