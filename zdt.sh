@@ -2570,7 +2570,7 @@ update_zdt_script() {
     print_header "AUTO-UPDATER ZDT SCRIPT"
     echo -e "  ${YELLOW}${ICO_ARROW} Mengecek versi terbaru dari GitHub...${RESET}"
     local latest_script
-    if ! latest_script=$(curl -sL https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt.sh); then
+    if ! latest_script=$(curl -sL https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt.sh?v=$(date +%s)); then
         echo -e "  ${RED}${ICO_FAIL} Gagal terhubung ke GitHub!${RESET}"
         return 1
     fi
