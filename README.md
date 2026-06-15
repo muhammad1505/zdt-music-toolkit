@@ -46,6 +46,12 @@ Setelah terinstal secara global, Anda cukup memanggil aplikasinya dari manapun d
 ```bash
 zdt
 ```
+
+### CLI Arguments (Pintasan Eksekusi Cepat)
+Anda juga bisa menggunakan argumen saat memanggil aplikasi lewat terminal:
+- `zdt update` *(atau `zdt --update`)* : Mengunduh dan memasang versi terbaru ZDT secara instan dari GitHub (Over-The-Air Update) tanpa perlu membuka menu aplikasi.
+- `zdt --help` : Menampilkan daftar lengkap *command-line arguments* yang tersedia.
+
 **(Penting!)** Pada saat **pertama kali** dijalankan, masuklah ke menu **[A] Auto Install Tools**. Fitur ini akan otomatis merakit sistem VENV, mendownload paket Python utama (`yt-dlp`, `spotdl`, dll), serta mengecek dependensi sistem seperti `ffmpeg` agar aplikasi Anda siap tempur 100%.
 
 ---
