@@ -538,9 +538,14 @@ _check_dependency() {
     fi
 
     if [ "$required" = "true" ]; then
-        echo -e "  ${RED}${ICO_FAIL} '$tool' tidak ditemukan!${RESET}"
-        echo -e "  ${YELLOW}Jalankan menu Auto Install Tools untuk memasangnya.${RESET}"
-        return 1
+        echo -e "  ${YELLOW}${ICO_ARROW} Alat '$tool' belum terinstal! Mengalihkan ke menu Setup...${RESET}"
+        sleep 1
+        install_missing_tools
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            echo -e "  ${RED}${ICO_FAIL} Alat '$tool' masih tidak ditemukan. Batal memproses!${RESET}"
+            return 1
+        fi
+        return 0
     fi
     return 1
 }
@@ -2305,8 +2310,13 @@ bikin_playlist() {
 edit_metadata_manual() {
     print_header "METADATA & COVER ART EDITOR"
     if [ ! -f "$ZDT_VENV_DIR/bin/python" ]; then
-        echo -e "  ${RED}${ICO_FAIL} VENV Python tidak tersedia. Jalankan Menu [A] dulu.${RESET}"
-        return 1
+        echo -e "  ${YELLOW}${ICO_ARROW} VENV Python belum siap! Mengalihkan ke menu Setup...${RESET}"
+        sleep 1
+        install_missing_tools
+        if [ ! -f "$ZDT_VENV_DIR/bin/python" ]; then
+            echo -e "  ${RED}${ICO_FAIL} VENV Python masih gagal diakses. Batal!${RESET}"
+            return 1
+        fi
     fi
 
     echo -e "  ${CYAN}${ICO_ARROW} Menampilkan daftar file audio di folder saat ini...${RESET}"
@@ -2635,9 +2645,13 @@ update_tools() {
     local pip_cmd="$ZDT_VENV_DIR/bin/pip"
 
     if [ ! -f "$pip_cmd" ]; then
-        echo -e "  ${RED}${ICO_FAIL} Virtual Environment (VENV) belum terpasang!${RESET}"
-        echo -e "  ${YELLOW}Silakan masuk ke menu Auto Install Tools terlebih dahulu.${RESET}"
-        return 1
+        echo -e "  ${YELLOW}${ICO_ARROW} Virtual Environment (VENV) belum terpasang! Mengalihkan ke Setup...${RESET}"
+        sleep 1
+        install_missing_tools
+        if [ ! -f "$pip_cmd" ]; then
+            echo -e "  ${RED}${ICO_FAIL} VENV masih tidak tersedia. Batal!${RESET}"
+            return 1
+        fi
     fi
 
     echo -e "  ${YELLOW}${ICO_ARROW} Menghubungkan ke server Python menggunakan VENV...${RESET}"
