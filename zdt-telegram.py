@@ -5,6 +5,7 @@ import time
 import subprocess
 try:
     import telebot
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 except ImportError:
     print("Modul pyTelegramBotAPI (telebot) belum terinstall!")
     sys.exit(1)
@@ -26,7 +27,7 @@ zdt_bin = "/home/zaki/.local/bin/zdt"
 if not os.path.exists(zdt_bin):
     zdt_bin = "/home/zaki/zdt.sh"
 
-@bot.message_handler(commands=['start', 'help'])
+@bot.message_handler(commands=['start', 'help', 'menu'])
 def send_welcome(message):
     msg = (
         "🤖 *ZDT ENTERPRISE REMOTE BOT*\n"
@@ -38,9 +39,18 @@ def send_welcome(message):
         "🎬 `/video <link>` - Sedot Video Kualitas Tinggi\n"
         "📈 `/status` - Cek Kondisi Server (RAM/Disk)\n"
         "⚡ `/ping` - Cek kecepatan respon bot\n\n"
-        "💡 _TIPS: Anda juga bisa langsung menempelkan link (tanpa /audio) dan saya akan mendownloadnya sebagai musik secara otomatis!_"
+        "Atau pilih menu otomatis di bawah ini untuk mengeksekusi fitur server:"
     )
-    bot.reply_to(message, msg, parse_mode="Markdown")
+    markup = InlineKeyboardMarkup()
+    markup.row_width = 2
+    markup.add(
+        InlineKeyboardButton("🗜️ Kompres Media", callback_data="cmd_kompres"),
+        InlineKeyboardButton("🎤 Ekstrak Vokal", callback_data="cmd_vokal"),
+        InlineKeyboardButton("🧹 Bersih Nama", callback_data="cmd_bersih"),
+        InlineKeyboardButton("🎵 Sync Lirik", callback_data="cmd_lirik"),
+        InlineKeyboardButton("📑 Bikin Playlist", callback_data="cmd_playlist")
+    )
+    bot.reply_to(message, msg, parse_mode="Markdown", reply_markup=markup)
 
 @bot.message_handler(commands=['status'])
 def server_status(message):
@@ -122,6 +132,38 @@ try:
     time.sleep(1)
 except Exception as e:
     pass
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('cmd_'))
+def callback_query(call):
+    cmd = call.data
+    action = ""
+    bash_flag = ""
+    
+    if cmd == "cmd_kompres":
+        action = "🗜️ Kompres Media"
+        bash_flag = "--kompres-media-all"
+    elif cmd == "cmd_vokal":
+        action = "🎤 Ekstrak Vokal (Demucs AI)"
+        bash_flag = "--extract-vocal-all"
+    elif cmd == "cmd_bersih":
+        action = "🧹 Pembersih Nama File"
+        bash_flag = "--bersih-nama-all"
+    elif cmd == "cmd_lirik":
+        action = "🎵 Auto-Sync Lirik"
+        bash_flag = "--sync-lirik-all"
+    elif cmd == "cmd_playlist":
+        action = "📑 Generator Playlist"
+        bash_flag = "--bikin-playlist-all"
+
+    bot.answer_callback_query(call.id, f"Mengeksekusi: {action}")
+    bot.send_message(call.message.chat.id, f"⏳ *Memulai Task:* `{action}`\n📍 _Proses berjalan di background server._", parse_mode="Markdown")
+    
+    try:
+        with open(os.devnull, 'w') as devnull:
+            subprocess.Popen([zdt_bin, bash_flag], stdout=devnull, stderr=devnull, start_new_session=True)
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"❌ Terjadi kesalahan: {str(e)}")
 
 print("Telegram Bot ZDT berjalan. Menunggu pesan masuk...")
 bot.infinity_polling()
