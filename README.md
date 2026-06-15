@@ -10,6 +10,8 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 - **Hapus Vokal (Demucs)**: Pisahkan instrumen dan vokal lagu menggunakan AI.
 - **Kompres Media (Multi-Processing)**: Perkecil ukuran file audio/video secara massal. Berkat mesin *multi-processing*, ZDT mampu mengompres 4 lagu atau 2 video secara paralel sehingga proses menjadi jauh lebih ngebut!
 - **Playlist Generator**: Buat file `.m3u` secara instan dari direktori musik Anda.
+- **Auto-Watch Daemon**: Jalankan `zdt --watch` untuk memantau folder secara otomatis. Jika ada file mentah dimasukkan, ZDT otomatis merapikan nama, menyuntik Tag ID3, dan mencari lirik.
+- **Telegram Remote Downloader**: Jalankan `zdt --telegram` dan kontrol ZDT dari jarak jauh menggunakan Bot Telegram di HP Anda untuk mendownload musik ke PC/Server rumah.
 - **Web Dashboard (Local UI)**: Jalankan `zdt --web` untuk menyalakan server lokal dan mendownload lagu langsung dari browser di HP Anda.
 - **Spotify Incremental Sync**: Daftarkan Playlist Spotify Anda dan ZDT hanya akan mendownload lagu baru yang belum ada di dalam folder.
 - **Metadata & Cover Art Editor**: Ubah Judul, Artis, dan injeksi gambar sebagai Cover Art lagu secara manual melalui antarmuka terminal.
@@ -19,7 +21,7 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 
 ## Instalasi 🚀
 
-ZDT (v3.0.2+) dirancang untuk berjalan di berbagai lingkungan berbasis Linux (Ubuntu/Debian, Arch, Fedora, Termux, WSL) menggunakan isolasi **Python Virtual Environment (VENV)** yang aman dan mematuhi PEP 668.
+ZDT (v3.1.0+) dirancang untuk berjalan di berbagai lingkungan berbasis Linux (Ubuntu/Debian, Arch, Fedora, Termux, WSL) menggunakan isolasi **Python Virtual Environment (VENV)** yang aman dan mematuhi PEP 668.
 
 ### Metode 1: Instalasi Melalui Skrip (Direkomendasikan)
 ```bash
