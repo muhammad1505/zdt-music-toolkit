@@ -45,6 +45,21 @@ fi
 cp zdt.sh "$BINDIR/zdt"
 chmod +x "$BINDIR/zdt"
 
+if [ -f "zdt-telegram.py" ]; then
+    cp zdt-telegram.py "$SHAREDIR/"
+    chmod +x "$SHAREDIR/zdt-telegram.py"
+fi
+
+if [ -f "zdt-web.py" ]; then
+    cp zdt-web.py "$SHAREDIR/"
+    chmod +x "$SHAREDIR/zdt-web.py"
+fi
+
+if [ -f "zdt-watch.py" ]; then
+    cp zdt-watch.py "$SHAREDIR/"
+    chmod +x "$SHAREDIR/zdt-watch.py"
+fi
+
 echo -e "${GREEN}Success!${NC} ZDT has been installed."
 echo -e "You can now run the toolkit by typing: ${YELLOW}zdt${NC}"
 
