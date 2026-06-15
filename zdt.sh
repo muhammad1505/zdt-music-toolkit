@@ -35,7 +35,7 @@ set -uo pipefail
 # ==========================================
 # CONSTANTS
 # ==========================================
-readonly APP_VERSION="3.0.7"
+readonly APP_VERSION="3.0.8"
 readonly APP_NAME="Zaki Downloader Tools"
 readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
 readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
@@ -2828,9 +2828,9 @@ system_info() {
     echo ""
 
     echo -e "  ${BOLD}TOOL STATUS:${RESET}"
-    local tools=("python3" "pip3" "ffmpeg" "spotdl" "yt-dlp" "syncedlyrics")
+    local tools=("python3" "pip3" "ffmpeg" "spotdl" "yt-dlp" "syncedlyrics" "flask" "watchdog" "telebot")
     for tool in "${tools[@]}"; do
-        if command -v "$tool" >/dev/null 2>&1; then
+        if command -v "$tool" >/dev/null 2>&1 || [ -f "$ZDT_VENV_DIR/bin/python" ] && [[ "$tool" == "flask" || "$tool" == "watchdog" || "$tool" == "telebot" || "$tool" == "syncedlyrics" ]]; then
             local ver=""
             case "$tool" in
                 python3)      ver=$($tool --version 2>&1 | head -1) ;;
@@ -2839,6 +2839,9 @@ system_info() {
                 spotdl)       ver=$($tool --version 2>&1 | head -1) ;;
                 yt-dlp)       ver=$($tool --version 2>&1 | head -1) ;;
                 syncedlyrics) ver="installed" ;;
+                flask)        ver="installed in VENV" ;;
+                watchdog)     ver="installed in VENV" ;;
+                telebot)      ver="installed in VENV" ;;
             esac
             printf "    ${GREEN}${ICO_CHECK_OK}${RESET} %-14s %s\n" "$tool" "${ver:0:50}"
         else
@@ -4248,6 +4251,11 @@ main() {
         else
             ((missing_tools++))
         fi
+        
+        local chk_py_tools="${RED}${ICO_CHECK_FAIL}${RESET}"
+        if [ -f "$ZDT_VENV_DIR/bin/python" ]; then
+            chk_py_tools="${GREEN}${ICO_CHECK_OK}${RESET}"
+        fi
 
         # Demucs AI check (hanya di desktop)
         local chk_d=""
@@ -4324,6 +4332,9 @@ main() {
             local tools_str=" SpotDL[${chk_s}] YT-DLP[${chk_y}] FFmpeg[${chk_f}] Lirik[${chk_l}]"
             local p_tools="           "
             FRAME+="  ${CYAN}║${RESET}${WHITE}${tools_str}${RESET}${p_tools}${CYAN}║${RESET}\n"
+            local tools_str2=" WebApp[${chk_py_tools}] Watch[${chk_py_tools}] TeleBot[${chk_py_tools}]"
+            local p_tools2="                    "
+            FRAME+="  ${CYAN}║${RESET}${WHITE}${tools_str2}${RESET}${p_tools2}${CYAN}║${RESET}\n"
             if [ -n "$chk_d" ]; then
                 # "Demucs AI[x]" = 12 chars visible. 1 leading space = 13. Pad 37 spaces to fill 50.
                 local demucs_pad="                                     "
