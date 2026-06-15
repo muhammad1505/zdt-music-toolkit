@@ -35,7 +35,7 @@ set -uo pipefail
 # ==========================================
 # CONSTANTS
 # ==========================================
-readonly APP_VERSION="3.1.0"
+readonly APP_VERSION="3.2.0"
 readonly APP_NAME="Zaki Downloader Tools"
 readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
 readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
@@ -2095,6 +2095,13 @@ auto_sync_lirik() {
 
     local step=1
     local target_dir=""
+    if [ -n "$ZDT_AUTO_VOKAL" ]; then
+        opsi="2"
+        target_dir="."
+        ekstrak="2"
+        hapus_asli="n"
+        step=4
+    fi
     local total_audio=0
     local total_missing=0
 
@@ -2257,6 +2264,13 @@ bikin_playlist() {
     print_header "GENERATOR PLAYLIST (.m3u)"
     local step=1
     local target_dir=""
+    if [ -n "$ZDT_AUTO_VOKAL" ]; then
+        opsi="2"
+        target_dir="."
+        ekstrak="2"
+        hapus_asli="n"
+        step=4
+    fi
     local nama_pl=""
 
     while true; do
@@ -2424,6 +2438,13 @@ bersih_nama() {
 
     local step=1
     local target_dir=""
+    if [ -n "$ZDT_AUTO_VOKAL" ]; then
+        opsi="2"
+        target_dir="."
+        ekstrak="2"
+        hapus_asli="n"
+        step=4
+    fi
     local mode_scan=""
     local gas=""
     local time_arg=()
@@ -4029,6 +4050,42 @@ _parse_args() {
                     download_video
                     exit 0
                 fi
+                ;;
+
+            --kompres-media-all)
+                export ZDT_AUTO_KOMPRES=1
+                _setup_colors
+                _setup_unicode
+                kompres_media
+                exit 0
+                ;;
+            --extract-vocal-all)
+                export ZDT_AUTO_VOKAL=1
+                _setup_colors
+                _setup_unicode
+                hapus_vokal
+                exit 0
+                ;;
+            --sync-lirik-all)
+                export AUTO_SYNC_LIRIK=1
+                _setup_colors
+                _setup_unicode
+                auto_sync_lirik
+                exit 0
+                ;;
+            --bersih-nama-all)
+                export ZDT_AUTO_BERSIH=1
+                _setup_colors
+                _setup_unicode
+                bersih_nama
+                exit 0
+                ;;
+            --bikin-playlist-all)
+                export ZDT_AUTO_PLAYLIST=1
+                _setup_colors
+                _setup_unicode
+                bikin_playlist
+                exit 0
                 ;;
             --clean-file)
                 shift
