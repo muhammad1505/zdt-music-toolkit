@@ -68,5 +68,11 @@ def download_audio(message):
     except Exception as e:
         bot.reply_to(message, f"Terjadi kesalahan: {str(e)}")
 
+try:
+    bot.remove_webhook()
+    time.sleep(1)
+except Exception as e:
+    pass
+
 print("Telegram Bot ZDT berjalan. Menunggu pesan masuk...")
 bot.infinity_polling()
