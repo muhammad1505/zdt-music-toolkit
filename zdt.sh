@@ -35,7 +35,7 @@ set -uo pipefail
 # ==========================================
 # CONSTANTS
 # ==========================================
-readonly APP_VERSION="3.0.5"
+readonly APP_VERSION="3.0.6"
 readonly APP_NAME="Zaki Downloader Tools"
 readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
 readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
@@ -2554,9 +2554,15 @@ start_web_dashboard() {
     fi
     
     echo -e "  ${YELLOW}${ICO_ARROW} Menjalankan Local Web Server (Flask)...${RESET}"
-    echo -e "  ${CYAN}${ICO_OK} Silakan buka browser dan akses: ${BOLD}http://localhost:5000${RESET}"
+    echo -e "  ${CYAN}${ICO_OK} Membuka browser secara otomatis ke: ${BOLD}http://localhost:5000${RESET}"
     echo -e "  ${GRAY}  (Tekan Ctrl+C untuk mematikan server)${RESET}"
     echo ""
+    
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "http://localhost:5000" >/dev/null 2>&1 &
+    elif command -v termux-open >/dev/null 2>&1; then
+        termux-open "http://localhost:5000" >/dev/null 2>&1 &
+    fi
     
     if [ -f "$ZDT_VENV_DIR/bin/python" ]; then
         "$ZDT_VENV_DIR/bin/python" "$web_script" "$ROOT_DIR"
@@ -2570,7 +2576,7 @@ update_zdt_script() {
     print_header "AUTO-UPDATER ZDT SCRIPT"
     echo -e "  ${YELLOW}${ICO_ARROW} Mengecek versi terbaru dari GitHub...${RESET}"
     local latest_script
-    if ! latest_script=$(curl -sL https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt.sh?v=$(date +%s)); then
+    if ! latest_script=$(curl -sL https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt.sh); then
         echo -e "  ${RED}${ICO_FAIL} Gagal terhubung ke GitHub!${RESET}"
         return 1
     fi
