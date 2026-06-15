@@ -6,10 +6,12 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 - **Spotify HQ Downloader**: Download lagu/playlist Spotify lengkap dengan lirik dan metadata (album art).
 - **Universal Downloader**: Sedot Audio/Video dari YouTube, TikTok, dll dalam resolusi/kualitas terbaik.
 - **Auto Sync Lirik**: Cari dan download file `.lrc` yang sinkron dengan ketukan lagu secara otomatis.
-- **Smart Renamer**: Bersihkan nama file yang kotor seperti `[Official Music Video]`, dll.
+- **Smart Renamer & Auto-Tagger**: Bersihkan nama file yang kotor seperti `[Official Music Video]`, lalu **otomatis menyuntikkan metadata ID3** (Title & Artist) secara permanen ke dalam file audio Anda menggunakan `mutagen`!
 - **Hapus Vokal (Demucs)**: Pisahkan instrumen dan vokal lagu menggunakan AI.
-- **Kompres Media**: Perkecil ukuran file audio/video secara massal tanpa banyak mengurangi kualitas.
+- **Kompres Media (Multi-Processing)**: Perkecil ukuran file audio/video secara massal. Berkat mesin *multi-processing*, ZDT mampu mengompres 4 lagu atau 2 video secara paralel sehingga proses menjadi jauh lebih ngebut!
 - **Playlist Generator**: Buat file `.m3u` secara instan dari direktori musik Anda.
+- **Over-The-Air (OTA) Updater**: Perbarui versi skrip ZDT Anda langsung dari GitHub ke sistem Anda cukup dengan satu tombol dari dalam aplikasi!
+- **File Konfigurasi**: Simpan preferensi resolusi video dan kualitas audio favorit Anda sehingga Anda tidak perlu ditanya berulang-ulang saat mengunduh (*tersimpan di `~/.config/zdt/config.env`*).
 - **Zaki AI Assistant (Pro)**: Asisten cerdas berbasis Gemini AI. Cukup *chat* pakai bahasa sehari-hari ("Bro tolong pisahin dong vokal lagu terakhir", dll), lalu AI yang akan mengeksekusi komandonya!
 
 ## Instalasi 🚀
