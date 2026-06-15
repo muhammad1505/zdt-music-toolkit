@@ -35,7 +35,7 @@ set -uo pipefail
 # ==========================================
 # CONSTANTS
 # ==========================================
-readonly APP_VERSION="3.0.6"
+readonly APP_VERSION="3.0.7"
 readonly APP_NAME="Zaki Downloader Tools"
 readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
 readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
@@ -2497,10 +2497,14 @@ start_telegram_bot() {
     print_header "ZDT TELEGRAM REMOTE"
     
     local token_file="$HOME/.config/zdt/telegram_token.txt"
-    if [ ! -f "$token_file" ]; then
-        echo -e "  ${RED}${ICO_FAIL} Token Telegram belum di-setup!${RESET}"
-        echo -e "  ${YELLOW}${ICO_ARROW} Pilih menu [T] untuk memasukkan token terlebih dahulu.${RESET}"
-        return 1
+    if [ ! -s "$token_file" ]; then
+        echo -e "  ${YELLOW}${ICO_ARROW} Token Telegram belum disetel! Mengalihkan ke menu Setup...${RESET}"
+        sleep 1
+        setup_telegram_bot
+        if [ ! -s "$token_file" ]; then
+            echo -e "  ${RED}${ICO_FAIL} Token Telegram masih kosong. Batal menjalankan bot.${RESET}"
+            return 1
+        fi
     fi
     
     if ! _check_dependency "python3" "true"; then return 1; fi
