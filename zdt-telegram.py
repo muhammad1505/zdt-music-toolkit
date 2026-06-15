@@ -32,13 +32,7 @@ logging.basicConfig(
 )
 telebot.logger.setLevel(logging.INFO)
 
-# Monkey-patch reply_to and send_message to log outgoing responses
-original_reply_to = bot.reply_to
-def logging_reply_to(message, text, **kwargs):
-    logging.info(f"Bot membalas ke {message.chat.id}: {text}")
-    return original_reply_to(message, text, **kwargs)
-bot.reply_to = logging_reply_to
-
+# Monkey-patch send_message to log all outgoing responses (including reply_to)
 original_send_message = bot.send_message
 def logging_send_message(chat_id, text, **kwargs):
     logging.info(f"Bot mengirim pesan ke {chat_id}: {text}")
@@ -153,7 +147,25 @@ def auto_download_audio(message):
                 if gemini_key:
                     bot.send_chat_action(message.chat.id, 'typing')
                     import urllib.request, json
-                    prompt = "Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Jawab santai max 3 kalimat."
+                    
+                    abs_path = os.path.expanduser("~/Music/ZDT")
+                    conf_file = os.path.expanduser("~/.config/zdt/zdt_conf")
+                    if os.path.exists(conf_file):
+                        with open(conf_file, 'r') as cf:
+                            for line in cf:
+                                if line.startswith("TARGET_DIR="):
+                                    val = line.strip().split('=', 1)[1].strip('"').strip("'")
+                                    abs_path = os.path.expanduser(val)
+                                    break
+                    try:
+                        if os.path.exists(abs_path):
+                            dir_contents = ", ".join(os.listdir(abs_path)[:50])
+                        else:
+                            dir_contents = "Direktori kosong/tidak ada."
+                    except Exception:
+                        dir_contents = "Gagal membaca direktori."
+
+                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Jawab santai max 3 kalimat. Info penting: Lokasi penyimpanan saat ini ada di "{abs_path}" dengan isi file: {dir_contents}.'
                     
                     if gemini_key.startswith("sk-or-"):
                         url = "https://openrouter.ai/api/v1/chat/completions"
