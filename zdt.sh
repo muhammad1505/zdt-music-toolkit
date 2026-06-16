@@ -516,7 +516,7 @@ _trap_exit() {
 # HELPER: PRINT HEADER
 # ==========================================
 print_header() {
-    if [ -z "$NO_COLOR" ]; then
+    if [ -z "${NO_COLOR:-}" ]; then
         echo -ne "\033[?25h"
         clear
     fi
