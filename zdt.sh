@@ -54,6 +54,9 @@ ZDT_AUTO_BERSIH=""
 ZDT_AUTO_PLAYLIST=""
 LAST_DOWNLOAD_QUERY=""
 STORAGE_DIR=""
+TARGET_DIR=""
+AUTO_HAPUS_VOKAL_MODE=""
+AUTO_HAPUS_VOKAL_PATH=""
 
 _load_config() {
     if [ -f "$ZDT_CONFIG_FILE" ]; then
@@ -2343,11 +2346,16 @@ edit_metadata_manual() {
     echo -e "  ${CYAN}${ICO_ARROW} Menampilkan daftar file audio di folder saat ini...${RESET}"
     local count=0
     local files=()
+    
+    # Gunakan find untuk menghindari error globbing/ls
+    local search_dir="${TARGET_DIR:-$(pwd)}"
     while IFS= read -r f; do
-        ((count++))
-        files+=("$f")
-        printf "    %2d. %s\n" "$count" "$(basename "$f")"
-    done < <(ls -t "${TARGET_DIR:-$(pwd)}"/*.{mp3,m4a,flac} 2>/dev/null | head -n 20)
+        if [ -n "$f" ]; then
+            ((count++))
+            files+=("$f")
+            printf "    %2d. %s\n" "$count" "$(basename "$f")"
+        fi
+    done < <(find "$search_dir" -maxdepth 1 -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" \) -exec stat -c "%Y %n" {} + 2>/dev/null | sort -nr | cut -d' ' -f2- | head -n 20)
 
     if [ "$count" -eq 0 ]; then
         echo -e "  ${RED}${ICO_FAIL} Tidak ada file audio di direktori ini!${RESET}"
