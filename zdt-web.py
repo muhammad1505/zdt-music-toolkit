@@ -13,28 +13,40 @@ try:
 except ImportError:
     pass
 
+
+# Clear old task logs on startup
+if os.path.exists("/tmp/zdt_web_task.log"):
+    try:
+        os.remove("/tmp/zdt_web_task.log")
+    except:
+        pass
+
 app = Flask(__name__)
 
 # Config Directory
 CONFIG_FILE = os.path.expanduser("~/.config/zdt/config.env")
 
 def get_target_dir():
-    # Gunakan sys.argv[1] (ROOT_DIR yang dikirim dari zdt.sh)
-    target_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/Music/ZDT_Downloads")
+    target_dir = os.path.expanduser("~/Music/ZDT_Downloads")
     
+    # 1. Cek config lama
+    old_conf = os.path.expanduser("~/.config/zdt/config")
+    if os.path.exists(old_conf):
+        with open(old_conf, "r") as f:
+            for line in f:
+                if line.startswith("storage_dir="):
+                    val = line.strip().split("=", 1)[1].strip("\"").strip("'")
+                    if val: target_dir = os.path.expanduser(val)
+                    
+    # 2. Cek config env baru
     if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, 'r') as f:
+        with open(CONFIG_FILE, "r") as f:
             for line in f:
                 if line.startswith("TARGET_DIR="):
-                    val = line.strip().split('=', 1)[1].strip('"').strip("'")
-                    if val != ".":
-                        target_dir = val
-    
-    # Jika sys.argv[1] dipakai tapi target_dir belum ada, biasanya download di /Hasil
-    if target_dir == sys.argv[1] and not os.path.exists(target_dir):
-        # Ini fallback aman
-        pass
-    
+                    val = line.strip().split("=", 1)[1].strip("\"").strip("'")
+                    if val and val != ".":
+                        target_dir = os.path.expanduser(val)
+                        
     return target_dir
 
 HTML_TEMPLATE = """
@@ -686,7 +698,7 @@ def download():
     cmd = [zdt_bin, "--download-audio" if fmt == 'audio' else "--download-video", url]
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True)
+            target = get_target_dir(); subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
@@ -701,10 +713,10 @@ def spotify_sync():
         for path in [os.path.expanduser("~/.local/bin/zdt"), "/usr/local/bin/zdt", "/data/data/com.termux/files/usr/bin/zdt"]:
             if os.path.exists(path): zdt_bin = path; break
     if not zdt_bin: zdt_bin = "zdt"
-    cmd = [zdt_bin, "--spotify-sync", url]
+    cmd = [zdt_bin, "--no-color", "--no-unicode", "--spotify-sync", url]
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True)
+            target = get_target_dir(); subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
@@ -792,7 +804,7 @@ def server_tools():
             filepath = os.path.join(target, filename)
             # Jalankan demucs manual asinkron
             with open(os.devnull, 'w') as devnull:
-                subprocess.Popen(["demucs", "--two-stems=vocals", "-o", target, filepath], stdout=devnull, stderr=devnull, start_new_session=True)
+                subprocess.Popen(["demucs", "--two-stems=vocals", "-o", target, filepath], stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
             return jsonify({"success": True, "message": "Demucs AI mulai memisahkan vokal di background!"})
 
         elif action == 'compress':
@@ -807,7 +819,7 @@ def server_tools():
                 cmd = ["ffmpeg", "-y", "-i", filepath, "-b:a", "128k", outpath]
                 
             with open(os.devnull, 'w') as devnull:
-                subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True)
+                target = get_target_dir(); subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
             return jsonify({"success": True, "message": "Proses kompresi FFmpeg berjalan di background!"})
 
         return jsonify({"success": False, "message": "Aksi tidak dikenal."})
