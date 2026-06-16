@@ -12,12 +12,31 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 - **Playlist Generator**: Buat file `.m3u` secara instan dari direktori musik Anda.
 - **Auto-Watch Daemon**: Jalankan `zdt --watch` untuk memantau folder secara otomatis. Jika ada file mentah dimasukkan, ZDT otomatis merapikan nama, menyuntik Tag ID3, dan mencari lirik.
 - **Telegram Remote Downloader**: Jalankan `zdt --telegram` dan kontrol ZDT dari jarak jauh menggunakan Bot Telegram di HP Anda untuk mendownload musik ke PC/Server rumah.
-- **Web Dashboard (Local UI)**: Jalankan `zdt --web` untuk menyalakan server lokal dan mendownload lagu langsung dari browser di HP Anda.
+- **Web Dashboard (Local UI)**: Jalankan `zdt --web` untuk menyalakan server lokal dan mendownload lagu langsung dari browser di HP Anda. Mendukung `--bind` dan `--port` untuk konfigurasi address.
 - **Spotify Incremental Sync**: Daftarkan Playlist Spotify Anda dan ZDT hanya akan mendownload lagu baru yang belum ada di dalam folder.
 - **Metadata & Cover Art Editor**: Ubah Judul, Artis, dan injeksi gambar sebagai Cover Art lagu secara manual melalui antarmuka terminal.
 - **Over-The-Air (OTA) Updater**: Perbarui versi skrip ZDT Anda langsung dari GitHub ke sistem Anda cukup dengan satu tombol dari dalam aplikasi!
 - **File Konfigurasi**: Simpan preferensi resolusi video dan kualitas audio favorit Anda sehingga Anda tidak perlu ditanya berulang-ulang saat mengunduh (*tersimpan di `~/.config/zdt/config.env`*).
 - **Zaki AI Assistant (Pro)**: Asisten cerdas berbasis Gemini AI. Cukup *chat* pakai bahasa sehari-hari ("Bro tolong pisahin dong vokal lagu terakhir", dll), lalu AI yang akan mengeksekusi komandonya!
+- **Smoke Test**: Jalankan `bash test_smoke.sh` untuk memvalidasi syntax, integritas, dan keamanan semua file script sebelum commit/deploy.
+
+## Changelog
+
+### v3.7.1 (Latest)
+- Fix: Hapus positional argument `$ROOT_DIR` dari pemanggilan `zdt-web.py` yang menyebabkan error `unrecognized arguments`
+- Bump versi untuk deteksi auto-updater
+
+### v3.7.0
+- Feat: Smoke test (`test_smoke.sh`) untuk validasi syntax, duplicate functions, dan integrity checks
+- Feat: Konfirmasi hapus file di Telegram bot dengan inline keyboard (mencegah hapus tidak sengaja)
+- Feat: Keamanan token Telegram (`chmod 600`)
+- Feat: Atomic config write dengan file locking (`flock`)
+- Feat: DRY refactor helper `_find_media_files()` untuk scan media files
+- Feat: `--bind` dan `--port` argument untuk Web Dashboard
+- Feat: `WEB_BIND` config variable
+- Fix: Playlist M3U newline escape di Web Dashboard
+- Fix: Simplifikasi batch worker pool (audio & video compression)
+- Fix: Perbaikan exit code handling di video re-encode
 
 ## Instalasi 🚀
 
@@ -55,6 +74,8 @@ zdt
 ### CLI Arguments (Pintasan Eksekusi Cepat)
 Anda juga bisa menggunakan argumen saat memanggil aplikasi lewat terminal:
 - `zdt update` *(atau `zdt --update`)* : Mengunduh dan memasang versi terbaru ZDT secara instan dari GitHub (Over-The-Air Update) tanpa perlu membuka menu aplikasi.
+- `zdt --web` : Menjalankan Web Dashboard di `http://localhost:5000` dengan auto-open browser.
+- `zdt --web-bind 0.0.0.0` : Menjalankan Web Dashboard terbuka untuk semua network interface.
 - `zdt --help` : Menampilkan daftar lengkap *command-line arguments* yang tersedia.
 
 **(Penting!)** Pada saat **pertama kali** dijalankan, masuklah ke menu **[A] Auto Install Tools**. Fitur ini akan otomatis merakit sistem VENV, mendownload paket Python utama (`yt-dlp`, `spotdl`, dll), serta mengecek dependensi sistem seperti `ffmpeg` agar aplikasi Anda siap tempur 100%.
