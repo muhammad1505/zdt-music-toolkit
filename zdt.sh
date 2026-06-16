@@ -1603,6 +1603,7 @@ download_ytdlp() {
         pilih_lirik="n"
         pilih_kompres="n"
         pilih_chapter="n"
+        pilih_playlist="n"
     else
         while true; do
             if [ "$step" -eq 1 ]; then
@@ -1688,6 +1689,23 @@ download_ytdlp() {
                 read -r -n 1 pilih_chapter
                 echo ""
                 if [ "$pilih_chapter" = "0" ]; then step=5; continue; fi
+                
+                local has_playlist=0
+                for l in "${links[@]}"; do
+                    if [[ "$l" == *"list="* ]]; then has_playlist=1; break; fi
+                done
+                
+                if [ "$has_playlist" -eq 1 ]; then
+                    step=65
+                else
+                    pilih_playlist="n"
+                    step=7
+                fi
+            elif [ "$step" -eq 65 ]; then
+                echo -e -n "  ${BOLD}[?] Link mengandung playlist. Download seluruh isi playlist? (y/n/0=Kembali): ${RESET}"
+                read -r -n 1 pilih_playlist
+                echo ""
+                if [ "$pilih_playlist" = "0" ]; then step=6; continue; fi
                 step=7
             elif [ "$step" -eq 7 ]; then
             echo -e -n "  ${BOLD}[?] Auto-lirik via SyncedLyrics? (y/n/0=Kembali): ${RESET}"
@@ -1765,13 +1783,18 @@ download_ytdlp() {
             chapter_arg=("--split-chapters")
         fi
 
-        case $format_pilih in
-            1) yt-dlp --no-warnings --no-mtime -f "ba[ext=m4a]/ba" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "$link" || dl_status=$? ;;
-            2) yt-dlp --no-warnings --no-mtime -x --audio-format mp3 --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "$link" || dl_status=$? ;;
-            3) yt-dlp --no-warnings --no-mtime -x --audio-format flac --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "$link" || dl_status=$? ;;
-            4) yt-dlp --no-warnings --no-mtime -x --audio-format wav -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "$link" || dl_status=$? ;;
-            5) yt-dlp --no-warnings --no-mtime -x --audio-format opus --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "$link" || dl_status=$? ;;
-            6) yt-dlp --no-warnings --no-mtime -x --audio-format ogg --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "$link" || dl_status=$? ;;
+        local playlist_arg=()
+        if [[ ! "$pilih_playlist" =~ ^[Yy]$ ]]; then
+            playlist_arg=("--no-playlist")
+        fi
+
+        case "$format_pilih" in
+            1) yt-dlp --no-warnings --no-mtime -f "ba[ext=m4a]/ba" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            2) yt-dlp --no-warnings --no-mtime -x --audio-format mp3 --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            3) yt-dlp --no-warnings --no-mtime -x --audio-format flac --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            4) yt-dlp --no-warnings --no-mtime -x --audio-format wav -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            5) yt-dlp --no-warnings --no-mtime -x --audio-format opus --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            6) yt-dlp --no-warnings --no-mtime -x --audio-format ogg --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
         esac
 
         if [ "$dl_status" -ne 0 ]; then
@@ -1864,6 +1887,7 @@ download_video() {
         folder_mode="3"
         pilih_archive="n"
         pilih_chapter="n"
+        pilih_playlist="n"
     else
         while true; do
             if [ "$step" -eq 1 ]; then
@@ -1984,6 +2008,23 @@ download_video() {
             read -r -n 1 pilih_chapter
             echo ""
             if [ "$pilih_chapter" = "0" ]; then step=8; continue; fi
+            
+            local has_playlist=0
+            for l in "${links[@]}"; do
+                if [[ "$l" == *"list="* ]]; then has_playlist=1; break; fi
+            done
+            
+            if [ "$has_playlist" -eq 1 ]; then
+                step=95
+            else
+                pilih_playlist="n"
+                step=10
+            fi
+        elif [ "$step" -eq 95 ]; then
+            echo -e -n "  ${BOLD}[?] Link mengandung playlist. Download seluruh isi playlist? (y/n/0=Kembali): ${RESET}"
+            read -r -n 1 pilih_playlist
+            echo ""
+            if [ "$pilih_playlist" = "0" ]; then step=9; continue; fi
             step=10
         elif [ "$step" -eq 10 ]; then
             break

@@ -471,7 +471,34 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-
+        function updateFormatOptions() {
+            const type = document.getElementById("dlFormat").value;
+            const spec = document.getElementById("dlFormatSpec");
+            spec.innerHTML = "";
+            if (type === "audio") {
+                spec.innerHTML = `
+                    <option value="1">M4A (Default, Paling Kompatibel)</option>
+                    <option value="2">MP3 (Universal)</option>
+                    <option value="3">FLAC (Lossless, Kualitas Tertinggi)</option>
+                    <option value="4">WAV (Uncompressed Studio)</option>
+                    <option value="5">OPUS (Modern, Ukuran Kecil)</option>
+                    <option value="6">OGG (Open Source)</option>
+                `;
+            } else {
+                spec.innerHTML = `
+                    <option value="1">MP4 (1080p / Max Res)</option>
+                    <option value="2">MKV (1080p / Max Res)</option>
+                    <option value="3">WebM (1080p / Max Res)</option>
+                    <option value="4">MKV (Best Video + Best Audio)</option>
+                `;
+            }
+        }
+        // Initialize options on load
+        window.addEventListener("DOMContentLoaded", () => {
+            if(document.getElementById("dlFormat")) {
+                updateFormatOptions();
+            }
+        });
         function toggleMobileMenu() {
             const sidebar = document.getElementById("sidebar");
             const overlay = document.getElementById("sidebarOverlay");
@@ -557,13 +584,14 @@ function switchTab(tabId) {
             e.preventDefault();
             const url = document.getElementById('dlUrl').value;
             const format = document.getElementById('dlFormat').value;
+            const spec = document.getElementById('dlFormatSpec').value;
             const btn = document.getElementById('btnDl');
             const status = document.getElementById('dlStatus');
             btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> EXECUTING...';
             try {
                 const res = await fetch('/api/download', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({url, format})
+                    body: JSON.stringify({url, format, spec})
                 });
                 const data = await res.json();
                 if(data.success) {
