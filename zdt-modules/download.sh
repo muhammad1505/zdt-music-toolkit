@@ -1,0 +1,800 @@
+# ==========================================
+# ZDT Download Module
+# ==========================================
+# Spotify, YouTube/YT-DLP, and Video downloads
+# ==========================================
+
+# ==========================================
+# FUNGSI UTAMA: DOWNLOAD SPOTIFY
+# ==========================================
+download_spotdl() {
+    print_header "DOWNLOAD DARI SPOTIFY"
+
+    local link file
+    local links=()
+    local step=1
+
+    if ! _ensure_python_tool "spotdl" "spotdl" 0; then
+        return 1
+    fi
+
+    local original_dir
+    original_dir=$(pwd)
+
+    local folder_mode="" folder_manual_name="" format_pilih="" spotdl_ext=""
+    local pilih_archive="" pilih_lirik="" lirik_args=() pilih_kompres="n"
+
+    if [ -n "$AUTO_DOWNLOAD_URL" ]; then
+        links=("$AUTO_DOWNLOAD_URL")
+        folder_mode="3"
+        spotdl_ext="m4a"
+        pilih_archive="y"
+        pilih_lirik="y"
+        lirik_args=("--generate-lrc")
+        pilih_kompres="n"
+        AUTO_DOWNLOAD_URL=""
+    else
+        while true; do
+            if [ "$step" -eq 1 ]; then
+                links=()
+                for i in {1..10}; do
+                    echo -e -n "  ${BOLD}[?] Link/Judul ke-$i (Enter=Cukup, 0=Kembali ke Menu Utama): ${RESET}"
+                    local input_link
+                    read -r input_link
+                    [ "$input_link" = "0" ] && return 0
+                    [ -z "$input_link" ] && break
+
+                    if [[ "$input_link" =~ (youtube\.com|youtu\.be|music\.youtube\.com) ]]; then
+                        echo -e "  ${RED}${ICO_FAIL} Ini link YouTube/YouTube Music!${RESET}"
+                        echo -e "  ${YELLOW}${ICO_ARROW} Gunakan menu ${BOLD}[3] SEDOT YOUTUBE${RESET}${YELLOW} untuk link ini.${RESET}"
+                        echo -e "  ${GRAY}  spotdl hanya menerima link Spotify atau judul lagu.${RESET}"
+                        continue
+                    fi
+                    links+=("$input_link")
+                done
+                if [ ${#links[@]} -eq 0 ]; then
+                    echo -e "  ${RED}${ICO_FAIL} Input kosong! Batal.${RESET}"
+                    return 0
+                fi
+                step=2
+            elif [ "$step" -eq 2 ]; then
+                echo -e "  ${CYAN}${ICO_ARROW} MANAJEMEN FOLDER OUTPUT${RESET}"
+                echo "    1. Auto-Folder per Artis Utama"
+                echo "    2. Bikin 1 Folder Manual"
+                echo "    3. Tanpa folder baru"
+                echo "    0. ${ICO_FAIL} KEMBALI"
+                echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
+                read -r -n 1 folder_mode
+                echo ""
+                if [ "$folder_mode" = "0" ]; then step=1; continue; fi
+                if [ "$folder_mode" = "2" ]; then step=3; else step=4; fi
+            elif [ "$step" -eq 3 ]; then
+                echo -e -n "  ${BOLD}[?] Nama folder (0=Kembali): ${RESET}"
+                local nama_folder_input
+                read -r nama_folder_input
+                if [ "$nama_folder_input" = "0" ]; then step=2; continue; fi
+                if [ -z "$nama_folder_input" ]; then
+                    echo -e "  ${YELLOW}${ICO_WARN} Nama folder kosong! Otomatis download ke direktori saat ini.${RESET}"
+                    folder_manual_name=""
+                else
+                    folder_manual_name="${nama_folder_input// /-}"
+                fi
+                step=4
+            elif [ "$step" -eq 4 ]; then
+                echo -e "  ${CYAN}${ICO_ARROW} FORMAT OUTPUT${RESET}"
+                echo "    1. M4A  (Default, paling kompatibel, kualitas bagus)"
+                echo "    2. MP3  (Universal, didukung semua perangkat lama)"
+                echo "    3. FLAC (Lossless, kualitas tertinggi, ukuran besar)"
+                echo "    4. WAV  (Uncompressed, untuk studio/editing)"
+                echo "    5. OPUS (Modern, ukuran kecil, suara jernih)"
+                echo "    6. OGG  (Open source, bagus untuk streaming/game)"
+                echo "    0. KEMBALI"
+                echo -e -n "  ${BOLD}[?] Pilihan [0-6]: ${RESET}"
+                read -r -n 1 format_pilih
+                echo ""
+                if [ "$format_pilih" = "0" ]; then
+                    if [ "$folder_mode" = "2" ]; then step=3; else step=2; fi
+                    continue
+                fi
+                case $format_pilih in
+                    2) spotdl_ext="mp3" ;;
+                    3) spotdl_ext="flac" ;;
+                    4) spotdl_ext="wav" ;;
+                    5) spotdl_ext="opus" ;;
+                    6) spotdl_ext="ogg" ;;
+                    *) spotdl_ext="m4a" ;;
+                esac
+                step=5
+            elif [ "$step" -eq 5 ]; then
+                echo -e -n "  ${BOLD}[?] Gunakan Archive System (Skip lagu yg sudah didownload)? (y/n/0=Kembali): ${RESET}"
+                read -r -n 1 pilih_archive
+                echo ""
+                if [ "$pilih_archive" = "0" ]; then step=4; continue; fi
+                step=6
+            elif [ "$step" -eq 6 ]; then
+                echo -e -n "  ${BOLD}[?] Sedot lirik murni (.lrc)? (y/n/0=Kembali): ${RESET}"
+                read -r -n 1 pilih_lirik
+                echo ""
+                if [ "$pilih_lirik" = "0" ]; then step=5; continue; fi
+                lirik_args=()
+                [[ "$pilih_lirik" =~ ^[Yy]$ ]] && lirik_args+=("--generate-lrc")
+
+                if [[ "$spotdl_ext" == "m4a" || "$spotdl_ext" == "mp3" ]]; then
+                    step=7
+                else
+                    step=8
+                fi
+            elif [ "$step" -eq 7 ]; then
+                echo -e -n "  ${BOLD}[?] Kompres otomatis 128kbps AAC? (y/n/0=Kembali): ${RESET}"
+                read -r -n 1 pilih_kompres
+                echo ""
+                if [ "$pilih_kompres" = "0" ]; then step=6; continue; fi
+                step=8
+            elif [ "$step" -eq 8 ]; then
+                break
+            fi
+        done
+    fi
+
+    if [ -n "$folder_manual_name" ]; then
+        mkdir -p "$folder_manual_name"
+    fi
+
+    echo -e "  ${CYAN}${ICO_ARROW} Mengeksekusi ${#links[@]} antrean Spotify...${RESET}"
+    _log "INFO" "Spotify download started: ${#links[@]} links"
+
+    for link in "${links[@]}"; do
+        echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
+        echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
+
+        local output_tpl
+        local auto_folder_name=""
+        case "$folder_mode" in
+            1)
+                echo -e "  ${CYAN}${ICO_ARROW} Mendeteksi artis utama...${RESET}"
+                local file_tmp="meta_temp_$$.spotdl"
+                spotdl save "$link" --save-file "$file_tmp" >/dev/null 2>&1
+                local artis_raw=""
+                if [ -f "$file_tmp" ]; then
+                    if command -v python3 >/dev/null 2>&1; then
+                        artis_raw=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[0]["artist"])' "$file_tmp" 2>/dev/null)
+                    fi
+                    rm -f "$file_tmp"
+                fi
+                if [ -n "$artis_raw" ]; then
+                    if command -v python3 >/dev/null 2>&1; then
+                        auto_folder_name=$(python3 -c "import sys; print('-'.join(w.capitalize() for w in sys.argv[1].split()))" "$artis_raw")
+                    else
+                        auto_folder_name="${artis_raw// /-}"
+                    fi
+                fi
+                [ -z "$auto_folder_name" ] && auto_folder_name="Unknown-Artist"
+                mkdir -p "$auto_folder_name"
+                output_tpl="${auto_folder_name}/{artists} - {title}"
+                echo -e "  ${GREEN}${ICO_OK} Auto-Folder:${RESET} $auto_folder_name/"
+                ;;
+            2)
+                if [ -n "$folder_manual_name" ]; then
+                    output_tpl="${folder_manual_name}/{artists} - {title}"
+                else
+                    output_tpl="{artists} - {title}"
+                fi
+                ;;
+            *)
+                output_tpl="{artists} - {title}"
+                ;;
+        esac
+
+        echo -e "  ${CYAN}${ICO_ARROW} Mendownload Media...${RESET}"
+        local dl_ok=true
+        local archive_arg=()
+        if [[ "$pilih_archive" =~ ^[Yy]$ ]]; then
+            archive_arg=("--archive" ".spotdl_archive.txt")
+        fi
+
+        if ! spotdl download "$link" \
+            --audio youtube \
+            --format "$spotdl_ext" \
+            --output "$output_tpl" \
+            "${archive_arg[@]}" \
+            "${lirik_args[@]}"; then
+            echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Ada file yang gagal diunduh! Melanjutkan proses file yang berhasil...${RESET}"
+            _log "WARN" "spotdl reported errors for: $link"
+        fi
+
+        local scan_dir="."
+        if [ "$folder_mode" = "1" ] && [ -n "$auto_folder_name" ]; then
+            scan_dir="./$auto_folder_name"
+        elif [ "$folder_mode" = "2" ] && [ -n "$folder_manual_name" ]; then
+            scan_dir="./$folder_manual_name"
+        fi
+
+        if [[ "$pilih_kompres" =~ ^[Yy]$ ]]; then
+            echo -e "  ${CYAN}${ICO_ARROW} AUTO COMPRESS AUDIO${RESET}"
+            while IFS= read -r file; do
+                _kompres_audio_file "$file"
+            done < <(find "$scan_dir" -type f -iname "*.$spotdl_ext" ! -name "*_temp.*" -mmin -60 2>/dev/null)
+        fi
+
+        echo -e "  ${CYAN}${ICO_ARROW} AUTO CLEAN NAMA FILE${RESET}"
+        while IFS= read -r file; do
+            _bersih_satu_nama "$file"
+        done < <(find "$scan_dir" -type f \( -iname "*.$spotdl_ext" -o -iname "*.m4a" -o -iname "*.lrc" \) -mmin -60 2>/dev/null)
+    done
+
+    _log "INFO" "Spotify download batch complete"
+}
+
+# ==========================================
+# FUNGSI UTAMA: DOWNLOAD YOUTUBE
+# ==========================================
+download_ytdlp() {
+    print_header "SEDOT AUDIO (YOUTUBE/TIKTOK/IG/DLL)"
+
+    local link file
+    local links=()
+    local step=1
+
+    if ! _ensure_python_tool "yt-dlp" "yt-dlp" 0; then
+        return 1
+    fi
+
+    local original_dir
+    original_dir=$(pwd)
+
+    local folder_mode="" folder_manual_name="" format_pilih="" yt_ext=""
+    local pilih_archive="" pilih_chapter="" pilih_lirik="" pilih_kompres="n"
+    if [ -n "$AUTO_DOWNLOAD_URL" ]; then
+        links=("$AUTO_DOWNLOAD_URL")
+        AUTO_DOWNLOAD_URL=""
+        folder_mode="3"
+        format_pilih="${CONF_AUDIO_CODEC:-1}"
+        case "$format_pilih" in
+            1) yt_ext="m4a" ;;
+            2) yt_ext="mp3" ;;
+            3) yt_ext="flac" ;;
+            4) yt_ext="wav" ;;
+            5) yt_ext="opus" ;;
+            6) yt_ext="ogg" ;;
+            *) yt_ext="m4a"; format_pilih="1" ;;
+        esac
+        pilih_archive="n"
+        pilih_lirik="n"
+        pilih_kompres="n"
+        pilih_chapter="n"
+        pilih_playlist="n"
+    else
+        while true; do
+            if [ "$step" -eq 1 ]; then
+                links=()
+                echo -e "  ${CYAN}${ICO_ARROW} Masukkan link YouTube/YT Music (Maks 10 link)${RESET}"
+                for i in {1..10}; do
+                    echo -e -n "  ${BOLD}[?] Link ke-$i (Enter=Cukup, 0=Kembali ke Menu Utama): ${RESET}"
+                    local input_link
+                    read -r input_link
+                    [ "$input_link" = "0" ] && return 0
+                    [ -z "$input_link" ] && break
+
+                    if [[ "$input_link" =~ open\.spotify\.com ]]; then
+                        echo -e "  ${RED}${ICO_FAIL} Ini link Spotify!${RESET}"
+                        echo -e "  ${YELLOW}${ICO_ARROW} Gunakan menu ${BOLD}[2] SEDOT SPOTIFY${RESET}${YELLOW} untuk link ini.${RESET}"
+                        echo -e "  ${GRAY}  Gunakan menu ini untuk link YouTube, TikTok, IG, FB, dll.${RESET}"
+                        continue
+                    fi
+                    links+=("$input_link")
+                done
+                if [ ${#links[@]} -eq 0 ]; then
+                    echo -e "  ${RED}${ICO_FAIL} Input kosong! Batal.${RESET}"
+                    return 0
+                fi
+                step=2
+            elif [ "$step" -eq 2 ]; then
+                echo -e "  ${CYAN}${ICO_ARROW} MANAJEMEN FOLDER OUTPUT${RESET}"
+                echo "    1. Auto-Folder per Artis/Channel Utama"
+                echo "    2. Bikin 1 Folder Manual"
+                echo "    3. Tanpa folder baru"
+                echo "    0. ${ICO_FAIL} KEMBALI"
+                echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
+                read -r -n 1 folder_mode
+                echo ""
+                if [ "$folder_mode" = "0" ]; then step=1; continue; fi
+                if [ "$folder_mode" = "2" ]; then step=3; else step=4; fi
+            elif [ "$step" -eq 3 ]; then
+                echo -e -n "  ${BOLD}[?] Nama folder (0=Kembali): ${RESET}"
+                local nama_folder_input
+                read -r nama_folder_input
+                if [ "$nama_folder_input" = "0" ]; then step=2; continue; fi
+                if [ -z "$nama_folder_input" ]; then
+                    echo -e "  ${YELLOW}${ICO_WARN} Nama folder kosong! Otomatis download ke direktori saat ini.${RESET}"
+                    folder_manual_name=""
+                else
+                    folder_manual_name="${nama_folder_input// /-}"
+                fi
+                step=4
+            elif [ "$step" -eq 4 ]; then
+                echo -e "  ${CYAN}${ICO_ARROW} FORMAT OUTPUT${RESET}"
+                echo "    1. M4A  (Default, paling kompatibel, kualitas bagus)"
+                echo "    2. MP3  (Universal, didukung semua perangkat lama)"
+                echo "    3. FLAC (Lossless, kualitas tertinggi, ukuran besar)"
+                echo "    4. WAV  (Uncompressed, untuk studio/editing)"
+                echo "    5. OPUS (Modern, ukuran kecil, suara jernih)"
+                echo "    6. OGG  (Open source, bagus untuk streaming/game)"
+                echo "    0. KEMBALI"
+                echo -e -n "  ${BOLD}[?] Pilihan [0-6]: ${RESET}"
+                read -r -n 1 format_pilih
+                echo ""
+                if [ "$format_pilih" = "0" ]; then
+                    if [ "$folder_mode" = "2" ]; then step=3; else step=2; fi
+                    continue
+                fi
+                case $format_pilih in
+                    1) yt_ext="m4a" ;;
+                    2) yt_ext="mp3" ;;
+                    3) yt_ext="flac" ;;
+                    4) yt_ext="wav" ;;
+                    5) yt_ext="opus" ;;
+                    6) yt_ext="ogg" ;;
+                    *) echo -e "  ${RED}${ICO_FAIL} Pilihan tidak valid!${RESET}"; continue ;;
+                esac
+                step=5
+            elif [ "$step" -eq 5 ]; then
+                echo -e -n "  ${BOLD}[?] Gunakan Archive System (Skip lagu yg sudah didownload)? (y/n/0=Kembali): ${RESET}"
+                read -r -n 1 pilih_archive
+                echo ""
+                if [ "$pilih_archive" = "0" ]; then step=4; continue; fi
+                step=6
+            elif [ "$step" -eq 6 ]; then
+                echo -e -n "  ${BOLD}[?] Potong audio berdasarkan Chapter (jika ada)? (y/n/0=Kembali): ${RESET}"
+                read -r -n 1 pilih_chapter
+                echo ""
+                if [ "$pilih_chapter" = "0" ]; then step=5; continue; fi
+                
+                local has_playlist=0
+                for l in "${links[@]}"; do
+                    if [[ "$l" == *"list="* ]]; then has_playlist=1; break; fi
+                done
+                
+                if [ "$has_playlist" -eq 1 ]; then
+                    step=65
+                else
+                    pilih_playlist="n"
+                    step=7
+                fi
+            elif [ "$step" -eq 65 ]; then
+                echo -e -n "  ${BOLD}[?] Link mengandung playlist. Download seluruh isi playlist? (y/n/0=Kembali): ${RESET}"
+                read -r -n 1 pilih_playlist
+                echo ""
+                if [ "$pilih_playlist" = "0" ]; then step=6; continue; fi
+                step=7
+            elif [ "$step" -eq 7 ]; then
+            echo -e -n "  ${BOLD}[?] Auto-lirik via SyncedLyrics? (y/n/0=Kembali): ${RESET}"
+            read -r -n 1 pilih_lirik
+            echo ""
+            if [ "$pilih_lirik" = "0" ]; then step=6; continue; fi
+            if [[ "$yt_ext" == "m4a" || "$yt_ext" == "mp3" ]]; then step=8; else step=9; fi
+        elif [ "$step" -eq 8 ]; then
+            echo -e -n "  ${BOLD}[?] Kompres otomatis 128kbps AAC? (y/n/0=Kembali): ${RESET}"
+            read -r -n 1 pilih_kompres
+            echo ""
+            if [ "$pilih_kompres" = "0" ]; then step=7; continue; fi
+            step=9
+        elif [ "$step" -eq 9 ]; then
+            break
+        fi
+    done
+    fi
+
+    if [ -n "$folder_manual_name" ]; then
+        mkdir -p "$folder_manual_name"
+    fi
+
+    echo -e "  ${CYAN}${ICO_ARROW} Mengeksekusi ${#links[@]} antrean YouTube...${RESET}"
+    _log "INFO" "YouTube download started: ${#links[@]} links"
+
+    for link in "${links[@]}"; do
+        echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
+        echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
+
+        local output_template
+        local auto_folder_name=""
+        case "$folder_mode" in
+            1)
+                echo -e "  ${CYAN}${ICO_ARROW} Mendeteksi channel/artis utama...${RESET}"
+                local channel_raw
+                channel_raw=$(yt-dlp --no-warnings -O "%(channel,uploader,artist)s" --playlist-items 1 "$link" 2>/dev/null | head -n 1)
+                if [ -n "$channel_raw" ]; then
+                    if command -v python3 >/dev/null 2>&1; then
+                        auto_folder_name=$(python3 -c "import sys; print('-'.join(w.capitalize() for w in sys.argv[1].split()))" "$channel_raw")
+                    else
+                        auto_folder_name="${channel_raw// /-}"
+                    fi
+                fi
+                [ -z "$auto_folder_name" ] && auto_folder_name="Unknown-Channel"
+                mkdir -p "$auto_folder_name"
+                output_template="${auto_folder_name}/%(artist,uploader)s - %(title)s.%(ext)s"
+                echo -e "  ${GREEN}${ICO_OK} Auto-Folder:${RESET} $auto_folder_name/"
+                ;;
+            2)
+                if [ -n "$folder_manual_name" ]; then
+                    output_template="${folder_manual_name}/%(artist,uploader)s - %(title)s.%(ext)s"
+                else
+                    output_template="%(artist,uploader)s - %(title)s.%(ext)s"
+                fi
+                ;;
+            *)
+                output_template="%(artist,uploader)s - %(title)s.%(ext)s"
+                ;;
+        esac
+
+        echo -e "  ${CYAN}${ICO_ARROW} Mendownload Media...${RESET}"
+        local dl_status=0
+        local archive_arg=()
+        if [[ "$pilih_archive" =~ ^[Yy]$ ]]; then
+            archive_arg=("--download-archive" ".ytdlp_archive.txt")
+        fi
+        
+        local chapter_arg=()
+        if [[ "$pilih_chapter" =~ ^[Yy]$ ]]; then
+            chapter_arg=("--split-chapters")
+        fi
+
+        local playlist_arg=()
+        if [[ ! "$pilih_playlist" =~ ^[Yy]$ ]]; then
+            playlist_arg=("--no-playlist")
+        fi
+
+        case "$format_pilih" in
+            1) yt-dlp --no-warnings --no-mtime -f "ba[ext=m4a]/ba" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            2) yt-dlp --no-warnings --no-mtime -x --audio-format mp3 --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            3) yt-dlp --no-warnings --no-mtime -x --audio-format flac --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            4) yt-dlp --no-warnings --no-mtime -x --audio-format wav -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            5) yt-dlp --no-warnings --no-mtime -x --audio-format opus --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            6) yt-dlp --no-warnings --no-mtime -x --audio-format ogg --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+        esac
+
+        if [ "$dl_status" -ne 0 ]; then
+            echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Ada file yang gagal diunduh! Melanjutkan proses file yang berhasil...${RESET}"
+            _log "WARN" "yt-dlp reported errors for: $link (exit: $dl_status)"
+        fi
+
+        local scan_dir="."
+        if [ "$folder_mode" = "1" ] && [ -n "$auto_folder_name" ]; then
+            scan_dir="./$auto_folder_name"
+        elif [ "$folder_mode" = "2" ] && [ -n "$folder_manual_name" ]; then
+            scan_dir="./$folder_manual_name"
+        fi
+
+        if [[ "$pilih_lirik" =~ ^[Yy]$ && "$yt_ext" != "mp4" ]]; then
+            echo -e "  ${CYAN}${ICO_ARROW} MENCARI LIRIK${RESET}"
+            if _check_dependency "syncedlyrics"; then
+                while IFS= read -r file; do
+                    local fname fname_noext lrc_file query
+                    fname=$(basename "$file")
+                    fname_noext="${fname%.*}"
+                    lrc_file="$(dirname "$file")/$fname_noext.lrc"
+
+                    if [ ! -f "$lrc_file" ]; then
+                        query=$(echo "$fname_noext" | sed -E 's/\([^)]*\)//g' | sed -E 's/\[[^]]*\]//g' | sed 's/-/ /g' | sed 's/  */ /g')
+                        echo -e "    ${YELLOW}Mencari lirik untuk:${RESET} $query"
+                        syncedlyrics "$query" -o "$lrc_file" >/dev/null 2>&1
+                    fi
+                done < <(find "$scan_dir" -type f -iname "*.$yt_ext" -mmin -60 2>/dev/null)
+            else
+                echo -e "    ${YELLOW}syncedlyrics tidak terpasang, skip lirik.${RESET}"
+            fi
+        fi
+
+        if [[ "$pilih_kompres" =~ ^[Yy]$ && "$yt_ext" != "mp4" ]]; then
+            echo -e "  ${CYAN}${ICO_ARROW} AUTO COMPRESS AUDIO${RESET}"
+            while IFS= read -r file; do
+                _kompres_audio_file "$file"
+            done < <(find "$scan_dir" -type f -iname "*.$yt_ext" ! -name "*_temp.*" -mmin -60 2>/dev/null)
+        fi
+
+        echo -e "  ${CYAN}${ICO_ARROW} AUTO CLEAN NAMA FILE${RESET}"
+        while IFS= read -r file; do
+            _bersih_satu_nama "$file"
+        done < <(find "$scan_dir" -type f \( -iname "*.$yt_ext" -o -iname "*.m4a" -o -iname "*.lrc" \) -mmin -60 2>/dev/null)
+    done
+
+    _log "INFO" "YouTube download batch complete"
+}
+
+# ==========================================
+# FUNGSI UTAMA: SEDOT VIDEO
+# ==========================================
+download_video() {
+    print_header "SEDOT VIDEO (YOUTUBE/TIKTOK/IG/DLL)"
+
+    local link file i
+    local links=()
+    local step=1
+
+    if ! _ensure_python_tool "yt-dlp" "yt-dlp" 0; then
+        return 1
+    fi
+
+    local original_dir
+    original_dir=$(pwd)
+
+    local kualitas_pilih="" format_pilih="" merge_format="" ext_video=""
+    local codec_pilih="" sub_pilih="" sub_langs="id,en" sub_args=()
+    local folder_mode="" folder_manual_name="" pilih_archive="" pilih_chapter=""
+
+    if [ -n "$AUTO_DOWNLOAD_URL" ]; then
+        links=("$AUTO_DOWNLOAD_URL")
+        AUTO_DOWNLOAD_URL=""
+        kualitas_pilih="${CONF_VIDEO_QUAL:-1}"
+        format_pilih="${CONF_VIDEO_FMT:-1}"
+        case "$format_pilih" in
+            1) merge_format="mp4"; ext_video="mp4" ;;
+            2) merge_format="mkv"; ext_video="mkv" ;;
+            3) merge_format="webm"; ext_video="webm" ;;
+            4) merge_format="mkv"; ext_video="mkv" ;;
+            *) merge_format="mp4"; ext_video="mp4"; format_pilih="1" ;;
+        esac
+        codec_pilih="${CONF_VIDEO_CODEC:-3}"
+        sub_pilih="n"
+        folder_mode="3"
+        pilih_archive="n"
+        pilih_chapter="n"
+        pilih_playlist="n"
+    else
+        while true; do
+            if [ "$step" -eq 1 ]; then
+                links=()
+                echo -e "  ${CYAN}${ICO_ARROW} Masukkan link video/playlist (Maks 10 link)${RESET}"
+                for i in {1..10}; do
+                    echo -e -n "  ${BOLD}[?] Link ke-$i (Enter=Cukup, 0=Kembali ke Menu Utama): ${RESET}"
+                    local input_link
+                    read -r input_link
+                    [ "$input_link" = "0" ] && { cd "$original_dir" || true; return 0; }
+                    [ -z "$input_link" ] && break
+                    links+=("$input_link")
+                done
+                if [ ${#links[@]} -eq 0 ]; then
+                    echo -e "  ${YELLOW}${ICO_ARROW} Tidak ada link. Dibatalkan!${RESET}"
+                    cd "$original_dir" || true
+                    return 0
+                fi
+                step=2
+            elif [ "$step" -eq 2 ]; then
+                echo -e "  ${CYAN}${ICO_ARROW} KUALITAS VIDEO${RESET}"
+                echo "    1. Best Quality (Up to 4K/1080p)"
+                echo "    2. 1080p"
+                echo "    3. 720p"
+                echo "    4. 480p"
+                echo "    5. 360p"
+                echo "    0. KEMBALI"
+                echo -e -n "  ${BOLD}[?] Pilihan [0-5]: ${RESET}"
+                read -r -n 1 kualitas_pilih
+                echo ""
+                if [ "$kualitas_pilih" = "0" ]; then step=1; continue; fi
+                step=3
+            elif [ "$step" -eq 3 ]; then
+                echo -e "  ${CYAN}${ICO_ARROW} FORMAT VIDEO OUTPUT${RESET}"
+                echo "    1. MP4  (Paling Kompatibel)"
+                echo "    2. MKV  (Multi-Track, Multi-Sub)"
+                echo "    3. WebM (Ringan, VP9/AV1)"
+                echo "    4. AVI  (Legacy / Kompatibel Lama)"
+                echo "    5. MOV  (Apple / Final Cut Pro)"
+                echo "    6. TS   (MPEG Transport Stream)"
+                echo "    0. KEMBALI"
+                echo -e -n "  ${BOLD}[?] Pilih Format [0-6]: ${RESET}"
+                read -r -n 1 format_pilih
+                echo ""
+                if [ "$format_pilih" = "0" ]; then step=2; continue; fi
+            case "$format_pilih" in
+                2) merge_format="mkv";  ext_video="mkv"  ;;
+                3) merge_format="webm"; ext_video="webm" ;;
+                4) merge_format="avi";  ext_video="avi"  ;;
+                5) merge_format="mov";  ext_video="mov"  ;;
+                6) merge_format="mpegts"; ext_video="ts"  ;;
+                *) merge_format="mp4";  ext_video="mp4"  ;;
+            esac
+            step=4
+        elif [ "$step" -eq 4 ]; then
+            echo -e "  ${CYAN}${ICO_ARROW} CODEC VIDEO${RESET}"
+            echo "    1. Copy     (Tanpa Re-encode, Cepat)"
+            echo "    2. x264/H264 (Kompatibel, Cepat)"
+            echo "    3. x265/HEVC (Ukuran Kecil, Lambat)"
+            echo "    0. KEMBALI"
+            echo -e -n "  ${BOLD}[?] Pilih Codec [0-3]: ${RESET}"
+            read -r -n 1 codec_pilih
+            echo ""
+            if [ "$codec_pilih" = "0" ]; then step=3; continue; fi
+            step=5
+        elif [ "$step" -eq 5 ]; then
+            echo -e "  ${CYAN}${ICO_ARROW} SUBTITLE${RESET}"
+            echo "    1. Embed Subtitle ke Video (jika ada)"
+            echo "    2. Download Subtitle Terpisah (.srt)"
+            echo "    3. Embed + Terpisah"
+            echo "    4. Tanpa Subtitle"
+            echo "    0. KEMBALI"
+            echo -e -n "  ${BOLD}[?] Pilih Mode Subtitle [0-4]: ${RESET}"
+            read -r -n 1 sub_pilih
+            echo ""
+            if [ "$sub_pilih" = "0" ]; then step=4; continue; fi
+            case "$sub_pilih" in
+                1) sub_args=("--embed-subs" "--write-subs" "--sub-langs" "$sub_langs") ;;
+                2) sub_args=("--write-subs" "--sub-langs" "$sub_langs" "--convert-subs" "srt") ;;
+                3) sub_args=("--embed-subs" "--write-subs" "--sub-langs" "$sub_langs" "--convert-subs" "srt") ;;
+                *) sub_args=() ;;
+            esac
+            step=6
+        elif [ "$step" -eq 6 ]; then
+            echo -e "  ${CYAN}${ICO_ARROW} MANAJEMEN FOLDER OUTPUT${RESET}"
+            echo "    1. Auto-Folder per Channel/Playlist"
+            echo "    2. Bikin 1 Folder Manual"
+            echo "    3. Tanpa folder baru"
+            echo "    0. KEMBALI"
+            echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
+            read -r -n 1 folder_mode
+            echo ""
+            if [ "$folder_mode" = "0" ]; then step=5; continue; fi
+            if [ "$folder_mode" = "2" ]; then step=7; else step=8; fi
+        elif [ "$step" -eq 7 ]; then
+            echo -e -n "  ${BOLD}[?] Nama folder (0=Kembali): ${RESET}"
+            local nama_folder_input
+            read -r nama_folder_input
+            if [ "$nama_folder_input" = "0" ]; then step=6; continue; fi
+            if [ -z "$nama_folder_input" ]; then
+                echo -e "  ${YELLOW}${ICO_WARN} Nama folder kosong! Otomatis download ke direktori saat ini.${RESET}"
+                folder_manual_name=""
+            else
+                folder_manual_name="${nama_folder_input// /-}"
+            fi
+            step=8
+        elif [ "$step" -eq 8 ]; then
+            echo -e -n "  ${BOLD}[?] Gunakan Archive System (Skip video yg sudah didownload)? (y/n/0=Kembali): ${RESET}"
+            read -r -n 1 pilih_archive
+            echo ""
+            if [ "$pilih_archive" = "0" ]; then
+                if [ "$folder_mode" = "2" ]; then step=7; else step=6; fi
+                continue
+            fi
+            step=9
+        elif [ "$step" -eq 9 ]; then
+            echo -e -n "  ${BOLD}[?] Potong video berdasarkan Chapter (jika ada)? (y/n/0=Kembali): ${RESET}"
+            read -r -n 1 pilih_chapter
+            echo ""
+            if [ "$pilih_chapter" = "0" ]; then step=8; continue; fi
+            
+            local has_playlist=0
+            for l in "${links[@]}"; do
+                if [[ "$l" == *"list="* ]]; then has_playlist=1; break; fi
+            done
+            
+            if [ "$has_playlist" -eq 1 ]; then
+                step=95
+            else
+                pilih_playlist="n"
+                step=10
+            fi
+        elif [ "$step" -eq 95 ]; then
+            echo -e -n "  ${BOLD}[?] Link mengandung playlist. Download seluruh isi playlist? (y/n/0=Kembali): ${RESET}"
+            read -r -n 1 pilih_playlist
+            echo ""
+            if [ "$pilih_playlist" = "0" ]; then step=9; continue; fi
+            step=10
+        elif [ "$step" -eq 10 ]; then
+            break
+        fi
+    done
+    fi
+
+    if [ -n "$folder_manual_name" ]; then
+        mkdir -p "$folder_manual_name"
+    fi
+
+
+    echo -e "  ${GREEN}${ICO_OK} Mengeksekusi ${#links[@]} antrean Video...${RESET}"
+
+    for link in "${links[@]}"; do
+        echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
+        echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
+
+        local output_template
+        local auto_folder_name=""
+        case "$folder_mode" in
+            1)
+                echo -e "  ${CYAN}${ICO_ARROW} Mendeteksi channel utama...${RESET}"
+                local channel_raw
+                channel_raw=$(yt-dlp --no-warnings -O "%(channel,uploader)s" --playlist-items 1 "$link" 2>/dev/null | head -n 1)
+                if [ -n "$channel_raw" ]; then
+                    if command -v python3 >/dev/null 2>&1; then
+                        auto_folder_name=$(python3 -c "import sys; print('-'.join(w.capitalize() for w in sys.argv[1].split()))" "$channel_raw")
+                    else
+                        auto_folder_name="${channel_raw// /-}"
+                    fi
+                fi
+                [ -z "$auto_folder_name" ] && auto_folder_name="Unknown-Channel"
+                mkdir -p "$auto_folder_name"
+                output_template="${auto_folder_name}/%(title)s [%(id)s].%(ext)s"
+                echo -e "  ${GREEN}${ICO_OK} Auto-Folder:${RESET} $auto_folder_name/"
+                ;;
+            2)
+                if [ -n "$folder_manual_name" ]; then
+                    output_template="${folder_manual_name}/%(title)s [%(id)s].%(ext)s"
+                else
+                    output_template="%(title)s [%(id)s].%(ext)s"
+                fi
+                ;;
+            *)
+                output_template="%(title)s [%(id)s].%(ext)s"
+                ;;
+        esac
+
+        echo -e "  ${CYAN}${ICO_ARROW} Mendownload Video...${RESET}"
+        local dl_status=0
+        local archive_arg=()
+        if [[ "$pilih_archive" =~ ^[Yy]$ ]]; then
+            archive_arg=("--download-archive" ".ytdlp_video_archive.txt")
+        fi
+        
+        local chapter_arg=()
+        if [[ "$pilih_chapter" =~ ^[Yy]$ ]]; then
+            chapter_arg=("--split-chapters")
+        fi
+
+        local format_str
+        case $kualitas_pilih in
+            1) format_str="bv*+ba/b" ;;
+            2) format_str="bv*[height<=1080]+ba/b[height<=1080]" ;;
+            3) format_str="bv*[height<=720]+ba/b[height<=720]" ;;
+            4) format_str="bv*[height<=480]+ba/b[height<=480]" ;;
+            5) format_str="bv*[height<=360]+ba/b[height<=360]" ;;
+            *) format_str="bv*[height<=1080]+ba/b[height<=1080]" ;;
+        esac
+
+        yt-dlp --no-warnings --no-mtime -f "$format_str" --embed-metadata --merge-output-format "$merge_format" -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${sub_args[@]}" "$link" || dl_status=$?
+
+        if [ "$dl_status" -ne 0 ]; then
+            echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Ada file yang gagal diunduh! Melanjutkan proses file yang berhasil...${RESET}"
+            _log "WARN" "yt-dlp video reported errors: $link (exit: $dl_status)"
+        fi
+
+        local scan_dir="."
+        if [ "$folder_mode" = "1" ] && [ -n "$auto_folder_name" ]; then
+            scan_dir="./$auto_folder_name"
+        elif [ "$folder_mode" = "2" ] && [ -n "$folder_manual_name" ]; then
+            scan_dir="./$folder_manual_name"
+        fi
+        
+        if [[ "$codec_pilih" =~ ^[23]$ ]]; then
+            local vcodec
+            [ "$codec_pilih" = "2" ] && vcodec="libx264" || vcodec="libx265"
+            echo -e "  ${CYAN}${ICO_ARROW} RE-ENCODE VIDEO ($vcodec)${RESET}"
+            while IFS= read -r file; do
+                local tmpfile="${file%.*}_temp.${file##*.}"
+                echo -e -n "    ${CYAN}${ICO_ARROW} Encoding: $(basename "$file")... "
+                ffmpeg -y -nostdin -v quiet -threads 2 -i "$file" -c:v "$vcodec" -crf 23 -preset fast -c:a copy "$tmpfile" &
+                local epid=$!
+                local spin='-\|/'
+                local si=0
+                while kill -0 $epid 2>/dev/null; do
+                    si=$(( (si+1) %4 ))
+                    printf "\b${spin:$si:1}"
+                    sleep 0.1
+                done
+                wait $epid
+                local enc_exit=$?
+                if [ "$enc_exit" -eq 0 ] && [ -f "$tmpfile" ]; then
+                    mv "$tmpfile" "$file"
+                    echo -e "\b${GREEN}${ICO_OK}${RESET}"
+                else
+                    rm -f "$tmpfile"
+                    echo -e "\b${RED}${ICO_FAIL}${RESET}"
+                fi
+            done < <(find "$scan_dir" -type f -iname "*.$ext_video" ! -name "*_temp.*" -mmin -60 2>/dev/null)
+        fi
+
+        echo -e "  ${CYAN}${ICO_ARROW} AUTO CLEAN NAMA FILE${RESET}"
+        while IFS= read -r file; do
+            _bersih_satu_nama "$file"
+        done < <(find "$scan_dir" -type f -iname "*.$ext_video" -mmin -60 2>/dev/null)
+    done
+
+    cd "$original_dir" || true
+    _log "INFO" "Video download batch complete"
+}

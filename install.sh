@@ -60,6 +60,15 @@ if [ -f "zdt-watch.py" ]; then
     chmod +x "$SHAREDIR/zdt-watch.py"
 fi
 
+# Copy module files
+if [ -d "zdt-modules" ]; then
+    mkdir -p "$SHAREDIR/zdt-modules"
+    for mod in "zdt-modules/"*.sh; do
+        [ -f "$mod" ] && cp "$mod" "$SHAREDIR/zdt-modules/"
+    done
+    echo -e "${GREEN}Modules:${NC} ZDT module files installed."
+fi
+
 echo -e "${GREEN}Success!${NC} ZDT has been installed."
 echo -e "You can now run the toolkit by typing: ${YELLOW}zdt${NC}"
 

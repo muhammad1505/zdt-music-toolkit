@@ -1,0 +1,16 @@
+[run]
+source = .
+include =
+    zdt-web.py
+    tests/*
+
+[report]
+show_missing = true
+skip_covered = true
+skip_empty = true
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    except ImportError:
+    except Exception:
+    def main

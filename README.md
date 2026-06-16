@@ -22,7 +22,15 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 
 ## Changelog
 
-### v3.7.1 (Latest)
+### v3.8.0 (Latest)
+- **Feat: Modular Refactor!** `zdt.sh` dipecah dari monolitik 4.786 baris menjadi arsitektur modular dengan 8 modul di `zdt-modules/` (core, helpers, download, media, playlist, daemon, setup, assistant)
+- **Feat: Pytest Unit Tests** untuk komponen Python (`zdt-web.py`, `zdt-telegram.py`, `zdt-watch.py`)
+- **Fix:** `_find_media_files()` sekarang menggunakan array bash yang benar untuk argumen `find` (perbaiki bug ekstensi filter)
+- **Enhance:** Thin loader `zdt.sh` — hanya 143 baris, lebih cepat di-load
+- **Enhance:** OTA updater sekarang juga mendownload modul dari GitHub
+- **Chore:** Smoke test ditingkatkan untuk mendeteksi duplikasi fungsi antar modul
+
+### v3.7.1
 - Fix: Hapus positional argument `$ROOT_DIR` dari pemanggilan `zdt-web.py` yang menyebabkan error `unrecognized arguments`
 - Bump versi untuk deteksi auto-updater
 
