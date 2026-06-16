@@ -4237,7 +4237,7 @@ $APP_NAME v$APP_VERSION — Universal Music Toolkit
 
 Usage: $APP_NAME [OPTIONS]
 
-Options:
+Options (General):
   --install         Instal script ini secara global (bisa diakses via perintah 'zdt')
   --update          Update script ZDT ke versi terbaru dari GitHub
   --debug           Aktifkan mode debug (verbose logging)
@@ -4247,19 +4247,23 @@ Options:
   --version, -v     Tampilkan versi aplikasi
   --help, -h        Tampilkan bantuan ini
 
-Fitur:
-  1. Sedot Spotify               (spotdl)
-  2. Sedot Audio YT/TikTok/dll   (yt-dlp)
-  3. Sedot Video YT/TikTok/dll   (yt-dlp)
-  4. Kompres Media Massal        (ffmpeg)
-  5. Auto Sync Lirik             (syncedlyrics)
-  6. Pembersih Nama File
-  7. Generator Playlist (.m3u)
-  8. Update Alat Tempur
-  9. Info Sistem
+Options (Services & Background):
+  --web             Jalankan ZDT Web Dashboard
+  --telegram        Jalankan ZDT Telegram Bot Remote
+  --watch           Jalankan Auto-Watch Daemon (Otomatis kompres/hapus vokal)
+
+Options (Direct Actions):
+  --download-audio URL  Langsung download audio dari URL (YouTube/TikTok/dsb)
+  --download-video URL  Langsung download video dari URL
+  --spotify-sync URL    Langsung jalankan Spotify Sync untuk URL Playlist/Album
+  --clean-file PATH     Pembersih nama file secara langsung pada 1 file
+  --kompres-media-all   Jalankan kompres media (otomatis)
+  --extract-vocal-all   Jalankan pemisah vokal (otomatis)
+  --sync-lirik-all      Jalankan auto sync lirik (otomatis)
+  --bersih-nama-all     Jalankan pembersih nama direktori (otomatis)
+  --bikin-playlist-all  Jalankan generator m3u (otomatis)
 
 Kompatibel: Linux, Termux, proot-distro, Alpine, WSL
-
 HELPEOF
                 exit 0
                 ;;
