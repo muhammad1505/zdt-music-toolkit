@@ -110,9 +110,10 @@ update_zdt_script() {
     
     local tmp_file="/tmp/zdt_update_$$.sh"
     if curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt.sh" -o "$tmp_file"; then
-        if [ -s "$tmp_file" ] && grep -q "APP_VERSION" "$tmp_file"; then
+        if [ -s "$tmp_file" ] && grep -qE "APP_VERSION|Version :" "$tmp_file"; then
             local new_version
-            new_version=$(grep -oP 'APP_VERSION="\K[^"]+' "$tmp_file")
+            # Try APP_VERSION="x.y.z" first (monolithic), else fallback to comment # Version : x.y.z (modular)
+            new_version=$(grep -oP 'APP_VERSION="\K[^"]+' "$tmp_file" 2>/dev/null || grep -oP 'Version : \K[0-9.]+' "$tmp_file" 2>/dev/null || echo "unknown")
             echo -e "  ${GREEN}${ICO_OK} Versi $new_version berhasil didownload!${RESET}"
             
             local target_bin
