@@ -2797,6 +2797,31 @@ install_missing_tools() {
 
     # 4. Install Python tools di dalam VENV
     local pip_cmd="$ZDT_VENV_DIR/bin/pip"
+    
+    if [ ! -f "$pip_cmd" ] && [ -f "$ZDT_VENV_DIR/bin/pip3" ]; then
+        pip_cmd="$ZDT_VENV_DIR/bin/pip3"
+    fi
+
+    if [ ! -f "$pip_cmd" ]; then
+        echo -e "  ${YELLOW}${ICO_WARN} Pip tidak ditemukan di VENV. Mencoba menginstal pip secara manual...${RESET}"
+        if command -v curl >/dev/null 2>&1; then
+            curl -sSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+        elif command -v wget >/dev/null 2>&1; then
+            wget -qO /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py
+        fi
+        
+        if [ -f /tmp/get-pip.py ]; then
+            "$ZDT_VENV_DIR/bin/python3" /tmp/get-pip.py >/dev/null 2>&1 || true
+            rm -f /tmp/get-pip.py
+            
+            if [ -f "$ZDT_VENV_DIR/bin/pip" ]; then
+                pip_cmd="$ZDT_VENV_DIR/bin/pip"
+            elif [ -f "$ZDT_VENV_DIR/bin/pip3" ]; then
+                pip_cmd="$ZDT_VENV_DIR/bin/pip3"
+            fi
+        fi
+    fi
+
     if [ -f "$pip_cmd" ]; then
         local pip_tools=("yt-dlp" "spotdl" "syncedlyrics" "mutagen" "flask" "werkzeug" "watchdog" "pyTelegramBotAPI")
         
@@ -2814,6 +2839,7 @@ install_missing_tools() {
         fi
     else
         echo -e "  ${RED}${ICO_FAIL} Gagal menemukan pip di dalam VENV.${RESET}"
+        echo -e "  ${YELLOW}Saran: Jalankan manual 'apt install python3-pip' (Debian/Ubuntu).${RESET}"
         return 1
     fi
 
