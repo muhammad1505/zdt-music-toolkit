@@ -35,7 +35,7 @@ set -uo pipefail
 # ==========================================
 # CONSTANTS
 # ==========================================
-readonly APP_VERSION="3.4.3"
+readonly APP_VERSION="3.4.4"
 readonly APP_NAME="Zaki Downloader Tools"
 readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
 readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
