@@ -1591,7 +1591,7 @@ download_ytdlp() {
         folder_mode="3"
         format_pilih="1"
         yt_ext="m4a"
-        pilih_archive="y"
+        pilih_archive="n"
         pilih_lirik="n"
         pilih_kompres="n"
         pilih_chapter="n"
@@ -1849,7 +1849,7 @@ download_video() {
         codec_pilih="3"
         sub_pilih="n"
         folder_mode="3"
-        pilih_archive="y"
+        pilih_archive="n"
         pilih_chapter="n"
     else
         while true; do
