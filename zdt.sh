@@ -1143,12 +1143,14 @@ hapus_vokal() {
         read -r confirm
         if [[ ! "$confirm" =~ ^[Yy]$ ]] && [ -n "$confirm" ]; then
             echo -e "  ${RED}${ICO_FAIL} Instalasi dibatalkan.${RESET}"
+            sleep 2
             return 0
         fi
 
         echo -e "\n  ${CYAN}${ICO_ARROW} Membuat Python Virtual Environment...${RESET}"
         if ! python3 -m venv "$venv_dir"; then
             echo -e "  ${RED}${ICO_FAIL} Gagal membuat virtual environment. Pastikan paket python3-venv terinstal.${RESET}"
+            sleep 2
             return 1
         fi
 
@@ -1156,6 +1158,7 @@ hapus_vokal() {
         if ! "$venv_dir/bin/pip" install -U pip setuptools demucs torchcodec; then
             echo -e "  ${RED}${ICO_FAIL} Gagal menginstal Demucs!${RESET}"
             rm -rf "$venv_dir"
+            sleep 2
             return 1
         fi
         echo -e "  ${GREEN}${ICO_OK} Demucs berhasil diinstal!${RESET}\n"
@@ -2339,6 +2342,7 @@ edit_metadata_manual() {
         install_missing_tools
         if [ ! -f "$ZDT_VENV_DIR/bin/python" ]; then
             echo -e "  ${RED}${ICO_FAIL} VENV Python masih gagal diakses. Batal!${RESET}"
+            sleep 2
             return 1
         fi
     fi
@@ -2359,6 +2363,7 @@ edit_metadata_manual() {
 
     if [ "$count" -eq 0 ]; then
         echo -e "  ${RED}${ICO_FAIL} Tidak ada file audio di direktori ini!${RESET}"
+        sleep 2
         return 0
     fi
 
