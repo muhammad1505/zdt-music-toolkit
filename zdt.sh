@@ -45,6 +45,16 @@ CONF_VIDEO_CODEC="2"
 CONF_VIDEO_QUAL="1"
 CONF_VIDEO_FMT="4"
 
+# Global Variables Initialization (Strict Mode Safe)
+AUTO_DOWNLOAD_URL=""
+ZDT_AUTO_KOMPRES=""
+ZDT_AUTO_VOKAL=""
+AUTO_SYNC_LIRIK=""
+ZDT_AUTO_BERSIH=""
+ZDT_AUTO_PLAYLIST=""
+LAST_DOWNLOAD_QUERY=""
+STORAGE_DIR=""
+
 _load_config() {
     if [ -f "$ZDT_CONFIG_FILE" ]; then
         source "$ZDT_CONFIG_FILE"
