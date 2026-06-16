@@ -160,6 +160,48 @@ HTML_TEMPLATE = """
         .tool-title { font-size: 18px; font-weight: 800; margin-bottom: 10px; }
         .tool-desc { font-size: 13px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; }
 
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding: 15px 10px;
+                justify-content: center;
+                gap: 8px;
+                border-right: none;
+                border-bottom: 1px solid var(--glass-border);
+                position: sticky;
+                top: 0;
+                box-sizing: border-box;
+            }
+            .logo { width: 100%; margin-bottom: 15px; font-size: 24px; }
+            .nav-item {
+                padding: 10px;
+                font-size: 13px;
+                gap: 8px;
+                border-left: none !important;
+                border-bottom: 2px solid transparent;
+                border-radius: 8px;
+                background: rgba(255,255,255,0.03);
+                flex: 1 1 calc(33% - 10px);
+                justify-content: center;
+                text-align: center;
+            }
+            .nav-item.active {
+                border-bottom: 2px solid var(--primary);
+                background: rgba(0, 240, 255, 0.1);
+            }
+            .main-content { padding: 20px 15px; }
+            .header { flex-direction: column; align-items: flex-start; gap: 15px; margin-bottom: 25px; }
+            .header h2 { font-size: 24px; }
+            .stats-grid { grid-template-columns: 1fr; margin-bottom: 25px; }
+            .tools-grid { grid-template-columns: 1fr; }
+            .btn { font-size: 14px; padding: 12px 20px; }
+            input[type="text"], select { padding: 12px; font-size: 14px; }
+            .panel { padding: 20px; }
+        }
+
     </style>
 </head>
 <body>
