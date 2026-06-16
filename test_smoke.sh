@@ -11,7 +11,7 @@ pass() { echo -e "  ✅ $1"; PASS=$((PASS + 1)); }
 fail() { echo -e "  ❌ $1"; FAIL=$((FAIL + 1)); }
 
 echo "╔══════════════════════════════════════════╗"
-echo "║   ZDT Smoke Test — v3.7.0               ║"
+echo "║   ZDT Smoke Test — v3.7.1               ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
@@ -56,10 +56,10 @@ echo ""
 # 4. Version consistency check
 echo "▶ Version Consistency"
 ver_sh=$(grep -oP 'APP_VERSION="\K[^"]+' "$SCRIPT_DIR/zdt.sh" 2>/dev/null || echo "NOT_FOUND")
-if [ "$ver_sh" = "3.7.0" ]; then
+if [ "$ver_sh" = "3.7.1" ]; then
     pass "APP_VERSION = $ver_sh"
 else
-    fail "APP_VERSION mismatch: expected 3.7.0, got $ver_sh"
+    fail "APP_VERSION mismatch: expected 3.7.1, got $ver_sh"
 fi
 echo ""
 
