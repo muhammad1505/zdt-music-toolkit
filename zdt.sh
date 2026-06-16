@@ -1332,7 +1332,7 @@ download_spotdl() {
     local links=()
     local step=1
 
-    if ! _check_dependency "spotdl" "true"; then
+    if ! _ensure_python_tool "spotdl" "spotdl" 0; then
         return 1
     fi
 
@@ -1560,7 +1560,7 @@ download_ytdlp() {
     local links=()
     local step=1
 
-    if ! _check_dependency "yt-dlp" "true"; then
+    if ! _ensure_python_tool "yt-dlp" "yt-dlp" 0; then
         return 1
     fi
 
@@ -1812,7 +1812,7 @@ download_video() {
     local links=()
     local step=1
 
-    if ! _check_dependency "yt-dlp" "true"; then
+    if ! _ensure_python_tool "yt-dlp" "yt-dlp" 0; then
         return 1
     fi
 
@@ -2085,7 +2085,7 @@ download_video() {
 auto_sync_lirik() {
     print_header "AUTO SYNC LIRIK (SCAN MISSING .LRC)"
 
-    if ! _check_dependency "syncedlyrics" "true"; then
+    if ! _ensure_python_tool "syncedlyrics" "syncedlyrics" 0; then
         return 1
     fi
 
@@ -2218,10 +2218,7 @@ auto_sync_lirik() {
 sync_spotify_playlist() {
     print_header "SPOTIFY PLAYLIST SYNC"
     
-    if ! command -v spotdl >/dev/null 2>&1; then
-        echo -e "  ${RED}${ICO_FAIL} SpotDL belum terinstall! Gunakan Menu [A] dulu.${RESET}"
-        return 1
-    fi
+    if ! _ensure_python_tool "spotdl" "spotdl" 0; then return 1; fi
 
     local target_dir
     if ! pilih_folder_target; then return 0; fi
@@ -2502,7 +2499,7 @@ bersih_nama() {
 # ==========================================
 start_watch_daemon() {
     print_header "ZDT AUTO-WATCH DAEMON"
-    if ! _check_dependency "python3" "true"; then return 1; fi
+    if ! _ensure_python_tool "watchdog" "Watchdog" 1; then return 1; fi
     
     local watch_script="$HOME/.local/share/zdt/zdt-watch.py"
     if [ ! -f "$watch_script" ]; then
@@ -2538,7 +2535,7 @@ start_telegram_bot() {
         fi
     fi
     
-    if ! _check_dependency "python3" "true"; then return 1; fi
+    if ! _ensure_python_tool "telebot" "pyTelegramBotAPI" 1; then return 1; fi
     
     local tele_script="$HOME/.local/share/zdt/zdt-telegram.py"
     if [ ! -f "$tele_script" ]; then
@@ -2580,7 +2577,7 @@ setup_telegram_bot() {
 
 start_web_dashboard() {
     print_header "ZDT WEB DASHBOARD"
-    if ! _check_dependency "python3" "true"; then return 1; fi
+    if ! _ensure_python_tool "flask" "Flask" 1; then return 1; fi
     
     local web_script="$HOME/.local/share/zdt/zdt-web.py"
     if [ ! -f "$web_script" ]; then
@@ -2742,6 +2739,45 @@ hapus_semua() {
 # ==========================================
 # FUNGSI UTAMA: AUTO INSTALL TOOLS
 # ==========================================
+_ensure_python_tool() {
+    local cmd_or_module="$1"
+    local tool_name="$2"
+    local is_module="${3:-0}"
+
+    local installed=0
+    if [ "$is_module" = "1" ]; then
+        if [ -f "$ZDT_VENV_DIR/bin/python" ] && "$ZDT_VENV_DIR/bin/python" -c "import $cmd_or_module" >/dev/null 2>&1; then
+            installed=1
+        elif python3 -c "import $cmd_or_module" >/dev/null 2>&1; then
+            installed=1
+        fi
+    else
+        if [ -f "$ZDT_VENV_DIR/bin/$cmd_or_module" ] || command -v "$cmd_or_module" >/dev/null 2>&1; then
+            installed=1
+        fi
+    fi
+
+    if [ "$installed" = "0" ]; then
+        echo -e "  ${YELLOW}${ICO_WARN} Komponen '$tool_name' belum terinstall.${RESET}"
+        read -r -p "  Apakah Anda ingin menginstallnya sekarang? [Y/n] " prompt_inst
+        if [[ ! "$prompt_inst" =~ ^[Nn]$ ]]; then
+            install_missing_tools
+            if [ "$is_module" = "1" ]; then
+                if [ -f "$ZDT_VENV_DIR/bin/python" ] && "$ZDT_VENV_DIR/bin/python" -c "import $cmd_or_module" >/dev/null 2>&1; then return 0; fi
+                if python3 -c "import $cmd_or_module" >/dev/null 2>&1; then return 0; fi
+            else
+                if [ -f "$ZDT_VENV_DIR/bin/$cmd_or_module" ] || command -v "$cmd_or_module" >/dev/null 2>&1; then return 0; fi
+            fi
+            echo -e "  ${RED}${ICO_FAIL} Gagal menginstall '$tool_name'. Silakan install manual lewat Menu Update Tools.${RESET}"
+            return 1
+        else
+            echo -e "  ${RED}${ICO_FAIL} Operasi dibatalkan karena '$tool_name' dibutuhkan.${RESET}"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 install_missing_tools() {
     print_header "AUTO INSTALL TOOLS YANG KURANG"
     echo -e "  ${YELLOW}${ICO_ARROW} Memulai instalasi otomatis...${RESET}"
