@@ -279,7 +279,15 @@ HTML_TEMPLATE = """
             .sidebar-overlay.show { display: block; opacity: 1; }
         }
 
-    </style>
+    
+        .log-container {
+            background: #000; border: 1px solid var(--primary);
+            padding: 15px; margin-top: 25px; border-radius: 4px;
+            font-family: "Courier New", monospace; font-size: 13px; color: #0f0;
+            height: 250px; overflow-y: auto; white-space: pre-wrap;
+            box-shadow: inset 0 0 10px rgba(0,255,255,0.1);
+        }
+</style>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileMenu()"></div>
@@ -437,6 +445,11 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
+
+        <div class="header" style="margin-top: 40px; margin-bottom: 20px;">
+            <h2><i class="fa-solid fa-terminal"></i> Realtime Logs</h2>
+        </div>
+        <div class="log-container" id="terminalLog">System ready. Waiting for task execution...</div>
     </div>
 
     <script>
@@ -448,7 +461,22 @@ HTML_TEMPLATE = """
             overlay.classList.toggle("show");
         }
 
-        function switchTab(tabId) {
+        
+        setInterval(async () => {
+            try {
+                const res = await fetch("/api/logs");
+                const data = await res.json();
+                if(data.log) {
+                    const term = document.getElementById("terminalLog");
+                    // only update if changed
+                    if (term.textContent !== data.log) {
+                        term.textContent = data.log;
+                        term.scrollTop = term.scrollHeight;
+                    }
+                }
+            } catch(e) {}
+        }, 1500);
+function switchTab(tabId) {
             if(window.innerWidth <= 900) {
                 document.getElementById("sidebar").classList.remove("open");
                 document.getElementById("sidebarOverlay").classList.remove("show");
@@ -658,7 +686,7 @@ def download():
     cmd = [zdt_bin, "--download-audio" if fmt == 'audio' else "--download-video", url]
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.Popen(cmd, stdout=devnull, stderr=devnull, start_new_session=True)
+            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
@@ -676,7 +704,7 @@ def spotify_sync():
     cmd = [zdt_bin, "--spotify-sync", url]
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.Popen(cmd, stdout=devnull, stderr=devnull, start_new_session=True)
+            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
@@ -779,7 +807,7 @@ def server_tools():
                 cmd = ["ffmpeg", "-y", "-i", filepath, "-b:a", "128k", outpath]
                 
             with open(os.devnull, 'w') as devnull:
-                subprocess.Popen(cmd, stdout=devnull, stderr=devnull, start_new_session=True)
+                subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True)
             return jsonify({"success": True, "message": "Proses kompresi FFmpeg berjalan di background!"})
 
         return jsonify({"success": False, "message": "Aksi tidak dikenal."})
@@ -789,3 +817,14 @@ def server_tools():
 if __name__ == '__main__':
     print("Memulai ZDT Web Dashboard V2 di port 5000...")
     app.run(host='0.0.0.0', port=5000)
+@app.route("/api/logs", methods=["GET"])
+def get_logs():
+    log_file = "/tmp/zdt_web_task.log"
+    if os.path.exists(log_file):
+        with open(log_file, "r") as f:
+            lines = f.readlines()
+            # return last 100 lines to avoid massive payloads
+            return jsonify({"log": "".join(lines[-100:])})
+    return jsonify({"log": "No active tasks."})
+
+
