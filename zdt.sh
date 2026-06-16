@@ -4263,6 +4263,17 @@ Options (Direct Actions):
   --bersih-nama-all     Jalankan pembersih nama direktori (otomatis)
   --bikin-playlist-all  Jalankan generator m3u (otomatis)
 
+Fitur Menu Interaktif Utama:
+  [1] Sedot Spotify             [S] Setup Folder Target
+  [2] Sedot Audio               [V] Hapus Vokal AI (Desktop)
+  [3] Sedot Video               [W] Web Dashboard
+  [4] Kompres Media             [P] Spotify Sync (Otomatis)
+  [5] Sync Lirik Otomatis       [M] Edit Metadata Audio
+  [6] Bersih Nama File          [O] Auto-Watch Daemon
+  [7] Bikin Playlist (.m3u)     [T] Telegram Bot Remote
+  [8] Update Tools              [Z] ZDT AI Assistant
+  [9] Info Sistem               [X] Hapus Semua Media
+
 Kompatibel: Linux, Termux, proot-distro, Alpine, WSL
 HELPEOF
                 exit 0
