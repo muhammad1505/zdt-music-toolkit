@@ -516,8 +516,10 @@ _trap_exit() {
 # HELPER: PRINT HEADER
 # ==========================================
 print_header() {
-    echo -ne "\033[?25h"
-    clear
+    if [ -z "$NO_COLOR" ]; then
+        echo -ne "\033[?25h"
+        clear
+    fi
     echo ""
     local btxt
     printf -v btxt "%-50s" " $1"

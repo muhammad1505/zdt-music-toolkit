@@ -464,10 +464,12 @@ HTML_TEMPLATE = """
         </div>
 
 
-        <div class="header" style="margin-top: 40px; margin-bottom: 20px;">
-            <h2><i class="fa-solid fa-terminal"></i> Realtime Logs</h2>
+        <div id="logSection" style="display: none;">
+            <div class="header" style="margin-top: 40px; margin-bottom: 20px;">
+                <h2><i class="fa-solid fa-terminal"></i> Realtime Logs</h2>
+            </div>
+            <div class="log-container" id="terminalLog">System ready. Waiting for task execution...</div>
         </div>
-        <div class="log-container" id="terminalLog">System ready. Waiting for task execution...</div>
     </div>
 
     <script>
@@ -511,13 +513,16 @@ HTML_TEMPLATE = """
             try {
                 const res = await fetch("/api/logs");
                 const data = await res.json();
-                if(data.log) {
+                if(data.log && data.log.trim().length > 0) {
+                    document.getElementById("logSection").style.display = "block";
                     const term = document.getElementById("terminalLog");
                     // only update if changed
                     if (term.textContent !== data.log) {
                         term.textContent = data.log;
                         term.scrollTop = term.scrollHeight;
                     }
+                } else {
+                    document.getElementById("logSection").style.display = "none";
                 }
             } catch(e) {}
         }, 1500);
