@@ -840,10 +840,10 @@ def server_tools():
             if not os.path.exists(target): return jsonify({"success": False, "message": "Direktori kosong."})
             m3u_path = os.path.join(target, "ZDT_Playlist.m3u")
             with open(m3u_path, 'w') as f:
-                f.write("#EXTM3U\\n")
+                f.write("#EXTM3U\n")
                 for ext in ['*.mp3', '*.m4a', '*.flac']:
                     for track in glob.glob(os.path.join(target, ext)):
-                        f.write(f"{os.path.basename(track)}\\n")
+                        f.write(f"{os.path.basename(track)}\n")
             return jsonify({"success": True, "message": "File ZDT_Playlist.m3u berhasil dibuat di folder."})
 
         elif action == 'demucs':
@@ -865,13 +865,7 @@ def server_tools():
             else:
                 cmd = ["ffmpeg", "-y", "-i", filepath, "-b:a", "128k", outpath]
                 
-            with open(os.devnull, 'w') as devnull:
-                target = get_target_dir()
             env = os.environ.copy()
-            if fmt == "audio":
-                env["CONF_AUDIO_CODEC"] = str(spec)
-            else:
-                env["CONF_VIDEO_FMT"] = str(spec)
             subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
             return jsonify({"success": True, "message": "Proses kompresi FFmpeg berjalan di background!"})
 
@@ -890,8 +884,13 @@ def get_logs():
     return jsonify({"log": "No active tasks."})
 
 if __name__ == '__main__':
-    print("Memulai ZDT Web Dashboard V2 di port 5000...")
-    app.run(host='0.0.0.0', port=5000)
+    import argparse
+    parser = argparse.ArgumentParser(description='ZDT Web Dashboard')
+    parser.add_argument('--bind', default='127.0.0.1', help='Bind address (default: 127.0.0.1)')
+    parser.add_argument('--port', type=int, default=5000, help='Port number (default: 5000)')
+    args = parser.parse_args()
+    print(f"Memulai ZDT Web Dashboard V2 di {args.bind}:{args.port}...")
+    app.run(host=args.bind, port=args.port, debug=False)
 
 
 

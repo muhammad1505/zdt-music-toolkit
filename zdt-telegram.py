@@ -15,6 +15,12 @@ if not os.path.exists(TOKEN_FILE):
     print("Token Telegram tidak ditemukan di konfigurasi.")
     sys.exit(1)
 
+# Pastikan token file aman (hanya bisa dibaca owner)
+try:
+    os.chmod(TOKEN_FILE, 0o600)
+except OSError:
+    pass
+
 with open(TOKEN_FILE, 'r') as f:
     TOKEN = f.read().strip()
 
@@ -225,17 +231,14 @@ def auto_download_audio(message):
                                     bot.reply_to(message, "⏳ Membuat playlist di background...")
                                     run_bg_task(["--bikin-playlist-all"], "Playlist berhasil dibuat!")
                                 elif action == "hapus semua":
-                                    bot.reply_to(message, "🧹 Sedang menghapus semua file di direktori...")
-                                    import shutil
-                                    for filename in os.listdir(abs_path):
-                                        file_path = os.path.join(abs_path, filename)
-                                        try:
-                                            if os.path.isfile(file_path) or os.path.islink(file_path):
-                                                os.unlink(file_path)
-                                            elif os.path.isdir(file_path):
-                                                shutil.rmtree(file_path)
-                                        except: pass
-                                    bot.reply_to(message, "✅ Direktori berhasil dibersihkan!")
+                                    # Konfirmasi keamanan sebelum hapus
+                                    markup = InlineKeyboardMarkup()
+                                    markup.row_width = 2
+                                    markup.add(
+                                        InlineKeyboardButton("⚠️ YA, HAPUS SEMUA", callback_data=f"CONFIRM_DELETE:{abs_path}"),
+                                        InlineKeyboardButton("❌ BATAL", callback_data="CANCEL_DELETE")
+                                    )
+                                    bot.reply_to(message, f"⚠️ *PERINGATAN KEAMANAN!*\n\nAnda akan menghapus SEMUA file di:\n`{abs_path}`\n\nTindakan ini TIDAK BISA dibatalkan!\n\nKlik tombol di bawah untuk konfirmasi:", parse_mode="Markdown", reply_markup=markup)
                                 else:
                                     bot.reply_to(message, f"❌ Aksi {action} belum didukung di Telegram.")
                                 
@@ -351,6 +354,43 @@ def callback_query(call):
             subprocess.Popen([zdt_bin, bash_flag], stdout=devnull, stderr=devnull, start_new_session=True)
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ Terjadi kesalahan: {str(e)}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('CONFIRM_DELETE:'))
+def confirm_delete_callback(call):
+    """Handler untuk konfirmasi hapus semua file"""
+    bot.answer_callback_query(call.id, "Menghapus semua file...")
+    try:
+        target_path = call.data.split(':', 1)[1]
+        if not os.path.exists(target_path):
+            bot.edit_message_text("❌ Direktori tidak ditemukan!", chat_id=call.message.chat.id, message_id=call.message.message_id)
+            return
+        
+        bot.edit_message_text("🗑️ *Menghapus semua file...*\nMohon tunggu.", chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="Markdown")
+        
+        deleted = 0
+        for filename in os.listdir(target_path):
+            file_path = os.path.join(target_path, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                    deleted += 1
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+                    deleted += 1
+            except Exception:
+                pass
+        
+        bot.edit_message_text(f"✅ *Selesai!* {deleted} item berhasil dihapus dari:\n`{target_path}`", chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="Markdown")
+    except Exception as e:
+        bot.edit_message_text(f"❌ Gagal menghapus: {e}", chat_id=call.message.chat.id, message_id=call.message.message_id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data == 'CANCEL_DELETE')
+def cancel_delete_callback(call):
+    """Handler untuk membatalkan hapus semua"""
+    bot.edit_message_text("❌ Pembatalan hapus semua. Tidak ada file yang dihapus.", chat_id=call.message.chat.id, message_id=call.message.message_id)
+    bot.answer_callback_query(call.id, "Dibatalkan.")
+
 
 print("Telegram Bot ZDT berjalan. Menunggu pesan masuk...")
 bot.infinity_polling()

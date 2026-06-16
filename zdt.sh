@@ -35,7 +35,7 @@ set -uo pipefail
 # ==========================================
 # CONSTANTS
 # ==========================================
-readonly APP_VERSION="3.6.1"
+readonly APP_VERSION="3.7.0"
 readonly APP_NAME="Zaki Downloader Tools"
 readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
 readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
@@ -57,6 +57,7 @@ STORAGE_DIR=""
 TARGET_DIR=""
 AUTO_HAPUS_VOKAL_MODE=""
 AUTO_HAPUS_VOKAL_PATH=""
+WEB_BIND="127.0.0.1"
 
 _load_config() {
     if [ -f "$ZDT_CONFIG_FILE" ]; then
@@ -430,7 +431,7 @@ _config_get() {
     echo "$default"
 }
 
-# Tulis value ke config file
+# Tulis value ke config file (portable, atomic via tmp+mv)
 _config_set() {
     local key="$1"
     local value="$2"
@@ -440,27 +441,50 @@ _config_set() {
 
     mkdir -p "$config_dir" 2>/dev/null
 
+    # Gunakan flock jika tersedia, fallback ke simple write
+    if command -v flock >/dev/null 2>&1; then
+        local lock_fd=200
+        eval "exec $lock_fd>\"${config_file}.lock\"" 2>/dev/null
+        flock -w 5 $lock_fd 2>/dev/null || true
+    fi
+
     if [ -f "$config_file" ]; then
-        # Hapus key lama, tulis yang baru
-        local tmp_file="${config_file}.tmp"
+        local tmp_file="${config_file}.tmp.$$"
         grep -v "^${key}=" "$config_file" > "$tmp_file" 2>/dev/null || true
         echo "${key}=${value}" >> "$tmp_file"
         mv -- "$tmp_file" "$config_file"
     else
         echo "${key}=${value}" > "$config_file"
     fi
+
+    # Release lock jika flock digunakan
+    if command -v flock >/dev/null 2>&1; then
+        eval "exec 200>-" 2>/dev/null
+    fi
 }
 
-# Hapus key dari config
+# Hapus key dari config (portable, atomic via tmp+mv)
 _config_unset() {
     local key="$1"
     local config_file
     config_file=$(_get_config_file)
 
     if [ -f "$config_file" ]; then
-        local tmp_file="${config_file}.tmp"
+        # Gunakan flock jika tersedia
+        if command -v flock >/dev/null 2>&1; then
+            local lock_fd=200
+            eval "exec $lock_fd>\"${config_file}.lock\"" 2>/dev/null
+            flock -w 5 $lock_fd 2>/dev/null || true
+        fi
+
+        local tmp_file="${config_file}.tmp.$$"
         grep -v "^${key}=" "$config_file" > "$tmp_file" 2>/dev/null || true
         mv -- "$tmp_file" "$config_file"
+
+        # Release lock
+        if command -v flock >/dev/null 2>&1; then
+            eval "exec 200>-" 2>/dev/null
+        fi
     fi
 }
 
@@ -735,6 +759,42 @@ bersih_nama_otomatis() {
 }
 
 # ==========================================
+# HELPER: SCAN MEDIA FILES (DRY)
+# ==========================================
+# _find_media_files <target_dir> <type> [extra_find_args...]
+# type: "audio" | "video" | "all" | "lyrics"
+_find_media_files() {
+    local search_dir="$1"
+    local media_type="$2"
+    shift 2
+    local extra_args=("$@")
+
+    local find_args=("$search_dir" -type f)
+    local ext_args=()
+
+    case "$media_type" in
+        audio)
+            ext_args=(\( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" \))
+            ;;
+        video)
+            ext_args=(\( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.ts" \))
+            ;;
+        all)
+            ext_args=(\( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" \))
+            ;;
+        lyrics)
+            ext_args=(-iname "*.lrc")
+            ;;
+        media_with_lyrics)
+            ext_args=(\( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" -o -iname "*.lrc" \))
+            ;;
+    esac
+
+    find_args+=("${ext_args[@]}" "${extra_args[@]}")
+    find "${find_args[@]}" 2>/dev/null
+}
+
+# ==========================================
 # HELPER: KOMPRES AUDIO TUNGGAL
 # ==========================================
 _kompres_audio_file() {
@@ -970,17 +1030,10 @@ _kompres_audio_batch() {
         _kompres_audio_file "$file" "$codec" "$bitrate" "$ext_pilih" >/dev/null 2>&1 &
         bg_pids+=($!)
         
-        # Tunggu jika worker penuh
+        # Tunggu jika worker penuh — tunggu SEMUA selesai, lalu reset pool
         if [ ${#bg_pids[@]} -ge $max_jobs ]; then
-            wait -n 2>/dev/null
-            # Hapus pid yang udah kelar
-            local new_pids=()
-            for pid in "${bg_pids[@]}"; do
-                if kill -0 "$pid" 2>/dev/null; then
-                    new_pids+=("$pid")
-                fi
-            done
-            bg_pids=("${new_pids[@]}")
+            wait 2>/dev/null
+            bg_pids=()
         fi
     done < <(find "${find_args[@]}" 2>/dev/null)
     
@@ -1109,14 +1162,8 @@ _kompres_video_batch() {
         bg_pids+=($!)
         
         if [ ${#bg_pids[@]} -ge $max_jobs ]; then
-            wait -n 2>/dev/null
-            local new_pids=()
-            for pid in "${bg_pids[@]}"; do
-                if kill -0 "$pid" 2>/dev/null; then
-                    new_pids+=("$pid")
-                fi
-            done
-            bg_pids=("${new_pids[@]}")
+            wait 2>/dev/null
+            bg_pids=()
         fi
     done < <(find "${find_args[@]}" 2>/dev/null)
     wait 2>/dev/null
@@ -1174,10 +1221,9 @@ hapus_vokal() {
         mode_proses="$AUTO_HAPUS_VOKAL_MODE"
         if [ "$mode_proses" = "1" ]; then
             local target_dir="${TARGET_DIR:-$(pwd)}"
-            local find_args=("$target_dir" -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.wav" -o -iname "*.flac" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" \) ! -name "*_karaoke.*" -mmin -60)
             while IFS= read -r f; do
                 files_to_process+=("$f")
-            done < <(find "${find_args[@]}" 2>/dev/null)
+            done < <(_find_media_files "$target_dir" "all" "!" -name "*_karaoke.*" -mmin -60)
         elif [ "$mode_proses" = "2" ]; then
             if [ -n "$AUTO_HAPUS_VOKAL_PATH" ] && [ -f "$AUTO_HAPUS_VOKAL_PATH" ]; then
                 files_to_process+=("$AUTO_HAPUS_VOKAL_PATH")
@@ -1207,10 +1253,9 @@ hapus_vokal() {
                     if ! pilih_folder_target; then step=1; continue; fi
                     local target_dir="$TARGET_DIR"
 
-                    local find_args=("$target_dir" -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.wav" -o -iname "*.flac" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" \) ! -name "*_karaoke.*")
                     while IFS= read -r f; do
                         files_to_process+=("$f")
-                    done < <(find "${find_args[@]}" 2>/dev/null)
+                    done < <(_find_media_files "$target_dir" "all" "!" -name "*_karaoke.*")
 
                 elif [ "$mode_proses" = "2" ]; then
                     echo -e -n "  ${BOLD}[?] Masukkan path file lengkap (drag & drop, 0=Kembali): ${RESET}"
@@ -2130,7 +2175,8 @@ download_video() {
                     sleep 0.1
                 done
                 wait $epid
-                if [ $? -eq 0 ] && [ -f "$tmpfile" ]; then
+                local enc_exit=$?
+                if [ "$enc_exit" -eq 0 ] && [ -f "$tmpfile" ]; then
                     mv "$tmpfile" "$file"
                     echo -e "\b${GREEN}${ICO_OK}${RESET}"
                 else
@@ -2180,12 +2226,12 @@ auto_sync_lirik() {
     if [ -n "$AUTO_SYNC_LIRIK" ]; then
         target_dir="${TARGET_DIR:-$(pwd)}"
         AUTO_SYNC_LIRIK=""
-        total_audio=$(find "$target_dir" -type f \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" \) 2>/dev/null | wc -l)
+        total_audio=$(_find_media_files "$target_dir" "all" | wc -l)
         total_missing=0
         while IFS= read -r af; do
             local fn="${af%.*}.lrc"
             [ ! -f "$fn" ] && ((total_missing++))
-        done < <(find "$target_dir" -type f \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" \) 2>/dev/null)
+        done < <(_find_media_files "$target_dir" "all")
         if [ "$total_missing" -eq 0 ]; then
             return 0
         fi
@@ -2196,12 +2242,12 @@ auto_sync_lirik() {
             target_dir="$TARGET_DIR"
 
             # Hitung jumlah file dulu sebelum konfirmasi
-            total_audio=$(find "$target_dir" -type f \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" \) 2>/dev/null | wc -l)
+            total_audio=$(_find_media_files "$target_dir" "all" | wc -l)
             total_missing=0
             while IFS= read -r af; do
                 local fn="${af%.*}.lrc"
                 [ ! -f "$fn" ] && ((total_missing++))
-            done < <(find "$target_dir" -type f \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" \) 2>/dev/null)
+            done < <(_find_media_files "$target_dir" "all")
 
             echo -e "  ${CYAN}${ICO_ARROW} Direktori target: ${YELLOW}$target_dir${RESET}"
             echo -e "  ${WHITE}Total file audio :${RESET} $total_audio"
@@ -2275,7 +2321,7 @@ auto_sync_lirik() {
             echo -e "    ${RED}${ICO_FAIL} Gagal menemukan lirik.${RESET}"
             ((count_failed++))
         fi
-    done < <(find "$target_dir" -type f \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" \) -print0 2>/dev/null | xargs -0 --no-run-if-empty ls -t 2>/dev/null)
+    done < <(_find_media_files "$target_dir" "all" -print0 2>/dev/null | xargs -0 --no-run-if-empty ls -t 2>/dev/null)
 
     echo -e "  ${CYAN}${ICO_ARROW} LAPORAN AUTO SYNC:${RESET}"
     echo -e "    ${GREEN}Sukses  :${RESET} $count_success lagu"
@@ -2567,7 +2613,7 @@ bersih_nama() {
         while IFS= read -r file; do
             _bersih_satu_nama "$file"
             ((count++))
-        done < <(find "$target_dir" -type f \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" -o -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.webm" -o -iname "*.lrc" \) "${time_arg[@]}" 2>/dev/null)
+        done < <(_find_media_files "$target_dir" "media_with_lyrics" "${time_arg[@]}")
         echo -e "  ${GREEN}${ICO_OK} Proses perapian nama selesai! ($count file diproses)${RESET}"
         _log "INFO" "Name cleaning done: $count files scanned"
 
@@ -2657,12 +2703,14 @@ setup_telegram_bot() {
     if [ -n "$bot_token" ]; then
         mkdir -p "$HOME/.config/zdt"
         echo "$bot_token" > "$HOME/.config/zdt/telegram_token.txt"
+        chmod 600 "$HOME/.config/zdt/telegram_token.txt"
         echo -e "\n  ${GREEN}${ICO_OK} Token berhasil disimpan!${RESET}"
         echo -e "  ${YELLOW}${ICO_ARROW} Anda bisa menjalankan bot dengan ZDT --telegram atau pilih Menu T.${RESET}"
     fi
 }
 
 start_web_dashboard() {
+    local bind_addr="${1:-127.0.0.1}"
     print_header "ZDT WEB DASHBOARD"
     if ! _ensure_python_tool "flask" "Flask" 1; then return 1; fi
     
@@ -2688,9 +2736,9 @@ start_web_dashboard() {
     fi
     
     if [ -f "$ZDT_VENV_DIR/bin/python" ]; then
-        "$ZDT_VENV_DIR/bin/python" "$web_script" "$ROOT_DIR"
+        "$ZDT_VENV_DIR/bin/python" "$web_script" "$ROOT_DIR" --bind "$bind_addr"
     else
-        python3 "$web_script" "$ROOT_DIR"
+        python3 "$web_script" "$ROOT_DIR" --bind "$bind_addr"
     fi
 }
 
@@ -3695,7 +3743,7 @@ zaki_assistant() {
                 printf "  ${CYAN}║${RESET} 🤖 ${WHITE}%-45s${RESET} ${CYAN}║${RESET}\n" "Otw nyalain Web Dashboard..."
                 echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
                 sleep 1
-                start_web_dashboard
+                start_web_dashboard "127.0.0.1"
                 print_bot_header
                 bot_prompt="Server Web udah mati. Lanjut ngapain nih bro?"
             elif [[ "$lower_input" == "spotify sync" ]] || [[ "$lower_input" == "sync spotify" ]]; then
@@ -4284,7 +4332,7 @@ _parse_args() {
             --web|web)
                 _setup_colors
                 _setup_unicode
-                start_web_dashboard
+                start_web_dashboard "127.0.0.1"
                 exit 0
                 ;;
             --install)
@@ -4328,6 +4376,7 @@ Options (General):
 
 Options (Services & Background):
   --web             Jalankan ZDT Web Dashboard
+  --web-bind ADDR Jalankan Web Dashboard dengan bind address (default: 127.0.0.1)
   --telegram        Jalankan ZDT Telegram Bot Remote
   --watch           Jalankan Auto-Watch Daemon (Otomatis kompres/hapus vokal)
 
