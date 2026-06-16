@@ -183,29 +183,47 @@ def auto_download_audio(message):
                             match = re.search(r"\[AUTO_ACTION:\s*(.+?)\]", reply_text)
                             if match:
                                 action = match.group(1).strip()
+                                
+                                def run_bg_task(cmd_args, success_msg):
+                                    import threading
+                                    import subprocess
+                                    def _task():
+                                        try:
+                                            res = subprocess.run([zdt_bin] + cmd_args, capture_output=True, text=True)
+                                            # get last 5 lines for context
+                                            log_context = "\n".join([line for line in res.stdout.split("\n") if line.strip()][-5:])
+                                            if res.returncode == 0:
+                                                bot.reply_to(message, f"✅ {success_msg}\n\n📄 Log:\n`{log_context}`", parse_mode="Markdown")
+                                            else:
+                                                err_log = "\n".join([line for line in res.stderr.split("\n") if line.strip()][-5:])
+                                                bot.reply_to(message, f"❌ Terjadi kesalahan.\n\n📄 Error:\n`{err_log}`", parse_mode="Markdown")
+                                        except Exception as e:
+                                            bot.reply_to(message, f"❌ System Error: {e}")
+                                    threading.Thread(target=_task).start()
+
                                 if action.startswith("gas download audio"):
                                     url = action.replace("gas download audio", "").strip()
                                     bot.reply_to(message, f"⏳ *Sedang Mendownload Audio...*\n📍 `Server` memproses link.", parse_mode="Markdown")
-                                    subprocess.Popen([zdt_bin, "--download-audio", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                    run_bg_task(["--download-audio", url], "Audio berhasil di-download!")
                                 elif action.startswith("gas download video"):
                                     url = action.replace("gas download video", "").strip()
                                     bot.reply_to(message, f"⏳ *Sedang Mendownload Video...*\n📍 `Server` memproses link.", parse_mode="Markdown")
-                                    subprocess.Popen([zdt_bin, "--download-video", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                    run_bg_task(["--download-video", url], "Video berhasil di-download!")
                                 elif action == "hapus vokal":
                                     bot.reply_to(message, "⏳ Memisahkan vokal di background...")
-                                    subprocess.Popen([zdt_bin, "--extract-vocal-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                    run_bg_task(["--extract-vocal-all"], "Vokal berhasil dipisah!")
                                 elif action == "kompres media":
                                     bot.reply_to(message, "⏳ Mengkompres media di background...")
-                                    subprocess.Popen([zdt_bin, "--kompres-media-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                    run_bg_task(["--kompres-media-all"], "Media berhasil dikompres!")
                                 elif action == "sync lirik":
                                     bot.reply_to(message, "⏳ Menyinkronkan lirik di background...")
-                                    subprocess.Popen([zdt_bin, "--sync-lirik-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                    run_bg_task(["--sync-lirik-all"], "Lirik berhasil disinkronisasi!")
                                 elif action == "bersih nama":
                                     bot.reply_to(message, "⏳ Merapikan nama file di background...")
-                                    subprocess.Popen([zdt_bin, "--bersih-nama-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                    run_bg_task(["--bersih-nama-all"], "Nama file berhasil dirapikan!")
                                 elif action == "bikin playlist":
                                     bot.reply_to(message, "⏳ Membuat playlist di background...")
-                                    subprocess.Popen([zdt_bin, "--bikin-playlist-all"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                                    run_bg_task(["--bikin-playlist-all"], "Playlist berhasil dibuat!")
                                 elif action == "hapus semua":
                                     bot.reply_to(message, "🧹 Sedang menghapus semua file di direktori...")
                                     import shutil
