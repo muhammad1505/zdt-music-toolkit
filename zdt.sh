@@ -2736,9 +2736,9 @@ start_web_dashboard() {
     fi
     
     if [ -f "$ZDT_VENV_DIR/bin/python" ]; then
-        "$ZDT_VENV_DIR/bin/python" "$web_script" "$ROOT_DIR" --bind "$bind_addr"
+        "$ZDT_VENV_DIR/bin/python" "$web_script" --bind "$bind_addr"
     else
-        python3 "$web_script" "$ROOT_DIR" --bind "$bind_addr"
+        python3 "$web_script" --bind "$bind_addr"
     fi
 }
 
