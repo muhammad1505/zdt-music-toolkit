@@ -366,10 +366,16 @@ HTML_TEMPLATE = """
                     <input type="text" id="dlUrl" placeholder="https://youtube.com/watch?v=..." required>
                 </div>
                 <div class="form-group">
-                    <label>Format</label>
-                    <select id="dlFormat">
-                        <option value="audio">🎵 Audio MP3 (High Quality)</option>
-                        <option value="video">🎬 Video MP4 (Max Resolution)</option>
+                    <label>Tipe Media</label>
+                    <select id="dlFormat" onchange="updateFormatOptions()">
+                        <option value="audio">🎵 Audio</option>
+                        <option value="video">🎬 Video</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Format / Kualitas Output</label>
+                    <select id="dlFormatSpec">
+                        <!-- Populated by JS -->
                     </select>
                 </div>
                 <button type="submit" id="btnDl" class="btn"><i class="fa-solid fa-bolt"></i> Execute Download</button>
@@ -698,7 +704,13 @@ def download():
     cmd = [zdt_bin, "--download-audio" if fmt == 'audio' else "--download-video", url]
     try:
         with open(os.devnull, 'w') as devnull:
-            target = get_target_dir(); subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
+            target = get_target_dir()
+            env = os.environ.copy()
+            if fmt == "audio":
+                env["CONF_AUDIO_CODEC"] = str(spec)
+            else:
+                env["CONF_VIDEO_FMT"] = str(spec)
+            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
@@ -716,7 +728,13 @@ def spotify_sync():
     cmd = [zdt_bin, "--no-color", "--no-unicode", "--spotify-sync", url]
     try:
         with open(os.devnull, 'w') as devnull:
-            target = get_target_dir(); subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
+            target = get_target_dir()
+            env = os.environ.copy()
+            if fmt == "audio":
+                env["CONF_AUDIO_CODEC"] = str(spec)
+            else:
+                env["CONF_VIDEO_FMT"] = str(spec)
+            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
@@ -819,7 +837,13 @@ def server_tools():
                 cmd = ["ffmpeg", "-y", "-i", filepath, "-b:a", "128k", outpath]
                 
             with open(os.devnull, 'w') as devnull:
-                target = get_target_dir(); subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
+                target = get_target_dir()
+            env = os.environ.copy()
+            if fmt == "audio":
+                env["CONF_AUDIO_CODEC"] = str(spec)
+            else:
+                env["CONF_VIDEO_FMT"] = str(spec)
+            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
             return jsonify({"success": True, "message": "Proses kompresi FFmpeg berjalan di background!"})
 
         return jsonify({"success": False, "message": "Aksi tidak dikenal."})
