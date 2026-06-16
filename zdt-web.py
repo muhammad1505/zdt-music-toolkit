@@ -814,9 +814,6 @@ def server_tools():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
-if __name__ == '__main__':
-    print("Memulai ZDT Web Dashboard V2 di port 5000...")
-    app.run(host='0.0.0.0', port=5000)
 @app.route("/api/logs", methods=["GET"])
 def get_logs():
     log_file = "/tmp/zdt_web_task.log"
@@ -826,5 +823,10 @@ def get_logs():
             # return last 100 lines to avoid massive payloads
             return jsonify({"log": "".join(lines[-100:])})
     return jsonify({"log": "No active tasks."})
+
+if __name__ == '__main__':
+    print("Memulai ZDT Web Dashboard V2 di port 5000...")
+    app.run(host='0.0.0.0', port=5000)
+
 
 
