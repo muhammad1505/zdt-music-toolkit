@@ -722,6 +722,7 @@ def download():
     data = request.json
     url = data.get('url', '')
     fmt = data.get('format', 'audio')
+    spec = data.get('spec', '1')
     if not url: return jsonify({"success": False, "message": "URL kosong"})
     import shutil
     zdt_bin = shutil.which("zdt")
@@ -757,12 +758,7 @@ def spotify_sync():
     try:
         with open(os.devnull, 'w') as devnull:
             target = get_target_dir()
-            env = os.environ.copy()
-            if fmt == "audio":
-                env["CONF_AUDIO_CODEC"] = str(spec)
-            else:
-                env["CONF_VIDEO_FMT"] = str(spec)
-            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
+            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
