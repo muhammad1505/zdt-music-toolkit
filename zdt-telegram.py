@@ -47,9 +47,19 @@ def listener(messages):
 
 bot.set_update_listener(listener)
 
-zdt_bin = "/home/zaki/.local/bin/zdt"
-if not os.path.exists(zdt_bin):
-    zdt_bin = "/home/zaki/zdt.sh"
+import shutil
+zdt_bin = shutil.which("zdt")
+if not zdt_bin:
+    for path in [
+        os.path.expanduser("~/.local/bin/zdt"),
+        "/usr/local/bin/zdt",
+        "/data/data/com.termux/files/usr/bin/zdt"
+    ]:
+        if os.path.exists(path):
+            zdt_bin = path
+            break
+if not zdt_bin:
+    zdt_bin = "zdt"  # Fallback
 
 @bot.message_handler(commands=['start', 'help', 'menu'])
 def send_welcome(message):

@@ -511,7 +511,12 @@ def download():
     url = data.get('url', '')
     fmt = data.get('format', 'audio')
     if not url: return jsonify({"success": False, "message": "URL kosong"})
-    zdt_bin = "/home/zaki/.local/bin/zdt" if os.path.exists("/home/zaki/.local/bin/zdt") else "/home/zaki/zdt.sh"
+    import shutil
+    zdt_bin = shutil.which("zdt")
+    if not zdt_bin:
+        for path in [os.path.expanduser("~/.local/bin/zdt"), "/usr/local/bin/zdt", "/data/data/com.termux/files/usr/bin/zdt"]:
+            if os.path.exists(path): zdt_bin = path; break
+    if not zdt_bin: zdt_bin = "zdt"
     cmd = [zdt_bin, "--download-audio" if fmt == 'audio' else "--download-video", url]
     try:
         with open(os.devnull, 'w') as devnull:
@@ -524,7 +529,12 @@ def download():
 def spotify_sync():
     url = request.json.get('url', '')
     if not url: return jsonify({"success": False, "message": "URL kosong"})
-    zdt_bin = "/home/zaki/.local/bin/zdt" if os.path.exists("/home/zaki/.local/bin/zdt") else "/home/zaki/zdt.sh"
+    import shutil
+    zdt_bin = shutil.which("zdt")
+    if not zdt_bin:
+        for path in [os.path.expanduser("~/.local/bin/zdt"), "/usr/local/bin/zdt", "/data/data/com.termux/files/usr/bin/zdt"]:
+            if os.path.exists(path): zdt_bin = path; break
+    if not zdt_bin: zdt_bin = "zdt"
     cmd = [zdt_bin, "--spotify-sync", url]
     try:
         with open(os.devnull, 'w') as devnull:
@@ -583,7 +593,12 @@ def server_tools():
     action = data.get('action')
     filename = data.get('filename')
     target = get_target_dir()
-    zdt_bin = "/home/zaki/.local/bin/zdt" if os.path.exists("/home/zaki/.local/bin/zdt") else "/home/zaki/zdt.sh"
+    import shutil
+    zdt_bin = shutil.which("zdt")
+    if not zdt_bin:
+        for path in [os.path.expanduser("~/.local/bin/zdt"), "/usr/local/bin/zdt", "/data/data/com.termux/files/usr/bin/zdt"]:
+            if os.path.exists(path): zdt_bin = path; break
+    if not zdt_bin: zdt_bin = "zdt"
 
     try:
         if action == 'clean':

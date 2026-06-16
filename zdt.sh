@@ -2501,8 +2501,12 @@ start_watch_daemon() {
     print_header "ZDT AUTO-WATCH DAEMON"
     if ! _ensure_python_tool "watchdog" "Watchdog" 1; then return 1; fi
     
-    local watch_script="$HOME/.local/share/zdt/zdt-watch.py"
-    if [ ! -f "$watch_script" ]; then
+    local watch_script=""
+    for dir in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
+        if [ -f "$dir/zdt-watch.py" ]; then watch_script="$dir/zdt-watch.py"; break; fi
+    done
+
+    if [ -z "$watch_script" ]; then
         echo -e "  ${RED}${ICO_FAIL} Script zdt-watch.py tidak ditemukan!${RESET}"
         return 1
     fi
@@ -2537,8 +2541,12 @@ start_telegram_bot() {
     
     if ! _ensure_python_tool "telebot" "pyTelegramBotAPI" 1; then return 1; fi
     
-    local tele_script="$HOME/.local/share/zdt/zdt-telegram.py"
-    if [ ! -f "$tele_script" ]; then
+    local tele_script=""
+    for dir in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
+        if [ -f "$dir/zdt-telegram.py" ]; then tele_script="$dir/zdt-telegram.py"; break; fi
+    done
+
+    if [ -z "$tele_script" ]; then
         echo -e "  ${RED}${ICO_FAIL} Script zdt-telegram.py tidak ditemukan!${RESET}"
         return 1
     fi
@@ -2579,8 +2587,12 @@ start_web_dashboard() {
     print_header "ZDT WEB DASHBOARD"
     if ! _ensure_python_tool "flask" "Flask" 1; then return 1; fi
     
-    local web_script="$HOME/.local/share/zdt/zdt-web.py"
-    if [ ! -f "$web_script" ]; then
+    local web_script=""
+    for dir in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
+        if [ -f "$dir/zdt-web.py" ]; then web_script="$dir/zdt-web.py"; break; fi
+    done
+
+    if [ -z "$web_script" ]; then
         echo -e "  ${RED}${ICO_FAIL} Script zdt-web.py tidak ditemukan di $web_script${RESET}"
         return 1
     fi
@@ -2640,6 +2652,19 @@ update_zdt_script() {
                 global_path=$(command -v zdt)
                 cp "$script_path" "$global_path" 2>/dev/null || sudo cp "$script_path" "$global_path" 2>/dev/null || true
             fi
+            
+            # Update Python Scripts
+            for py_script in zdt-telegram.py zdt-web.py zdt-watch.py; do
+                local py_data
+                if py_data=$(curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/$py_script"); then
+                    for d in "$(dirname "$script_path")" "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
+                        if [ -d "$d" ]; then
+                            echo "$py_data" > "$d/$py_script" 2>/dev/null || sudo bash -c "echo \"\$py_data\" > $d/$py_script" 2>/dev/null || true
+                            chmod +x "$d/$py_script" 2>/dev/null || sudo chmod +x "$d/$py_script" 2>/dev/null || true
+                        fi
+                    done
+                fi
+            done
             
             echo -e "  ${GREEN}${ICO_OK} Pembaruan Selesai! Menjalankan ulang aplikasi...${RESET}"
             sleep 2
