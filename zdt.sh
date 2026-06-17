@@ -74,6 +74,7 @@ main() {
     NET_TMP=$(mktemp 2>/dev/null || echo "/tmp/.zdt_net_$$")
     ( while true; do ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1 && echo "1" || echo "0"; sleep 3; done > "$NET_TMP" 2>/dev/null ) &
     NET_PID=$!
+    disown "$NET_PID" 2>/dev/null
     _log "INFO" "ZDT started in $(pwd)"
     while true; do
         local ram_pct uptime_val storage_pct os_name net_status tools_ok
@@ -96,26 +97,43 @@ main() {
         fi
         echo ""
         echo -e "  ${CYAN}╔══════════════════════════════════════════════════╗${RESET}"
-        echo -e "  ${RED}╔══════════════════════════════════════════════════╗${RESET}"
-        echo -e "  ${RED}║${RED}${BOLD}  ███████╗██████╗ ████████╗                       ${RED}║${RESET}"
-        echo -e "  ${RED}║${RED}${BOLD}  ╚══███╔╝██╔══██╗╚══██╔══╝ ${YELLOW}■■■■ MUSIC TOOLKIT    ${RED}║${RESET}"
-        local ver_str="V${APP_VERSION}"
-        local v_pad=$(( 18 - ${#ver_str} ))
+        local current_user=$(whoami 2>/dev/null || echo "user")
+        local net_str="OFFLINE"
+        local net_col="${RED}"
+        if [ "$net_status" = "1" ]; then
+            net_str="ONLINE "
+            net_col="${GREEN}"
+        fi
+        
+        echo -e "  ${CYAN}╔══════════════════════════════════════════════════╗${RESET}"
+        echo -e "  ${CYAN}║${CYAN} ▗▀▀▀▄ ▗▄▄▄▖▗▄▄▖   ${MAGENTA}[${RESET} ${WHITE}${BOLD}ZAKI DOWNLOADER TOOLS${RESET} ${MAGENTA}]      ${CYAN}║${RESET}"
+        local ver_str="${APP_VERSION} PRO"
+        local v_pad=$(( 31 - 12 - ${#ver_str} ))
         [ $v_pad -lt 0 ] && v_pad=0
-        printf "  ${RED}║${RED}${BOLD}    ███╔╝ ██║  ██║   ██║   ${YELLOW}■■■■ %s%*s${RED}║${RESET}\n" "$ver_str" "$v_pad" ""
-        echo -e "  ${RED}║${RED}${BOLD}   ███╔╝  ██║  ██║   ██║   ${CYAN}// SECTOR 7G //        ${RED}║${RESET}"
-        echo -e "  ${RED}║${RED}${BOLD}  ███████╗██████╔╝   ██║   ${CYAN}// SYS.ONLINE //       ${RED}║${RESET}"
-        echo -e "  ${RED}║${RED}${BOLD}  ╚══════╝╚═════╝    ╚═╝   ${MAGENTA}[ NEURAL LINK ]        ${RED}║${RESET}"
-        echo -e "  ${RED}╠═${MAGENTA}[ HARDWARE LINK ]${RED}════════════════════════════════╣${RESET}"
+        printf "  ${CYAN}║${CYAN}  ▗▄▀▘ ▐▌  █  █    ${YELLOW}[ VERSION ]${RESET} ${GREEN}%s%*s${CYAN}║${RESET}\n" "$ver_str" "$v_pad" ""
+        echo -e "  ${CYAN}║${CYAN} ▄▀▘   ▐▌  █  █    ${YELLOW}[ EDITION ]${RESET} ${WHITE}PREMIUM CYBERPUNK${RESET}  ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${CYAN} █▄▄▄▄ ▝▀▀▀▘  █    ${YELLOW}[ MODULE  ]${RESET} ${RED}NEURAL LINK${RESET}        ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}╠══════════════════════════════════════════════════╣${RESET}"
         
-        local stat_text="[OS] $os_name | [RAM] ${ram_pct}% | [DISK] ${storage_pct}%"
-        local s_pad=$(( 48 - ${#stat_text} ))
-        [ $s_pad -lt 0 ] && s_pad=0
-        printf "  ${RED}║${RESET}${CYAN}${BOLD} %s%*s ${RED}║${RESET}\n" "$stat_text" "$s_pad" ""
+        _info_row() {
+            local col1="$1" col2="$2"
+            local plain1=$(echo -e "$col1" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
+            local plain2=$(echo -e "$col2" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
+            local pad1=$(( 24 - ${#plain1} ))
+            local pad2=$(( 24 - ${#plain2} ))
+            [ $pad1 -lt 0 ] && pad1=0
+            [ $pad2 -lt 0 ] && pad2=0
+            printf "  ${CYAN}║${RESET} %b%*s %b%*s${CYAN}║${RESET}\n" "$col1" "$pad1" "" "$col2" "$pad2" ""
+        }
         
-        echo -e "  ${RED}╠═${MAGENTA}[ SYSTEM MODULES ]${RED}═══════════════════════════════╣${RESET}"
+        _info_row "${GRAY}[OS]${RESET} ${WHITE}$os_name${RESET}"       "${GRAY}[UPTIME]${RESET} ${WHITE}$uptime_val${RESET}"
+        _info_row "${GRAY}[RAM]${RESET} ${YELLOW}${ram_pct}% USED${RESET}" "${GRAY}[DISK]${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
+        _info_row "${GRAY}[NET]${RESET} ${net_col}${net_str}${RESET}"     "${GRAY}[USER]${RESET} ${WHITE}$current_user${RESET}"
         
-        # Function to print perfectly padded row (exactly 50 characters width inside)
+        echo -e "  ${CYAN}╠══════════════════════════════════════════════════╣${RESET}"
+        echo -e "  ${CYAN}║${MAGENTA}${BOLD} [ CORE MODULES ]                                 ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${GRAY} ------------------------------------------------ ${CYAN}║${RESET}"
+        
         _menu_row() {
             local col1="$1" col2="$2"
             local plain1=$(echo -e "$col1" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
@@ -124,22 +142,25 @@ main() {
             local pad2=$(( 24 - ${#plain2} ))
             [ $pad1 -lt 0 ] && pad1=0
             [ $pad2 -lt 0 ] && pad2=0
-            printf "  ${RED}║${RESET} %b%*s %b%*s${RED}║${RESET}\n" "$col1" "$pad1" "" "$col2" "$pad2" ""
+            printf "  ${CYAN}║${RESET} %b%*s %b%*s${CYAN}║${RESET}\n" "$col1" "$pad1" "" "$col2" "$pad2" ""
         }
         
-        _menu_row "${RED}[1]${RESET} ${WHITE}Setup Tools${RESET}"     "${RED}[2]${RESET} ${WHITE}Spotify DL${RESET}"
-        _menu_row "${RED}[3]${RESET} ${WHITE}YT Audio${RESET}"        "${RED}[4]${RESET} ${WHITE}Video DL${RESET}"
-        _menu_row "${RED}[5]${RESET} ${WHITE}Compress${RESET}"        "${RED}[6]${RESET} ${WHITE}Vocal Remover${RESET}"
-        _menu_row "${RED}[7]${RESET} ${WHITE}Sync Lyrics${RESET}"     "${RED}[8]${RESET} ${WHITE}Playlist Sync${RESET}"
-        _menu_row "${RED}[9]${RESET} ${WHITE}System Info${RESET}"     ""
-        echo -e "  ${RED}║${GRAY} ------------------------------------------------ ${RED}║${RESET}"
+        _menu_row "${MAGENTA}[1]${RESET} ${WHITE}Setup Tools${RESET}"     "${MAGENTA}[2]${RESET} ${WHITE}Spotify DL${RESET}"
+        _menu_row "${MAGENTA}[3]${RESET} ${WHITE}YT Audio${RESET}"        "${MAGENTA}[4]${RESET} ${WHITE}Video DL${RESET}"
+        _menu_row "${MAGENTA}[5]${RESET} ${WHITE}Compress${RESET}"        "${MAGENTA}[6]${RESET} ${WHITE}Vocal Remover${RESET}"
+        _menu_row "${MAGENTA}[7]${RESET} ${WHITE}Sync Lyrics${RESET}"     "${MAGENTA}[8]${RESET} ${WHITE}Playlist Sync${RESET}"
+        _menu_row "${MAGENTA}[9]${RESET} ${WHITE}System Info${RESET}"     ""
+        
+        echo -e "  ${CYAN}╠══════════════════════════════════════════════════╣${RESET}"
+        echo -e "  ${CYAN}║${YELLOW}${BOLD} [ UTILITIES & SERVICES ]                         ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${GRAY} ------------------------------------------------ ${CYAN}║${RESET}"
         _menu_row "${YELLOW}[S]${RESET} ${GRAY}Storage${RESET} | ${YELLOW}[W]${RESET} ${GRAY}Watch${RESET}"   "${YELLOW}[P]${RESET} ${GRAY}Playlist${RESET}"
         _menu_row "${YELLOW}[M]${RESET} ${GRAY}Metadata${RESET} | ${YELLOW}[O]${RESET} ${GRAY}Clean${RESET}"   "${YELLOW}[T]${RESET} ${GRAY}Telegram${RESET}"
         _menu_row "${YELLOW}[V]${RESET} ${GRAY}Web UI${RESET}   | ${YELLOW}[U]${RESET} ${GRAY}Update${RESET}"  "${YELLOW}[A]${RESET} ${GRAY}Zaki AI${RESET}"
-        _menu_row "${RED}[X]${RESET} ${RED}Delete All${RESET}"          ""
-        echo -e "  ${RED}║${GRAY} ════════════════════════════════════════════════ ${RED}║${RESET}"
-        _menu_row "${RED}[0]${RESET} ${RED}${BOLD}SHUTDOWN SYSTEM${RESET}"       ""
-        echo -e "  ${RED}╚══════════════════════════════════════════════════╝${RESET}"
+        _menu_row "${YELLOW}[X]${RESET} ${RED}Delete All${RESET}"          ""
+        echo -e "  ${CYAN}╠══════════════════════════════════════════════════╣${RESET}"
+        _menu_row "${RED}[0]${RESET} ${RED}${BOLD}SHUTDOWN TERMINAL${RESET}"       ""
+        echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
         echo ""
         echo -e -n "  ${BOLD}[?] Pilih menu: ${RESET}"
         local pilihan
