@@ -99,22 +99,22 @@ main() {
         echo -e "  ${CYAN}╔══════════════════════════════════════════════════╗${RESET}"
         echo -e "  ${CYAN}║${MAGENTA}${BOLD}   ███████╗██████╗ ████████╗                      ${CYAN}║${RESET}"
         echo -e "  ${CYAN}║${MAGENTA}${BOLD}   ╚══███╔╝██╔══██╗╚══██╔══╝                      ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${MAGENTA}${BOLD}     ███╔╝ ██║  ██║   ██║     ${YELLOW}MUSIC TOOLKIT      ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${MAGENTA}${BOLD}     ███╔╝ ██║  ██║   ██║     ${YELLOW}MUSIC TOOLKIT       ${CYAN}║${RESET}"
         local ver_str="v${APP_VERSION}"
-        local v_pad=$(( 18 - ${#ver_str} ))
+        local v_pad=$(( 20 - ${#ver_str} ))
         printf "  ${CYAN}║${MAGENTA}${BOLD}    ███╔╝  ██║  ██║   ██║     ${GREEN}%s%*s${CYAN}║${RESET}\n" "$ver_str" "$v_pad" ""
-        echo -e "  ${CYAN}║${MAGENTA}${BOLD}   ███████╗██████╔╝   ██║                        ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${MAGENTA}${BOLD}   ╚══════╝╚═════╝    ╚═╝   ${WHITE}CYBERPUNK EDITION    ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${MAGENTA}${BOLD}   ███████╗██████╔╝   ██║                         ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${MAGENTA}${BOLD}   ╚══════╝╚═════╝    ╚═╝   ${WHITE}CYBERPUNK EDITION     ${CYAN}║${RESET}"
         echo -e "  ${CYAN}╠══════════════════════════════════════════════════╣${RESET}"
         
-        local stat_text=" OS: $os_name | RAM: ${ram_pct}% | DISK: ${storage_pct}%"
-        local s_pad=$(( 50 - ${#stat_text} ))
+        local stat_text="OS: $os_name | RAM: ${ram_pct}% | DISK: ${storage_pct}%"
+        local s_pad=$(( 48 - ${#stat_text} ))
         [ $s_pad -lt 0 ] && s_pad=0
-        printf "  ${CYAN}║${RESET}${CYAN}${BOLD}%s%*s${CYAN}║${RESET}\n" "$stat_text" "$s_pad" ""
+        printf "  ${CYAN}║${RESET}${CYAN}${BOLD} %s%*s ${CYAN}║${RESET}\n" "$stat_text" "$s_pad" ""
         
         echo -e "  ${CYAN}╠══════════════════════════════════════════════════╣${RESET}"
         
-        # Function to print perfectly padded row
+        # Function to print perfectly padded row (exactly 50 characters width inside)
         _menu_row() {
             local col1="$1" col2="$2"
             local plain1=$(echo -e "$col1" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
@@ -123,7 +123,7 @@ main() {
             local pad2=$(( 24 - ${#plain2} ))
             [ $pad1 -lt 0 ] && pad1=0
             [ $pad2 -lt 0 ] && pad2=0
-            printf "  ${CYAN}║${RESET} %b%*s %b%*s ${CYAN}║${RESET}\n" "$col1" "$pad1" "" "$col2" "$pad2" ""
+            printf "  ${CYAN}║${RESET} %b%*s %b%*s${CYAN}║${RESET}\n" "$col1" "$pad1" "" "$col2" "$pad2" ""
         }
         
         _menu_row "${MAGENTA}[1]${RESET} ${WHITE}Setup Tools${RESET}"     "${MAGENTA}[2]${RESET} ${WHITE}Spotify DL${RESET}"
