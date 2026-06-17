@@ -505,8 +505,9 @@ HTML_TEMPLATE = """
 
 
         <div id="logSection" style="display: none;">
-            <div class="header" style="margin-top: 50px; margin-bottom: 15px;">
+            <div class="header" style="margin-top: 50px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="margin:0; font-size:18px;"><i class="fa-solid fa-terminal"></i> Live Task Output</h3>
+                <button class="btn btn-outline" style="width:auto; padding: 5px 15px; font-size: 12px;" onclick="closeLogs()"><i class="fa-solid fa-xmark"></i> Tutup Log</button>
             </div>
             <div class="log-container" id="terminalLog">System ready. Waiting for task execution...</div>
         </div>
@@ -690,6 +691,11 @@ HTML_TEMPLATE = """
             }
         }
 
+        function closeLogs() {
+            document.getElementById("logSection").style.display = "none";
+            fetch('/api/logs/clear', {method: 'POST'});
+        }
+
         setInterval(async () => {
             try {
                 const res = await fetch("/api/logs");
@@ -701,6 +707,8 @@ HTML_TEMPLATE = """
                         term.textContent = data.log;
                         term.scrollTop = term.scrollHeight;
                     }
+                } else {
+                    document.getElementById("logSection").style.display = "none";
                 }
             } catch(e) {}
         }, 1500);
@@ -987,8 +995,14 @@ def get_logs():
     if os.path.exists(log_file):
         with open(log_file, "r") as f:
             lines = f.readlines()
-            return jsonify({"log": "".join(lines[-100:])})
+            if lines: return jsonify({"log": "".join(lines[-100:])})
     return jsonify({"log": "No active tasks."})
+
+@app.route("/api/logs/clear", methods=["POST"])
+def clear_logs():
+    try: os.remove("/tmp/zdt_web_task.log")
+    except: pass
+    return jsonify({"success": True})
 
 if __name__ == '__main__':
     import argparse
