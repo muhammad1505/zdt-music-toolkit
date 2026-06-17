@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "audio-transcriber": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/audio-transcriber/SKILL.md",
+      "computedHash": "a573e3e4d4ec63bbccb48c4392891c6235d7aef7d4d5c1f1675828379c3d4dfa"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "4eabc66183767153e404b39d1b839b1c37f2d82d86f0a0d7e880a579d8d62336"
+    },
+    "qianwen-audio-tts": {
+      "source": "qianwen-ai/qianwen-ai",
+      "sourceType": "github",
+      "skillPath": "skills/audio/qianwen-audio-tts/SKILL.md",
+      "computedHash": "8a6d66c4f71c259616c9047c7596e88023b2b1c02558d375a026d282815d1bae"
+    },
+    "venice-audio-music": {
+      "source": "nexu-io/open-design",
+      "sourceType": "github",
+      "skillPath": "skills/venice-audio-music/SKILL.md",
+      "computedHash": "88a8e855e5208b92bb44be44fbb8eb4d69e0b020868d59b1d901435710d6596f"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
+    }
+  }
+}

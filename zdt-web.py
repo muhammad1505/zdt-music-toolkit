@@ -712,7 +712,7 @@ def system_status():
         ps = subprocess.check_output(['ps', 'aux']).decode('utf-8')
         watcher = 'zdt-watch.py' in ps
         tele = 'zdt-telegram.py' in ps
-    except:
+    except Exception:
         watcher = False
         tele = False
         
@@ -737,14 +737,14 @@ def download():
     if not zdt_bin: zdt_bin = "zdt"
     cmd = [zdt_bin, "--download-audio" if fmt == 'audio' else "--download-video", url]
     try:
-        with open(os.devnull, 'w') as devnull:
-            target = get_target_dir()
-            env = os.environ.copy()
-            if fmt == "audio":
-                env["CONF_AUDIO_CODEC"] = str(spec)
-            else:
-                env["CONF_VIDEO_FMT"] = str(spec)
-            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
+        target = get_target_dir()
+        env = os.environ.copy()
+        if fmt == "audio":
+            env["CONF_AUDIO_CODEC"] = str(spec)
+        else:
+            env["CONF_VIDEO_FMT"] = str(spec)
+        with open("/tmp/zdt_web_task.log", "w") as log_file:
+            subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
@@ -761,9 +761,9 @@ def spotify_sync():
     if not zdt_bin: zdt_bin = "zdt"
     cmd = [zdt_bin, "--no-color", "--no-unicode", "--spotify-sync", url]
     try:
-        with open(os.devnull, 'w') as devnull:
-            target = get_target_dir()
-            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
+        target = get_target_dir()
+        with open("/tmp/zdt_web_task.log", "w") as log_file:
+            subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
@@ -792,7 +792,7 @@ def edit_metadata():
         if ext.endswith('.mp3'):
             import mutagen.id3
             try: audio = mutagen.id3.ID3(filepath)
-            except: 
+            except Exception: 
                 audio = mutagen.id3.ID3()
                 audio.save(filepath)
             if title: audio.add(mutagen.id3.TIT2(encoding=3, text=title))
@@ -850,8 +850,8 @@ def server_tools():
             if not filename: return jsonify({"success": False, "message": "Pilih file."})
             filepath = os.path.join(target, filename)
             # Jalankan demucs manual asinkron
-            with open(os.devnull, 'w') as devnull:
-                subprocess.Popen(["demucs", "--two-stems=vocals", "-o", target, filepath], stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
+            with open("/tmp/zdt_web_task.log", "w") as log_file:
+                subprocess.Popen(["demucs", "--two-stems=vocals", "-o", target, filepath], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
             return jsonify({"success": True, "message": "Demucs AI mulai memisahkan vokal di background!"})
 
         elif action == 'compress':
@@ -866,7 +866,8 @@ def server_tools():
                 cmd = ["ffmpeg", "-y", "-i", filepath, "-b:a", "128k", outpath]
                 
             env = os.environ.copy()
-            subprocess.Popen(cmd, stdout=open("/tmp/zdt_web_task.log", "w"), stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
+            with open("/tmp/zdt_web_task.log", "w") as log_file:
+                subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
             return jsonify({"success": True, "message": "Proses kompresi FFmpeg berjalan di background!"})
 
         return jsonify({"success": False, "message": "Aksi tidak dikenal."})

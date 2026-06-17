@@ -62,7 +62,7 @@ main() {
         DEBUG_TRAP_SET=true
     fi
     NET_TMP=$(mktemp 2>/dev/null || echo "/tmp/.zdt_net_$$")
-    ( while true; do ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1 && echo "1" || echo "0"; done > "$NET_TMP" 2>/dev/null ) &
+    ( while true; do ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1 && echo "1" || echo "0"; sleep 3; done > "$NET_TMP" 2>/dev/null ) &
     NET_PID=$!
     _log "INFO" "ZDT started in $(pwd)"
     while true; do

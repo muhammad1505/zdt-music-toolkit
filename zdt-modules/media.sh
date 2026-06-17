@@ -123,7 +123,8 @@ _kompres_audio_batch() {
 
     local current=0
     local bg_pids=()
-    local max_jobs=$(nproc 2>/dev/null || echo 4)
+    local max_jobs
+    max_jobs=$(nproc 2>/dev/null || echo 4)
     [ "$max_jobs" -gt 4 ] && max_jobs=4
 
     while IFS= read -r file; do
@@ -134,7 +135,7 @@ _kompres_audio_batch() {
         _kompres_audio_file "$file" "$codec" "$bitrate" "$ext_pilih" >/dev/null 2>&1 &
         bg_pids+=($!)
         
-        if [ ${#bg_pids[@]} -ge $max_jobs ]; then
+        if [ ${#bg_pids[@]} -ge "$max_jobs" ]; then
             wait 2>/dev/null
             bg_pids=()
         fi
@@ -250,7 +251,8 @@ _kompres_video_batch() {
 
     local current=0
     local bg_pids=()
-    local max_jobs=$(nproc 2>/dev/null || echo 2)
+    local max_jobs
+    max_jobs=$(nproc 2>/dev/null || echo 2)
     [ "$max_jobs" -gt 2 ] && max_jobs=2
 
     while IFS= read -r file; do
@@ -261,7 +263,7 @@ _kompres_video_batch() {
         _kompres_video_file "$file" "$codec" "$v_qual" "$target_ext" >/dev/null 2>&1 &
         bg_pids+=($!)
         
-        if [ ${#bg_pids[@]} -ge $max_jobs ]; then
+        if [ ${#bg_pids[@]} -ge "$max_jobs" ]; then
             wait 2>/dev/null
             bg_pids=()
         fi
