@@ -30,7 +30,7 @@ start_watch_daemon() {
     echo ""
     
     cd "$watch_dir" || return 1
-    python3 "$watch_script" "$watch_dir"
+    "$ZDT_VENV_DIR/bin/python" "$watch_script" "$watch_dir"
 }
 
 start_telegram_bot() {
@@ -56,7 +56,7 @@ start_telegram_bot() {
     echo -e "  ${GRAY}  (Tekan Ctrl+C untuk mematikan bot)${RESET}"
     echo ""
     
-    python3 "$tele_script"
+    "$ZDT_VENV_DIR/bin/python" "$tele_script"
 }
 
 setup_telegram_bot() {
@@ -105,7 +105,7 @@ start_web_dashboard() {
     # Auto-open browser
     ( sleep 1.5; command -v xdg-open >/dev/null 2>&1 && xdg-open "http://$open_host:$port" >/dev/null 2>&1 || python3 -m webbrowser "http://$open_host:$port" >/dev/null 2>&1 ) &
     
-    python3 "$web_script" --bind "$WEB_BIND" --port "$port"
+    "$ZDT_VENV_DIR/bin/python" "$web_script" --bind "$WEB_BIND" --port "$port"
 }
 
 # ==========================================
