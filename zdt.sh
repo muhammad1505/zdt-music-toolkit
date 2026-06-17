@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 3.8.6
+# Version : 3.8.7
 set -uo pipefail
-readonly APP_VERSION="3.8.6"
+readonly APP_VERSION="3.8.7"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -77,6 +77,10 @@ main() {
     NET_PID=$!
     disown "$NET_PID" 2>/dev/null
     _log "INFO" "ZDT started in $(pwd)"
+    
+    # Auto-Launch Zaki AI on Startup
+    zaki_assistant
+    
     while true; do
         local ram_pct uptime_val storage_pct os_name net_status tools_ok
         ram_pct=$(_get_ram_percent)
