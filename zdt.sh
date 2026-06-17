@@ -24,7 +24,7 @@ if [ ! -d "$_MODULES_DIR" ]; then
     _MODULES_DIR="$HOME/.local/share/zdt/zdt-modules"
     mkdir -p "$_MODULES_DIR" 2>/dev/null
     for _mod in core helpers download media playlist daemon setup assistant; do
-        curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt-modules/${_mod}.sh" -o "$_MODULES_DIR/${_mod}.sh" 2>/dev/null
+        curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt-modules/${_mod}.sh?t=$(date +%s)" -o "$_MODULES_DIR/${_mod}.sh" 2>/dev/null
     done
 fi
 
