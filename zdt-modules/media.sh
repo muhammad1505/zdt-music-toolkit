@@ -329,7 +329,7 @@ hapus_vokal() {
     if [ -n "$AUTO_HAPUS_VOKAL_MODE" ]; then
         mode_proses="$AUTO_HAPUS_VOKAL_MODE"
         if [ "$mode_proses" = "1" ]; then
-            local target_dir="${TARGET_DIR:-$(pwd)}"
+            local target_dir="${TARGET_DIR:-${ROOT_DIR:-.}}"
             while IFS= read -r f; do
                 files_to_process+=("$f")
             done < <(_find_media_files "$target_dir" "all" "!" -name "*_karaoke.*" -mmin -60)
@@ -508,7 +508,7 @@ edit_metadata_manual() {
     local count=0
     local files=()
     
-    local search_dir="${TARGET_DIR:-$(pwd)}"
+    local search_dir="${TARGET_DIR:-${ROOT_DIR:-.}}"
     while IFS= read -r f; do
         if [ -n "$f" ]; then
             ((count++))

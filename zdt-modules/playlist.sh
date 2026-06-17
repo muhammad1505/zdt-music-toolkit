@@ -24,7 +24,7 @@ auto_sync_lirik() {
     local total_missing=0
 
     if [ -n "$AUTO_SYNC_LIRIK" ]; then
-        target_dir="${TARGET_DIR:-$(pwd)}"
+        target_dir="${TARGET_DIR:-${ROOT_DIR:-.}}"
         AUTO_SYNC_LIRIK=""
         total_audio=$(_find_media_files "$target_dir" "all" | wc -l)
         total_missing=0

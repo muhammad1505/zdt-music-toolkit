@@ -22,7 +22,7 @@ start_watch_daemon() {
         return 1
     fi
 
-    local watch_dir="${TARGET_DIR:-$(pwd)}"
+    local watch_dir="${TARGET_DIR:-${ROOT_DIR:-.}}"
     
     echo -e "  ${YELLOW}${ICO_ARROW} Menjalankan Watchdog Daemon...${RESET}"
     echo -e "  ${CYAN}${ICO_OK} Memantau folder: ${BOLD}$watch_dir${RESET}"
@@ -212,7 +212,7 @@ update_tools() {
 hapus_semua() {
     print_header "HAPUS SEMUA FILE"
     
-    local target="${TARGET_DIR:-$(pwd)}"
+    local target="${TARGET_DIR:-${ROOT_DIR:-.}}"
     echo -e "  ${RED}${ICO_DANGER} PERINGATAN!${RESET}"
     echo -e "  ${YELLOW}Anda akan menghapus SEMUA file di:${RESET}"
     echo -e "  ${WHITE}  $target${RESET}"

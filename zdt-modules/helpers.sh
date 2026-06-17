@@ -34,12 +34,13 @@ _check_dependency() {
 # ==========================================
 pilih_folder_target() {
     local folder_list=()
-    _safe_find_dirs folder_list "."
+    local search_dir="${ROOT_DIR:-.}"
+    _safe_find_dirs folder_list "$search_dir"
 
     local count=${#folder_list[@]}
     local options=()
     options+=("${RED}[0]${RESET} BATAL / KEMBALI")
-    options+=("${GREEN}[1]${RESET} Semua (Root Direktori Saat Ini)")
+    options+=("${GREEN}[1]${RESET} Semua ($search_dir)")
     
     if [ "$count" -gt 0 ]; then
         for ((i = 0; i < count; i++)); do
@@ -64,17 +65,18 @@ pilih_folder_target() {
         echo -e "  ${YELLOW}${ICO_ARROW} Dibatalkan! Kembali ke menu utama...${RESET}"
         return 1
     elif [ -z "$target_idx" ] || [ "$target_idx" = "1" ]; then
-        TARGET_DIR="."
-        echo -e "  ${GREEN}${ICO_OK} Target disetel ke: Semua (Root)${RESET}"
+        TARGET_DIR="$search_dir"
+        echo -e "  ${GREEN}${ICO_OK} Target disetel ke: Semua ($search_dir)${RESET}"
         return 0
     elif [[ "$target_idx" =~ ^[0-9]+$ ]] && [ "$target_idx" -le "$max_idx" ] && [ "$target_idx" -gt 1 ]; then
-        TARGET_DIR=$(basename "${folder_list[$((target_idx - 2))]}")
-        TARGET_DIR="./$TARGET_DIR"
+        local subfolder
+        subfolder=$(basename "${folder_list[$((target_idx - 2))]}")
+        TARGET_DIR="$search_dir/$subfolder"
         echo -e "  ${GREEN}${ICO_OK} Target disetel ke: $TARGET_DIR${RESET}"
         return 0
     else
-        echo -e "  ${RED}${ICO_FAIL} Pilihan tidak valid! Otomatis disetel ke Semua (Root).${RESET}"
-        TARGET_DIR="."
+        echo -e "  ${RED}${ICO_FAIL} Pilihan tidak valid! Otomatis disetel ke Semua ($search_dir).${RESET}"
+        TARGET_DIR="$search_dir"
         return 0
     fi
 }
