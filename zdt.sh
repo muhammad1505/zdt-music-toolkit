@@ -263,7 +263,7 @@ main() {
         fi
         
         echo ""
-        echo -e -n "  ${CYAN}${current_user}@pop-os ~ ❯${RESET} "
+        echo -e -n "  ${CYAN}► Silakan pilih menu:${RESET} "
         local pilihan
         read -r -n 1 pilihan 2>/dev/null || read -r pilihan
         echo ""

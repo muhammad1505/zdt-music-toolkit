@@ -118,7 +118,7 @@ zaki_assistant() {
         # Wrap input dengan line continuation
         local bot_prompt=""
         while true; do
-            echo -e -n "  ${MAGENTA}anda${RESET}${GRAY}@${RESET}${CYAN}zdt${RESET} ${GRAY}~${RESET} ${WHITE}\$${RESET} "
+            echo -e -n "  ${MAGENTA}► Ketik pesan:${RESET} "
             local current_input
             read -r current_input
             if [ -z "$current_input" ]; then
