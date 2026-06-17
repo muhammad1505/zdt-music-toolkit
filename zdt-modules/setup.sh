@@ -174,7 +174,20 @@ system_info() {
 
     for tool in ffmpeg python3 yt-dlp spotdl syncedlyrics mutagen flask demucs; do
         local stat=""
-        if command -v "$tool" >/dev/null 2>&1; then
+        
+        if [ "$tool" = "mutagen" ]; then
+            if [ -f "$ZDT_VENV_DIR/bin/python" ] && "$ZDT_VENV_DIR/bin/python" -c "import mutagen" >/dev/null 2>&1; then
+                stat="${GREEN}Installed${RESET} (VENV)"
+            else
+                stat="${RED}Missing${RESET}"
+            fi
+        elif [ "$tool" = "demucs" ]; then
+            if [ -f "$HOME/.local/share/zdt/demucs_venv/bin/demucs" ]; then
+                stat="${GREEN}Installed${RESET} (AI VENV)"
+            else
+                stat="${RED}Missing${RESET}"
+            fi
+        elif command -v "$tool" >/dev/null 2>&1; then
             local ver=$("$tool" --version 2>/dev/null | head -1 | awk '{print $1" "$2}' | tr -d '\r')
             if [ -z "$ver" ]; then ver="OK"; fi
             ver=${ver:0:25}
