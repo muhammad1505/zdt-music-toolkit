@@ -170,13 +170,14 @@ main() {
                 "  ${CYAN}[4]${RESET} Video DL         ${CYAN}[9]${RESET} System Info"
                 "  ${CYAN}[5]${RESET} Compress"
                 ""
+                "DIVIDER"
                 " ${MAGENTA}UTILITIES${RESET}"
                 "  ${YELLOW}[S]${RESET} Storage          ${YELLOW}[O]${RESET} Clean"
                 "  ${YELLOW}[W]${RESET} Watch            ${YELLOW}[T]${RESET} Telegram"
                 "  ${YELLOW}[P]${RESET} Playlist         ${YELLOW}[V]${RESET} Web UI"
                 "  ${YELLOW}[M]${RESET} Metadata         ${YELLOW}[U]${RESET} Update"
                 "  ${YELLOW}[A]${RESET} Zaki AI          ${RED}[X]${RESET} Delete All"
-                ""
+                "DIVIDER"
                 " ${RED}SYSTEM${RESET}"
                 "  ${RED}⏻ [0]${RESET} Shutdown Terminal"
             )
@@ -189,12 +190,18 @@ main() {
                 "  ${CYAN}Terminal${RESET}: $TERM"
                 "  ${CYAN}Packages${RESET}: $pkgs (dpkg)"
                 "  ${CYAN}Load Avg${RESET}: $load_avg"
+                "DIVIDER"
+                " ${MAGENTA}DEPENDENCIES${RESET}"
+                "  ${CYAN}FFmpeg  ${RESET}: $(command -v ffmpeg >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+                "  ${CYAN}Python3 ${RESET}: $(command -v python3 >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+                "  ${CYAN}YT-DLP  ${RESET}: $(command -v yt-dlp >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+                "  ${CYAN}SpotDL  ${RESET}: $(command -v spotdl >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
                 ""
+                "DIVIDER"
                 " ${MAGENTA}RECENT LOGS${RESET}"
                 "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} System initialized"
-                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Dependencies OK"
-                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Neural Link Active"
-                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Awaiting Command"
+                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Dependencies checked"
+                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Ready for commands"
             )
 
             local max_lines=${#left_lines[@]}
@@ -203,9 +210,14 @@ main() {
             for ((i=0; i<max_lines; i++)); do
                 local l_text="${left_lines[i]:-}"
                 local r_text="${right_lines[i]:-}"
-                local l_pad=$(_pad_str "$l_text" $left_width)
-                local r_pad=$(_pad_str "$r_text" $right_width)
-                echo -e "  ${CYAN}│${RESET}${l_pad}${CYAN}│${RESET}${r_pad}${CYAN}│${RESET}"
+                
+                if [ "$l_text" = "DIVIDER" ] || [ "$r_text" = "DIVIDER" ]; then
+                    echo -e "  ${CYAN}├$(_repeat_char '─' $left_width)┼$(_repeat_char '─' $right_width)┤${RESET}"
+                else
+                    local l_pad=$(_pad_str "$l_text" $left_width)
+                    local r_pad=$(_pad_str "$r_text" $right_width)
+                    echo -e "  ${CYAN}│${RESET}${l_pad}${CYAN}│${RESET}${r_pad}${CYAN}│${RESET}"
+                fi
             done
 
             echo -e "  ${CYAN}╰$(_repeat_char '─' $left_width)┴$(_repeat_char '─' $right_width)╯${RESET}"
@@ -217,24 +229,29 @@ main() {
             local mobile_lines=(
                 " ${MAGENTA}${BOLD}■ SYSTEM OVERVIEW${RESET}"
                 "   ${GRAY}OS:${RESET} ${os_name}"
-                "   ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}"
-                "   ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
+                "   ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}   ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
                 "   ${GRAY}NET:${RESET} ${net_col}${net_str}${RESET}"
-                ""
+                "DIVIDER"
+                " ${MAGENTA}${BOLD}■ DEPENDENCIES${RESET}"
+                "   ${GRAY}FFmpeg :${RESET} $(command -v ffmpeg >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+                "   ${GRAY}Python3:${RESET} $(command -v python3 >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+                "   ${GRAY}YT-DLP :${RESET} $(command -v yt-dlp >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+                "   ${GRAY}SpotDL :${RESET} $(command -v spotdl >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+                "DIVIDER"
                 " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
                 "   ${GREEN}[1]${RESET} Setup Tools      ${GREEN}[6]${RESET} Vocal Remover"
                 "   ${GREEN}[2]${RESET} Spotify DL       ${GREEN}[7]${RESET} Sync Lyrics"
                 "   ${GREEN}[3]${RESET} YT Audio         ${GREEN}[8]${RESET} Playlist Sync"
                 "   ${GREEN}[4]${RESET} Video DL         ${GREEN}[9]${RESET} System Info"
                 "   ${GREEN}[5]${RESET} Compress"
-                ""
+                "DIVIDER"
                 " ${MAGENTA}${BOLD}■ UTILITIES${RESET}"
                 "   ${YELLOW}[S]${RESET} Storage          ${YELLOW}[O]${RESET} Clean"
                 "   ${YELLOW}[W]${RESET} Watch            ${YELLOW}[T]${RESET} Telegram"
                 "   ${YELLOW}[P]${RESET} Playlist         ${YELLOW}[V]${RESET} Web UI"
                 "   ${YELLOW}[M]${RESET} Metadata         ${YELLOW}[U]${RESET} Update"
                 "   ${YELLOW}[A]${RESET} Zaki AI          ${RED}[X]${RESET} Delete All"
-                ""
+                "DIVIDER"
                 " ${RED}${BOLD}■ SYSTEM${RESET}"
                 "   ${RED}[0]${RESET} Shutdown Terminal"
             )
@@ -251,8 +268,12 @@ main() {
 
             for ((i=0; i<${#mobile_lines[@]}; i++)); do
                 local l_text="${mobile_lines[i]}"
-                local l_pad=$(_pad_str "$l_text" $inner_cols)
-                echo -e "  ${CYAN}│${RESET}${l_pad}${CYAN}│${RESET}"
+                if [ "$l_text" = "DIVIDER" ]; then
+                    echo -e "  ${CYAN}├$(_repeat_char '─' $inner_cols)┤${RESET}"
+                else
+                    local l_pad=$(_pad_str "$l_text" $inner_cols)
+                    echo -e "  ${CYAN}│${RESET}${l_pad}${CYAN}│${RESET}"
+                fi
             done
 
             echo -e "  ${CYAN}╰$(_repeat_char '─' $inner_cols)╯${RESET}"
