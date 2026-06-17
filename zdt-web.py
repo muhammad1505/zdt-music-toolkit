@@ -931,7 +931,7 @@ def server_tools():
         if action == 'clean':
             if not os.path.exists(target): return jsonify({"success": False, "message": "Direktori kosong."})
             with open("/tmp/zdt_web_task.log", "w") as log_file:
-                subprocess.Popen([zdt_bin, "--bersih"], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
+                subprocess.Popen([zdt_bin, "--bersih-nama-all"], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
             return jsonify({"success": True, "message": "Proses pembersihan berjalan di background!"})
 
         elif action == 'playlist':
@@ -953,9 +953,11 @@ def server_tools():
         elif action == 'delete_all':
             if not os.path.exists(target): return jsonify({"success": False, "message": "Direktori kosong."})
             count = 0
-            for ext in ['*.mp3', '*.m4a', '*.flac', '*.mp4', '*.mkv', '*.webm', '*.jpg', '*.jpeg', '*.png', '*.lrc', '*.m3u']:
-                for f in glob.glob(os.path.join(target, ext)):
-                    try: os.remove(f); count += 1
+            for root, _, files in os.walk(target):
+                for f in files:
+                    try:
+                        os.remove(os.path.join(root, f))
+                        count += 1
                     except: pass
             return jsonify({"success": True, "message": f"Berhasil menghapus {count} file dari Storage!"})
 
