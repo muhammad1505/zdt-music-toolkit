@@ -183,10 +183,25 @@ update_tools() {
         return 0
     fi
     
-    echo -e "  ${CYAN}${ICO_ARROW} Memperbarui tools di VENV...${RESET}"
-    "$ZDT_VENV_DIR/bin/pip" install -U yt-dlp spotdl syncedlyrics mutagen flask pyTelegramBotAPI watchdog 2>&1 | tail -5
+    echo -e "  ${CYAN}${ICO_ARROW} Memperbarui tools utama di VENV...${RESET}"
+    if "$ZDT_VENV_DIR/bin/pip" install -U yt-dlp spotdl syncedlyrics mutagen flask pyTelegramBotAPI watchdog >/dev/null 2>&1; then
+        echo -e "  ${GREEN}${ICO_OK} Tools utama berhasil diperbarui!${RESET}"
+    else
+        echo -e "  ${YELLOW}${ICO_WARN} Update tools selesai dengan peringatan.${RESET}"
+    fi
     
-    echo -e "  ${GREEN}${ICO_OK} Update tools selesai!${RESET}"
+    local demucs_venv="$HOME/.local/share/zdt/demucs_venv"
+    if [ -f "$demucs_venv/bin/demucs" ]; then
+        echo -e "  ${CYAN}${ICO_ARROW} Memperbarui komponen AI Demucs...${RESET}"
+        if "$demucs_venv/bin/pip" install -U pip setuptools demucs torchcodec >/dev/null 2>&1; then
+            echo -e "  ${GREEN}${ICO_OK} AI Demucs berhasil diperbarui!${RESET}"
+        else
+            echo -e "  ${YELLOW}${ICO_WARN} Update Demucs selesai dengan peringatan.${RESET}"
+        fi
+    fi
+    
+    echo ""
+    echo -e "  ${GREEN}${ICO_OK} Proses Update selesai!${RESET}"
     _log "INFO" "Tools updated"
     _pause
 }
