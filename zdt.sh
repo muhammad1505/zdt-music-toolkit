@@ -104,29 +104,6 @@ main() {
             net_str="ONLINE "
             net_col="${GREEN}"
         fi
-        
-        _pad_str() {
-            local str="$1"
-            local width="$2"
-            local plain=$(echo -e "$str" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
-            local len=${#plain}
-            local pad=$((width - len))
-            if [ $pad -lt 0 ]; then
-                printf "%s" "${plain:0:$width}"
-            else
-                printf "%b%*s" "$str" "$pad" ""
-            fi
-        }
-
-        _repeat_char() {
-            local char="$1"
-            local count="$2"
-            local res=""
-            for ((i=0; i<count; i++)); do
-                res="${res}${char}"
-            done
-            echo -n "$res"
-        }
 
         local cols=$(tput cols 2>/dev/null || echo 100)
         

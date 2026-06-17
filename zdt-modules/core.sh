@@ -492,6 +492,33 @@ _trap_exit() {
 }
 
 # ==========================================
+# ==========================================
+# UI HELPERS: PADDING & BORDERS
+# ==========================================
+_pad_str() {
+    local str="$1"
+    local width="$2"
+    local plain=$(echo -e "$str" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
+    local len=${#plain}
+    local pad=$((width - len))
+    if [ $pad -lt 0 ]; then
+        printf "%s" "${plain:0:$width}"
+    else
+        printf "%b%*s" "$str" "$pad" ""
+    fi
+}
+
+_repeat_char() {
+    local char="$1"
+    local count="$2"
+    local res=""
+    for ((i=0; i<count; i++)); do
+        res="${res}${char}"
+    done
+    echo -n "$res"
+}
+
+# ==========================================
 # HELPER: PRINT HEADER
 # ==========================================
 print_header() {
@@ -500,11 +527,17 @@ print_header() {
         clear
     fi
     echo ""
-    local btxt
-    printf -v btxt "%-50s" " $1"
-    echo -e "  ${CYAN}╔══════════════════════════════════════════════════╗${RESET}"
-    echo -e "  ${CYAN}║${RESET}${WHITE}${BOLD}${btxt}${RESET}${CYAN}║${RESET}"
-    echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
+    local cols=$(tput cols 2>/dev/null || echo 80)
+    local width=$(( cols - 4 ))
+    [ "$width" -lt 50 ] && width=50
+    [ "$width" -gt 76 ] && width=76
+
+    local title=" $1 "
+    local title_pad=$(_pad_str "$title" $width)
+
+    echo -e "  ${CYAN}╭$(_repeat_char '─' $width)╮${RESET}"
+    echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${title_pad}${RESET}${CYAN}│${RESET}"
+    echo -e "  ${CYAN}╰$(_repeat_char '─' $width)╯${RESET}"
     echo ""
 }
 

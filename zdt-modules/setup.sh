@@ -107,50 +107,71 @@ install_missing_tools() {
 # SYSTEM INFO
 # ==========================================
 system_info() {
-    print_header "INFORMASI SISTEM"
-
-    local os_name
-    os_name=$(_get_os_name)
-    local env
-    env=$(_detect_environment)
-    local ram
-    ram=$(_get_ram_percent)
-    local storage
-    storage=$(_get_storage_percent)
-    local uptime_val
-    uptime_val=$(_get_uptime)
-    local python_ver
-    python_ver=$(python3 --version 2>/dev/null || echo "Tidak terinstal")
-    local bash_ver
-    bash_ver=$(bash --version | head -1)
-
-    echo -e "  ${CYAN}╔══════════════════════════════════════════════════╗${RESET}"
-    echo -e "  ${CYAN}║${RESET}         ${WHITE}${BOLD}SISTEM DIAGNOSTIK${RESET}              ${CYAN}║${RESET}"
-    echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
-    echo ""
-    echo -e "  ${WHITE}OS:${RESET}      $os_name"
-    echo -e "  ${WHITE}Env:${RESET}     $env"
-    echo -e "  ${WHITE}RAM:${RESET}     ${ram}% terpakai"
-    echo -e "  ${WHITE}Storage:${RESET} ${storage}% terpakai"
-    echo -e "  ${WHITE}Uptime:${RESET}  $uptime_val"
-    echo -e "  ${WHITE}Python:${RESET}  $python_ver"
-    echo -e "  ${WHITE}Bash:${RESET}    $bash_ver"
+    if [ -z "${NO_COLOR:-}" ]; then
+        echo -ne "\033[?25h"
+        clear
+    fi
     echo ""
 
-    # Cek semua tools
-    echo -e "  ${CYAN}${ICO_LIST} STATUS DEPENDENSI${RESET}"
-    for tool in ffmpeg python3 yt-dlp spotdl syncedlyrics mutagen flask; do
+    local os_name=$(_get_os_name)
+    local env=$(_detect_environment)
+    local ram=$(_get_ram_percent)
+    local storage=$(_get_storage_percent)
+    local uptime_val=$(_get_uptime)
+    local python_ver=$(python3 --version 2>/dev/null || echo "Missing")
+    local bash_ver=$(bash --version | head -n1 | awk '{print $4}')
+
+    local cols=$(tput cols 2>/dev/null || echo 80)
+    local width=$(( cols - 4 ))
+    [ "$width" -lt 50 ] && width=50
+    [ "$width" -gt 76 ] && width=76
+
+    local title=" SISTEM DIAGNOSTIK "
+    local title_pad=$(_pad_str "$title" $width)
+    
+    echo -e "  ${CYAN}╭$(_repeat_char '─' $width)╮${RESET}"
+    echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${title_pad}${RESET}${CYAN}│${RESET}"
+    echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
+
+    local lines=(
+        " ${GRAY}OS      :${RESET} $os_name"
+        " ${GRAY}Env     :${RESET} $env"
+        " ${GRAY}RAM     :${RESET} ${YELLOW}${ram}% USED${RESET}"
+        " ${GRAY}Storage :${RESET} ${YELLOW}${storage}% FULL${RESET}"
+        " ${GRAY}Uptime  :${RESET} $uptime_val"
+        " ${GRAY}Python  :${RESET} $python_ver"
+        " ${GRAY}Bash    :${RESET} $bash_ver"
+        "DIVIDER"
+        " ${MAGENTA}${BOLD}■ STATUS DEPENDENSI${RESET}"
+    )
+
+    for tool in ffmpeg python3 yt-dlp spotdl syncedlyrics mutagen flask demucs; do
+        local stat=""
         if command -v "$tool" >/dev/null 2>&1; then
-            local ver
-            ver=$("$tool" --version 2>/dev/null | head -1 || echo "tersedia")
-            echo -e "  ${GREEN}${ICO_CHECK_OK}${RESET} $tool: $ver"
+            local ver=$("$tool" --version 2>/dev/null | head -1 | awk '{print $1" "$2}' | tr -d '\r')
+            if [ -z "$ver" ]; then ver="OK"; fi
+            ver=${ver:0:25}
+            stat="${GREEN}Installed${RESET} (${GRAY}${ver}${RESET})"
         elif [ -f "$ZDT_VENV_DIR/bin/$tool" ]; then
-            echo -e "  ${GREEN}${ICO_CHECK_OK}${RESET} $tool: (VENV)"
+            stat="${GREEN}Installed${RESET} (VENV)"
         else
-            echo -e "  ${RED}${ICO_CHECK_FAIL}${RESET} $tool: Tidak terinstal"
+            stat="${RED}Missing${RESET}"
+        fi
+        
+        local tool_disp="   ${CYAN}${tool}${RESET} $(_repeat_char '.' $(( 16 - ${#tool} )))"
+        lines+=("${tool_disp} $stat")
+    done
+
+    for l_text in "${lines[@]}"; do
+        if [ "$l_text" = "DIVIDER" ]; then
+            echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
+        else
+            local l_pad=$(_pad_str "$l_text" $width)
+            echo -e "  ${CYAN}│${RESET}${l_pad}${CYAN}│${RESET}"
         fi
     done
 
+    echo -e "  ${CYAN}╰$(_repeat_char '─' $width)╯${RESET}"
     _pause
 }
 
