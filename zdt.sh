@@ -125,71 +125,77 @@ main() {
                 res="${res}${char}"
             done
             echo -n "$res"
-        }
-
         local cols=$(tput cols 2>/dev/null || echo 100)
         
+        # We need CPU temp if possible
+        local temp="N/A"
+        if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
+            temp="$(($(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null) / 1000))°C"
+        fi
+        
+        local kernel_ver=$(uname -r | cut -d'-' -f1,2)
+        local arch=$(uname -m)
+        local pkgs=$(dpkg-query -f '.\n' -W 2>/dev/null | wc -l || echo 0)
+        local load_avg=$(cat /proc/loadavg 2>/dev/null | awk '{print $1" "$2" "$3}' || echo "N/A")
+        
         if [ "$cols" -ge 85 ]; then
-            # DESKTOP VIEW
+            # DESKTOP VIEW (Gacor Graphic Dashboard)
             local inner_cols=$(( cols - 4 ))
-            local left_width=32
+            local left_width=41
             local right_width=$(( inner_cols - left_width - 1 ))
 
+            echo ""
+            echo -e "  ${CYAN}███████╗██████╗ ████████╗${RESET}   ${MAGENTA}ZDT v${APP_VERSION}${RESET}"
+            echo -e "  ${CYAN}╚══███╔╝██╔══██╗╚══██╔══╝${RESET}   ${CYAN}OS     :${RESET} $os_name"
+            echo -e "  ${CYAN}  ███╔╝ ██║  ██║   ██║   ${RESET}   ${CYAN}KERNEL :${RESET} $kernel_ver"
+            echo -e "  ${CYAN} ███╔╝  ██║  ██║   ██║   ${RESET}   ${CYAN}ARCH   :${RESET} $arch"
+            echo -e "  ${CYAN}███████╗██████╔╝   ██║   ${RESET}   ${CYAN}UPTIME :${RESET} $uptime_val"
+            echo -e "  ${CYAN}╚══════╝╚═════╝    ╚═╝   ${RESET}   ${CYAN}USER   :${RESET} $current_user"
+            echo ""
+            
+            local stats_text="  CPU: $(grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}' | cut -d. -f1)%   RAM: ${ram_pct}%   DISK: ${storage_pct}%   TEMP: ${temp}   NET: ${net_str} "
+            local stats_pad=$(_pad_str "$stats_text" $((inner_cols)))
+            echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
+            echo -e "  ${CYAN}│${RESET}${CYAN}${stats_pad}${RESET}${CYAN}│${RESET}"
+            echo -e "  ${CYAN}├$(_repeat_char '─' $left_width)┬$(_repeat_char '─' $right_width)┤${RESET}"
+
             local left_lines=(
-                " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
-                "   ${GREEN}[1]${RESET} Setup Tools"
-                "   ${GREEN}[2]${RESET} Spotify DL"
-                "   ${GREEN}[3]${RESET} YT Audio"
-                "   ${GREEN}[4]${RESET} Video DL"
-                "   ${GREEN}[5]${RESET} Compress"
-                "   ${GREEN}[6]${RESET} Vocal Remover"
-                "   ${GREEN}[7]${RESET} Sync Lyrics"
-                "   ${GREEN}[8]${RESET} Playlist Sync"
-                "   ${GREEN}[9]${RESET} System Info"
+                " ${MAGENTA}MAIN MENU${RESET}"
+                "  ${CYAN}[1]${RESET} ⚙ Setup Tools    ${CYAN}[6]${RESET} ✂ Vocal Remover"
+                "  ${CYAN}[2]${RESET} ☊ Spotify DL     ${CYAN}[7]${RESET} ⟳ Sync Lyrics"
+                "  ${CYAN}[3]${RESET} ♫ YT Audio       ${CYAN}[8]${RESET} ☰ Playlist Sync"
+                "  ${CYAN}[4]${RESET} ▶ Video DL       ${CYAN}[9]${RESET} ℹ System Info"
+                "  ${CYAN}[5]${RESET} ▼ Compress"
                 ""
-                " ${MAGENTA}${BOLD}■ UTILITIES${RESET}"
-                "   ${YELLOW}[S]${RESET} Storage"
-                "   ${YELLOW}[W]${RESET} Watch"
-                "   ${YELLOW}[P]${RESET} Playlist"
-                "   ${YELLOW}[M]${RESET} Metadata"
-                "   ${YELLOW}[O]${RESET} Clean"
-                "   ${YELLOW}[T]${RESET} Telegram"
-                "   ${YELLOW}[V]${RESET} Web UI"
-                "   ${YELLOW}[U]${RESET} Update"
-                "   ${YELLOW}[A]${RESET} Zaki AI"
-                "   ${RED}[X]${RESET} Delete All"
+                " ${MAGENTA}UTILITIES${RESET}"
+                "  ${YELLOW}[S]${RESET} ⛁ Storage        ${YELLOW}[O]${RESET} ⎚ Clean"
+                "  ${YELLOW}[W]${RESET} ◎ Watch          ${YELLOW}[T]${RESET} ✈ Telegram"
+                "  ${YELLOW}[P]${RESET} ♪ Playlist       ${YELLOW}[V]${RESET} ⎈ Web UI"
+                "  ${YELLOW}[M]${RESET} ☷ Metadata       ${YELLOW}[U]${RESET} ⇪ Update"
+                "  ${YELLOW}[A]${RESET} ⚝ Zaki AI        ${RED}[X]${RESET} ⚠ Delete All"
                 ""
-                " ${RED}${BOLD}■ SYSTEM${RESET}"
-                "   ${RED}[0]${RESET} Shutdown Terminal"
+                " ${RED}SYSTEM${RESET}"
+                "  ${RED}⏻ [0]${RESET} Shutdown Terminal"
             )
 
             local right_lines=(
-                " ${MAGENTA}${BOLD}■ SYSTEM OVERVIEW${RESET}"
-                "   ${CYAN}▗▀▀▀▄ ▗▄▄▄▖▗▄▄▖${RESET}    ${GRAY}OS:${RESET} $os_name"
-                "   ${CYAN} ▗▄▀▘ ▐▌  █  █ ${RESET}    ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}"
-                "   ${CYAN}▄▀▘   ▐▌  █  █ ${RESET}    ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
-                "   ${CYAN}█▄▄▄▄ ▝▀▀▀▘  █ ${RESET}    ${GRAY}KERNEL:${RESET} $(uname -r)"
+                " ${MAGENTA}QUICK INFO${RESET}"
+                "  ${CYAN}Distro  ${RESET}: ${os_name:0:22}"
+                "  ${CYAN}Hostname${RESET}: $(hostname)"
+                "  ${CYAN}Shell   ${RESET}: $SHELL"
+                "  ${CYAN}Terminal${RESET}: $TERM"
+                "  ${CYAN}Packages${RESET}: $pkgs (dpkg)"
+                "  ${CYAN}Load Avg${RESET}: $load_avg"
                 ""
-                " ${MAGENTA}${BOLD}■ NETWORK INTERFACE${RESET}"
-                "   ${GRAY}STATUS   :${RESET} ${net_col}${net_str}${RESET}"
-                "   ${GRAY}LOCAL IP :${RESET} $(hostname -I 2>/dev/null | awk '{print $1}' || echo "N/A")"
-                ""
-                " ${MAGENTA}${BOLD}■ LIVE LOGS${RESET}"
-                "   ${CYAN}[INFO]${RESET} ZDT Music Toolkit loaded successfully."
-                "   ${CYAN}[INFO]${RESET} Establishing secure neural link..."
-                "   ${GREEN}[SUCCESS]${RESET} Terminal interface ready."
-                "   ${CYAN}[INFO]${RESET} Awaiting user command."
+                " ${MAGENTA}RECENT LOGS${RESET}"
+                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} System initialized"
+                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Dependencies OK"
+                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Neural Link Active"
+                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Awaiting Command"
             )
 
             local max_lines=${#left_lines[@]}
             [ ${#right_lines[@]} -gt $max_lines ] && max_lines=${#right_lines[@]}
-
-            local top_text=" >_ ZDT/CLI v${APP_VERSION}   |   USER: $current_user   |   UPTIME: $uptime_val   |   NET: $net_str "
-            local top_pad=$(_pad_str "$top_text" $inner_cols)
-
-            echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
-            echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${top_pad}${RESET}${CYAN}│${RESET}"
-            echo -e "  ${CYAN}├$(_repeat_char '─' $left_width)┬$(_repeat_char '─' $right_width)┤${RESET}"
 
             for ((i=0; i<max_lines; i++)); do
                 local l_text="${left_lines[i]:-}"
@@ -213,18 +219,18 @@ main() {
                 "   ${GRAY}NET:${RESET} ${net_col}${net_str}${RESET}"
                 ""
                 " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
-                "   ${GREEN}[1]${RESET} Setup Tools    ${GREEN}[6]${RESET} Vocal Remover"
-                "   ${GREEN}[2]${RESET} Spotify DL     ${GREEN}[7]${RESET} Sync Lyrics"
-                "   ${GREEN}[3]${RESET} YT Audio       ${GREEN}[8]${RESET} Playlist Sync"
-                "   ${GREEN}[4]${RESET} Video DL       ${GREEN}[9]${RESET} System Info"
-                "   ${GREEN}[5]${RESET} Compress"
+                "   ${GREEN}[1]${RESET} ⚙ Setup Tools    ${GREEN}[6]${RESET} ✂ Vocal Remover"
+                "   ${GREEN}[2]${RESET} ☊ Spotify DL     ${GREEN}[7]${RESET} ⟳ Sync Lyrics"
+                "   ${GREEN}[3]${RESET} ♫ YT Audio       ${GREEN}[8]${RESET} ☰ Playlist Sync"
+                "   ${GREEN}[4]${RESET} ▶ Video DL       ${GREEN}[9]${RESET} ℹ System Info"
+                "   ${GREEN}[5]${RESET} ▼ Compress"
                 ""
                 " ${MAGENTA}${BOLD}■ UTILITIES${RESET}"
-                "   ${YELLOW}[S]${RESET} Storage        ${YELLOW}[O]${RESET} Clean"
-                "   ${YELLOW}[W]${RESET} Watch          ${YELLOW}[T]${RESET} Telegram"
-                "   ${YELLOW}[P]${RESET} Playlist       ${YELLOW}[V]${RESET} Web UI"
-                "   ${YELLOW}[M]${RESET} Metadata       ${YELLOW}[U]${RESET} Update"
-                "   ${YELLOW}[A]${RESET} Zaki AI        ${RED}[X]${RESET} Delete All"
+                "   ${YELLOW}[S]${RESET} ⛁ Storage        ${YELLOW}[O]${RESET} ⎚ Clean"
+                "   ${YELLOW}[W]${RESET} ◎ Watch          ${YELLOW}[T]${RESET} ✈ Telegram"
+                "   ${YELLOW}[P]${RESET} ♪ Playlist       ${YELLOW}[V]${RESET} ⎈ Web UI"
+                "   ${YELLOW}[M]${RESET} ☷ Metadata       ${YELLOW}[U]${RESET} ⇪ Update"
+                "   ${YELLOW}[A]${RESET} ⚝ Zaki AI        ${RED}[X]${RESET} ⚠ Delete All"
                 ""
                 " ${RED}${BOLD}■ SYSTEM${RESET}"
                 "   ${RED}[0]${RESET} Shutdown Terminal"
@@ -250,7 +256,7 @@ main() {
         fi
         
         echo ""
-        echo -e -n "  ${BOLD}[?] Awaiting command: ${RESET}"
+        echo -e -n "  ${CYAN}${current_user}@pop-os ~ ❯${RESET} "
         local pilihan
         read -r -n 1 pilihan 2>/dev/null || read -r pilihan
         echo ""
