@@ -8,7 +8,7 @@
 # ==========================================
 # CONSTANTS
 # ==========================================
-readonly APP_VERSION="3.8.0"
+# APP_VERSION is defined in the main zdt.sh entrypoint
 readonly APP_NAME="Zaki Downloader Tools"
 readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
 readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
@@ -32,6 +32,12 @@ AUTO_HAPUS_VOKAL_MODE=""
 AUTO_HAPUS_VOKAL_PATH=""
 WEB_BIND="127.0.0.1"
 
+# Initialize UI variables to prevent unbound errors under set -u
+GREEN='' CYAN='' MAGENTA='' WHITE='' GRAY=''
+RED='' YELLOW='' BOLD='' RESET=''
+ICO_OK="" ICO_FAIL="" ICO_WARN="" ICO_ARROW="" ICO_MUSIC="" ICO_GEAR=""
+ICO_SEARCH="" ICO_LIST="" ICO_CUT="" ICO_UPDATE="" ICO_DANGER="" ICO_ROCKET=""
+ICO_EXIT="" ICO_PLAY="" ICO_CHECK_OK="" ICO_CHECK_FAIL=""
 _load_config() {
     if [ -f "$ZDT_CONFIG_FILE" ]; then
         source "$ZDT_CONFIG_FILE"
