@@ -110,8 +110,11 @@ main() {
             local plain=$(echo -e "$str" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
             local len=${#plain}
             local pad=$((width - len))
-            [ $pad -lt 0 ] && pad=0
-            printf "%b%*s" "$str" "$pad" ""
+            if [ $pad -lt 0 ]; then
+                printf "%s" "${plain:0:$width}"
+            else
+                printf "%b%*s" "$str" "$pad" ""
+            fi
         }
 
         _repeat_char() {
@@ -125,77 +128,127 @@ main() {
         }
 
         local cols=$(tput cols 2>/dev/null || echo 100)
-        [ "$cols" -lt 85 ] && cols=85
-        # We need an overall inner width slightly less than the terminal to look centered/padded, but we just use `cols - 4` to leave 2 spaces margin left and right.
-        local inner_cols=$(( cols - 4 ))
-        local left_width=32
-        local right_width=$(( inner_cols - left_width - 1 ))
+        
+        if [ "$cols" -ge 85 ]; then
+            # DESKTOP VIEW
+            local inner_cols=$(( cols - 4 ))
+            local left_width=32
+            local right_width=$(( inner_cols - left_width - 1 ))
 
-        local left_lines=(
-            " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
-            "   ${GREEN}[1]${RESET} Setup Tools"
-            "   ${GREEN}[2]${RESET} Spotify DL"
-            "   ${GREEN}[3]${RESET} YT Audio"
-            "   ${GREEN}[4]${RESET} Video DL"
-            "   ${GREEN}[5]${RESET} Compress"
-            "   ${GREEN}[6]${RESET} Vocal Remover"
-            "   ${GREEN}[7]${RESET} Sync Lyrics"
-            "   ${GREEN}[8]${RESET} Playlist Sync"
-            "   ${GREEN}[9]${RESET} System Info"
-            ""
-            " ${MAGENTA}${BOLD}■ UTILITIES${RESET}"
-            "   ${YELLOW}[S]${RESET} Storage"
-            "   ${YELLOW}[W]${RESET} Watch"
-            "   ${YELLOW}[P]${RESET} Playlist"
-            "   ${YELLOW}[M]${RESET} Metadata"
-            "   ${YELLOW}[O]${RESET} Clean"
-            "   ${YELLOW}[T]${RESET} Telegram"
-            "   ${YELLOW}[V]${RESET} Web UI"
-            "   ${YELLOW}[U]${RESET} Update"
-            "   ${YELLOW}[A]${RESET} Zaki AI"
-            "   ${RED}[X]${RESET} Delete All"
-            ""
-            " ${RED}${BOLD}■ SYSTEM${RESET}"
-            "   ${RED}[0]${RESET} Shutdown Terminal"
-        )
+            local left_lines=(
+                " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
+                "   ${GREEN}[1]${RESET} Setup Tools"
+                "   ${GREEN}[2]${RESET} Spotify DL"
+                "   ${GREEN}[3]${RESET} YT Audio"
+                "   ${GREEN}[4]${RESET} Video DL"
+                "   ${GREEN}[5]${RESET} Compress"
+                "   ${GREEN}[6]${RESET} Vocal Remover"
+                "   ${GREEN}[7]${RESET} Sync Lyrics"
+                "   ${GREEN}[8]${RESET} Playlist Sync"
+                "   ${GREEN}[9]${RESET} System Info"
+                ""
+                " ${MAGENTA}${BOLD}■ UTILITIES${RESET}"
+                "   ${YELLOW}[S]${RESET} Storage"
+                "   ${YELLOW}[W]${RESET} Watch"
+                "   ${YELLOW}[P]${RESET} Playlist"
+                "   ${YELLOW}[M]${RESET} Metadata"
+                "   ${YELLOW}[O]${RESET} Clean"
+                "   ${YELLOW}[T]${RESET} Telegram"
+                "   ${YELLOW}[V]${RESET} Web UI"
+                "   ${YELLOW}[U]${RESET} Update"
+                "   ${YELLOW}[A]${RESET} Zaki AI"
+                "   ${RED}[X]${RESET} Delete All"
+                ""
+                " ${RED}${BOLD}■ SYSTEM${RESET}"
+                "   ${RED}[0]${RESET} Shutdown Terminal"
+            )
 
-        local right_lines=(
-            " ${MAGENTA}${BOLD}■ SYSTEM OVERVIEW${RESET}"
-            "   ${CYAN}▗▀▀▀▄ ▗▄▄▄▖▗▄▄▖${RESET}    ${GRAY}OS:${RESET} $os_name"
-            "   ${CYAN} ▗▄▀▘ ▐▌  █  █ ${RESET}    ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}"
-            "   ${CYAN}▄▀▘   ▐▌  █  █ ${RESET}    ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
-            "   ${CYAN}█▄▄▄▄ ▝▀▀▀▘  █ ${RESET}    ${GRAY}KERNEL:${RESET} $(uname -r)"
-            ""
-            " ${MAGENTA}${BOLD}■ NETWORK INTERFACE${RESET}"
-            "   ${GRAY}STATUS   :${RESET} ${net_col}${net_str}${RESET}"
-            "   ${GRAY}LOCAL IP :${RESET} $(hostname -I 2>/dev/null | awk '{print $1}' || echo "N/A")"
-            ""
-            " ${MAGENTA}${BOLD}■ LIVE LOGS${RESET}"
-            "   ${CYAN}[INFO]${RESET} ZDT Music Toolkit loaded successfully."
-            "   ${CYAN}[INFO]${RESET} Establishing secure neural link..."
-            "   ${GREEN}[SUCCESS]${RESET} Terminal interface ready."
-            "   ${CYAN}[INFO]${RESET} Awaiting user command."
-        )
+            local right_lines=(
+                " ${MAGENTA}${BOLD}■ SYSTEM OVERVIEW${RESET}"
+                "   ${CYAN}▗▀▀▀▄ ▗▄▄▄▖▗▄▄▖${RESET}    ${GRAY}OS:${RESET} $os_name"
+                "   ${CYAN} ▗▄▀▘ ▐▌  █  █ ${RESET}    ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}"
+                "   ${CYAN}▄▀▘   ▐▌  █  █ ${RESET}    ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
+                "   ${CYAN}█▄▄▄▄ ▝▀▀▀▘  █ ${RESET}    ${GRAY}KERNEL:${RESET} $(uname -r)"
+                ""
+                " ${MAGENTA}${BOLD}■ NETWORK INTERFACE${RESET}"
+                "   ${GRAY}STATUS   :${RESET} ${net_col}${net_str}${RESET}"
+                "   ${GRAY}LOCAL IP :${RESET} $(hostname -I 2>/dev/null | awk '{print $1}' || echo "N/A")"
+                ""
+                " ${MAGENTA}${BOLD}■ LIVE LOGS${RESET}"
+                "   ${CYAN}[INFO]${RESET} ZDT Music Toolkit loaded successfully."
+                "   ${CYAN}[INFO]${RESET} Establishing secure neural link..."
+                "   ${GREEN}[SUCCESS]${RESET} Terminal interface ready."
+                "   ${CYAN}[INFO]${RESET} Awaiting user command."
+            )
 
-        local max_lines=${#left_lines[@]}
-        [ ${#right_lines[@]} -gt $max_lines ] && max_lines=${#right_lines[@]}
+            local max_lines=${#left_lines[@]}
+            [ ${#right_lines[@]} -gt $max_lines ] && max_lines=${#right_lines[@]}
 
-        local top_text=" >_ ZDT/CLI v${APP_VERSION}   |   USER: $current_user   |   UPTIME: $uptime_val   |   NET: $net_str "
-        local top_pad=$(_pad_str "$top_text" $inner_cols)
+            local top_text=" >_ ZDT/CLI v${APP_VERSION}   |   USER: $current_user   |   UPTIME: $uptime_val   |   NET: $net_str "
+            local top_pad=$(_pad_str "$top_text" $inner_cols)
 
-        echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
-        echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${top_pad}${RESET}${CYAN}│${RESET}"
-        echo -e "  ${CYAN}├$(_repeat_char '─' $left_width)┬$(_repeat_char '─' $right_width)┤${RESET}"
+            echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
+            echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${top_pad}${RESET}${CYAN}│${RESET}"
+            echo -e "  ${CYAN}├$(_repeat_char '─' $left_width)┬$(_repeat_char '─' $right_width)┤${RESET}"
 
-        for ((i=0; i<max_lines; i++)); do
-            local l_text="${left_lines[i]:-}"
-            local r_text="${right_lines[i]:-}"
-            local l_pad=$(_pad_str "$l_text" $left_width)
-            local r_pad=$(_pad_str "$r_text" $right_width)
-            echo -e "  ${CYAN}│${RESET}${l_pad}${CYAN}│${RESET}${r_pad}${CYAN}│${RESET}"
-        done
+            for ((i=0; i<max_lines; i++)); do
+                local l_text="${left_lines[i]:-}"
+                local r_text="${right_lines[i]:-}"
+                local l_pad=$(_pad_str "$l_text" $left_width)
+                local r_pad=$(_pad_str "$r_text" $right_width)
+                echo -e "  ${CYAN}│${RESET}${l_pad}${CYAN}│${RESET}${r_pad}${CYAN}│${RESET}"
+            done
 
-        echo -e "  ${CYAN}╰$(_repeat_char '─' $left_width)┴$(_repeat_char '─' $right_width)╯${RESET}"
+            echo -e "  ${CYAN}╰$(_repeat_char '─' $left_width)┴$(_repeat_char '─' $right_width)╯${RESET}"
+        else
+            # MOBILE VIEW (1-Column Stacked Layout)
+            local inner_cols=$(( cols - 4 ))
+            [ "$inner_cols" -lt 30 ] && inner_cols=30
+            
+            local mobile_lines=(
+                " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
+                "   ${GREEN}[1]${RESET} Setup Tools    ${GREEN}[6]${RESET} Vocal Remover"
+                "   ${GREEN}[2]${RESET} Spotify DL     ${GREEN}[7]${RESET} Sync Lyrics"
+                "   ${GREEN}[3]${RESET} YT Audio       ${GREEN}[8]${RESET} Playlist Sync"
+                "   ${GREEN}[4]${RESET} Video DL       ${GREEN}[9]${RESET} System Info"
+                "   ${GREEN}[5]${RESET} Compress"
+                ""
+                " ${MAGENTA}${BOLD}■ UTILITIES${RESET}"
+                "   ${YELLOW}[S]${RESET} Storage        ${YELLOW}[O]${RESET} Clean"
+                "   ${YELLOW}[W]${RESET} Watch          ${YELLOW}[T]${RESET} Telegram"
+                "   ${YELLOW}[P]${RESET} Playlist       ${YELLOW}[V]${RESET} Web UI"
+                "   ${YELLOW}[M]${RESET} Metadata       ${YELLOW}[U]${RESET} Update"
+                "   ${YELLOW}[A]${RESET} Zaki AI        ${RED}[X]${RESET} Delete All"
+                ""
+                " ${MAGENTA}${BOLD}■ SYSTEM OVERVIEW${RESET}"
+                "   ${GRAY}OS:${RESET} ${os_name}"
+                "   ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}"
+                "   ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
+                "   ${GRAY}NET:${RESET} ${net_col}${net_str}${RESET}"
+                ""
+                " ${RED}${BOLD}■ SYSTEM${RESET}"
+                "   ${RED}[0]${RESET} Shutdown Terminal"
+            )
+
+            local top_text=" ZDT v${APP_VERSION} | UPT: $uptime_val | NET: $net_str "
+            if [ "$inner_cols" -lt 45 ]; then
+                top_text=" ZDT v${APP_VERSION} | NET: $net_str "
+            fi
+            local top_pad=$(_pad_str "$top_text" $inner_cols)
+
+            echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
+            echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${top_pad}${RESET}${CYAN}│${RESET}"
+            echo -e "  ${CYAN}├$(_repeat_char '─' $inner_cols)┤${RESET}"
+
+            for ((i=0; i<${#mobile_lines[@]}; i++)); do
+                local l_text="${mobile_lines[i]}"
+                local l_pad=$(_pad_str "$l_text" $inner_cols)
+                echo -e "  ${CYAN}│${RESET}${l_pad}${CYAN}│${RESET}"
+            done
+
+            echo -e "  ${CYAN}╰$(_repeat_char '─' $inner_cols)╯${RESET}"
+        fi
+        
         echo ""
         echo -e -n "  ${BOLD}[?] Awaiting command: ${RESET}"
         local pilihan
