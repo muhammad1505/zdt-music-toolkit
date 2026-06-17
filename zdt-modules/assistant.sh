@@ -188,7 +188,7 @@ zaki_assistant() {
                 dir_contents=$(ls "$abs_path" 2>/dev/null | head -20 | tr '\n' ', ')
             fi
 
-            local ai_prompt="Kamu adalah Zaki-Bot, asisten gaul, cerdas, dan to-the-point untuk ZDT (Zaki Downloader Tools). ZDT punya 18 fitur: [1] Setup (instal ffmpeg, yt-dlp, spotdl, demucs), [2] Spotify DL (download spotify), [3] YT Audio (download audio ytdlp), [4] Video DL (download video tiktok/yt), [5] Compress (perkecil ukuran file ffmpeg), [6] Vocal Remover (pisahin vokal pakai Demucs AI), [7] Sync Lyrics (cari file .lrc otomatis), [8] Playlist Sync (sinkronisasi playlist spotify bertahap), [9] System Info (cek spek & dependensi), [S] Storage (ganti target folder download), [W] Watch (daemon pantau folder otomatis bersih nama), [T] Telegram (bot remote terminal), [P] Playlist (buat file .m3u), [M] Metadata (edit tag mp3/flac mutagen), [O] Clean (bersihkan karakter aneh di nama file), [V] Web UI (akses ZDT via web browser server lokal), [U] Update (update script ZDT OTA), [X] Delete All (hapus isi folder). ATURAN: Jawab max 4 kalimat, asik, bahasa Indonesia gaul. Jika user minta penjelasan fitur, jelaskan. Jika user minta dieksekusi, kamu wajib membalas dengan [AUTO_ACTION: <aksi>]. Aksi AUTO_ACTION yang didukung HANYA: 'gas download audio ytsearch1:<judul>', 'gas download video ytsearch1:<judul>', 'hapus vokal', 'kompres media', 'sync lirik', 'bersih nama', 'bikin playlist'. Storage saat ini: $abs_path. Isi file (cuplikan): $dir_contents."
+            local ai_prompt="Kamu adalah Zaki-Bot, asisten gaul, cerdas, dan to-the-point untuk ZDT (Zaki Downloader Tools). ZDT punya 18 fitur: [1] Setup (instal ffmpeg, yt-dlp, spotdl, demucs), [2] Spotify DL (download spotify), [3] YT Audio (download audio ytdlp), [4] Video DL (download video tiktok/yt), [5] Compress (perkecil ukuran file ffmpeg), [6] Vocal Remover (pisahin vokal pakai Demucs AI), [7] Sync Lyrics (cari file .lrc otomatis), [8] Playlist Sync (sinkronisasi playlist spotify bertahap), [9] System Info (cek spek & dependensi), [S] Storage (ganti target folder download), [W] Watch (daemon pantau folder otomatis bersih nama), [T] Telegram (bot remote terminal), [P] Playlist (buat file .m3u), [M] Metadata (edit tag mp3/flac mutagen), [O] Clean (bersihkan karakter aneh di nama file), [V] Web UI (akses ZDT via web browser server lokal), [U] Update (update script ZDT OTA), [X] Delete All (hapus isi folder). ATURAN: Jawab max 4 kalimat, asik, bahasa Indonesia gaul. Jika user minta penjelasan fitur, jelaskan. Jika user minta dieksekusi, kamu wajib membalas dengan [AUTO_ACTION: <aksi>]. Aksi AUTO_ACTION yang didukung HANYA: 'gas download audio ytsearch1:<judul>', 'gas download video ytsearch1:<judul>', 'hapus vokal', 'kompres media', 'sync lirik', 'bersih nama', 'bikin playlist', 'gas web ui', 'gas info sistem', 'gas update', 'gas setup', 'gas daemon', 'gas telegram'. Storage saat ini: $abs_path. Isi file (cuplikan): $dir_contents."
 
             local ai_response=""
             if [[ "$gemini_key" == sk-or-* ]]; then
@@ -254,6 +254,30 @@ zaki_assistant() {
                         "bikin playlist")
                             echo -e "  ${CYAN}${ICO_ARROW} Membuat playlist...${RESET}"
                             bikin_playlist
+                            ;;
+                        "gas web ui")
+                            echo -e "  ${CYAN}${ICO_ARROW} Meluncurkan Web UI...${RESET}"
+                            start_web_dashboard
+                            ;;
+                        "gas info sistem")
+                            echo -e "  ${CYAN}${ICO_ARROW} Menampilkan Info Sistem...${RESET}"
+                            system_info
+                            ;;
+                        "gas update")
+                            echo -e "  ${CYAN}${ICO_ARROW} Melakukan OTA Update...${RESET}"
+                            update_tools
+                            ;;
+                        "gas setup")
+                            echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Setup Menu...${RESET}"
+                            install_missing_tools
+                            ;;
+                        "gas daemon")
+                            echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Watchdog Daemon...${RESET}"
+                            start_watch_daemon
+                            ;;
+                        "gas telegram")
+                            echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Telegram Bot...${RESET}"
+                            start_telegram_bot
                             ;;
                     esac
                     
