@@ -206,6 +206,12 @@ main() {
             [ "$inner_cols" -lt 30 ] && inner_cols=30
             
             local mobile_lines=(
+                " ${MAGENTA}${BOLD}■ SYSTEM OVERVIEW${RESET}"
+                "   ${GRAY}OS:${RESET} ${os_name}"
+                "   ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}"
+                "   ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
+                "   ${GRAY}NET:${RESET} ${net_col}${net_str}${RESET}"
+                ""
                 " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
                 "   ${GREEN}[1]${RESET} Setup Tools    ${GREEN}[6]${RESET} Vocal Remover"
                 "   ${GREEN}[2]${RESET} Spotify DL     ${GREEN}[7]${RESET} Sync Lyrics"
@@ -219,12 +225,6 @@ main() {
                 "   ${YELLOW}[P]${RESET} Playlist       ${YELLOW}[V]${RESET} Web UI"
                 "   ${YELLOW}[M]${RESET} Metadata       ${YELLOW}[U]${RESET} Update"
                 "   ${YELLOW}[A]${RESET} Zaki AI        ${RED}[X]${RESET} Delete All"
-                ""
-                " ${MAGENTA}${BOLD}■ SYSTEM OVERVIEW${RESET}"
-                "   ${GRAY}OS:${RESET} ${os_name}"
-                "   ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}"
-                "   ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
-                "   ${GRAY}NET:${RESET} ${net_col}${net_str}${RESET}"
                 ""
                 " ${RED}${BOLD}■ SYSTEM${RESET}"
                 "   ${RED}[0]${RESET} Shutdown Terminal"
