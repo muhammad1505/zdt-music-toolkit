@@ -542,6 +542,36 @@ print_header() {
 }
 
 # ==========================================
+# HELPER: PRINT MENU BOX
+# ==========================================
+_print_menu_box() {
+    local title="$1"
+    shift
+    local options=("$@")
+
+    local cols=$(tput cols 2>/dev/null || echo 80)
+    local width=$(( cols - 4 ))
+    [ "$width" -lt 50 ] && width=50
+    [ "$width" -gt 76 ] && width=76
+
+    local title_pad=$(_pad_str " ${MAGENTA}${BOLD}■ ${title}${RESET}" $width)
+
+    echo -e "  ${CYAN}╭$(_repeat_char '─' $width)╮${RESET}"
+    echo -e "  ${CYAN}│${RESET}${title_pad}${CYAN}│${RESET}"
+    echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
+
+    for opt in "${options[@]}"; do
+        if [ "$opt" = "DIVIDER" ]; then
+            echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
+        else
+            local opt_pad=$(_pad_str "   $opt" $width)
+            echo -e "  ${CYAN}│${RESET}${opt_pad}${CYAN}│${RESET}"
+        fi
+    done
+    echo -e "  ${CYAN}╰$(_repeat_char '─' $width)╯${RESET}"
+}
+
+# ==========================================
 # HELPER: PAUSE BEFORE RETURN TO MENU
 # ==========================================
 _pause() {

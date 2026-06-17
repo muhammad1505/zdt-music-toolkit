@@ -58,11 +58,12 @@ download_spotdl() {
                 fi
                 step=2
             elif [ "$step" -eq 2 ]; then
-                echo -e "  ${CYAN}${ICO_ARROW} MANAJEMEN FOLDER OUTPUT${RESET}"
-                echo "    1. Auto-Folder per Artis Utama"
-                echo "    2. Bikin 1 Folder Manual"
-                echo "    3. Tanpa folder baru"
-                echo "    0. ${ICO_FAIL} KEMBALI"
+                _print_menu_box "MANAJEMEN FOLDER OUTPUT" \
+                    "${GREEN}[1]${RESET} Auto-Folder per Artis Utama" \
+                    "${GREEN}[2]${RESET} Bikin 1 Folder Manual" \
+                    "${GREEN}[3]${RESET} Tanpa folder baru" \
+                    "DIVIDER" \
+                    "${RED}[0]${RESET} KEMBALI"
                 echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
                 read -r -n 1 folder_mode
                 echo ""
@@ -81,14 +82,15 @@ download_spotdl() {
                 fi
                 step=4
             elif [ "$step" -eq 4 ]; then
-                echo -e "  ${CYAN}${ICO_ARROW} FORMAT OUTPUT${RESET}"
-                echo "    1. M4A  (Default, paling kompatibel, kualitas bagus)"
-                echo "    2. MP3  (Universal, didukung semua perangkat lama)"
-                echo "    3. FLAC (Lossless, kualitas tertinggi, ukuran besar)"
-                echo "    4. WAV  (Uncompressed, untuk studio/editing)"
-                echo "    5. OPUS (Modern, ukuran kecil, suara jernih)"
-                echo "    6. OGG  (Open source, bagus untuk streaming/game)"
-                echo "    0. KEMBALI"
+                _print_menu_box "FORMAT OUTPUT" \
+                    "${GREEN}[1]${RESET} M4A  (Default, paling kompatibel, kualitas bagus)" \
+                    "${GREEN}[2]${RESET} MP3  (Universal, didukung semua perangkat lama)" \
+                    "${GREEN}[3]${RESET} FLAC (Lossless, kualitas tertinggi, ukuran besar)" \
+                    "${GREEN}[4]${RESET} WAV  (Uncompressed, untuk studio/editing)" \
+                    "${GREEN}[5]${RESET} OPUS (Modern, ukuran kecil, suara jernih)" \
+                    "${GREEN}[6]${RESET} OGG  (Open source, bagus untuk streaming/game)" \
+                    "DIVIDER" \
+                    "${RED}[0]${RESET} KEMBALI"
                 echo -e -n "  ${BOLD}[?] Pilihan [0-6]: ${RESET}"
                 read -r -n 1 format_pilih
                 echo ""
@@ -289,11 +291,12 @@ download_ytdlp() {
                 fi
                 step=2
             elif [ "$step" -eq 2 ]; then
-                echo -e "  ${CYAN}${ICO_ARROW} MANAJEMEN FOLDER OUTPUT${RESET}"
-                echo "    1. Auto-Folder per Artis/Channel Utama"
-                echo "    2. Bikin 1 Folder Manual"
-                echo "    3. Tanpa folder baru"
-                echo "    0. ${ICO_FAIL} KEMBALI"
+                _print_menu_box "MANAJEMEN FOLDER OUTPUT" \
+                    "${GREEN}[1]${RESET} Auto-Folder per Artis/Channel Utama" \
+                    "${GREEN}[2]${RESET} Bikin 1 Folder Manual" \
+                    "${GREEN}[3]${RESET} Tanpa folder baru" \
+                    "DIVIDER" \
+                    "${RED}[0]${RESET} KEMBALI"
                 echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
                 read -r -n 1 folder_mode
                 echo ""
@@ -312,14 +315,15 @@ download_ytdlp() {
                 fi
                 step=4
             elif [ "$step" -eq 4 ]; then
-                echo -e "  ${CYAN}${ICO_ARROW} FORMAT OUTPUT${RESET}"
-                echo "    1. M4A  (Default, paling kompatibel, kualitas bagus)"
-                echo "    2. MP3  (Universal, didukung semua perangkat lama)"
-                echo "    3. FLAC (Lossless, kualitas tertinggi, ukuran besar)"
-                echo "    4. WAV  (Uncompressed, untuk studio/editing)"
-                echo "    5. OPUS (Modern, ukuran kecil, suara jernih)"
-                echo "    6. OGG  (Open source, bagus untuk streaming/game)"
-                echo "    0. KEMBALI"
+                _print_menu_box "FORMAT OUTPUT" \
+                    "${GREEN}[1]${RESET} M4A  (Default, paling kompatibel, kualitas bagus)" \
+                    "${GREEN}[2]${RESET} MP3  (Universal, didukung semua perangkat lama)" \
+                    "${GREEN}[3]${RESET} FLAC (Lossless, kualitas tertinggi, ukuran besar)" \
+                    "${GREEN}[4]${RESET} WAV  (Uncompressed, untuk studio/editing)" \
+                    "${GREEN}[5]${RESET} OPUS (Modern, ukuran kecil, suara jernih)" \
+                    "${GREEN}[6]${RESET} OGG  (Open source, bagus untuk streaming/game)" \
+                    "DIVIDER" \
+                    "${RED}[0]${RESET} KEMBALI"
                 echo -e -n "  ${BOLD}[?] Pilihan [0-6]: ${RESET}"
                 read -r -n 1 format_pilih
                 echo ""
@@ -559,27 +563,29 @@ download_video() {
                 fi
                 step=2
             elif [ "$step" -eq 2 ]; then
-                echo -e "  ${CYAN}${ICO_ARROW} KUALITAS VIDEO${RESET}"
-                echo "    1. Best Quality (Up to 4K/1080p)"
-                echo "    2. 1080p"
-                echo "    3. 720p"
-                echo "    4. 480p"
-                echo "    5. 360p"
-                echo "    0. KEMBALI"
+                _print_menu_box "KUALITAS VIDEO" \
+                    "${GREEN}[1]${RESET} Best Quality (Up to 4K/1080p)" \
+                    "${GREEN}[2]${RESET} 1080p" \
+                    "${GREEN}[3]${RESET} 720p" \
+                    "${GREEN}[4]${RESET} 480p" \
+                    "${GREEN}[5]${RESET} 360p" \
+                    "DIVIDER" \
+                    "${RED}[0]${RESET} KEMBALI"
                 echo -e -n "  ${BOLD}[?] Pilihan [0-5]: ${RESET}"
                 read -r -n 1 kualitas_pilih
                 echo ""
                 if [ "$kualitas_pilih" = "0" ]; then step=1; continue; fi
                 step=3
             elif [ "$step" -eq 3 ]; then
-                echo -e "  ${CYAN}${ICO_ARROW} FORMAT VIDEO OUTPUT${RESET}"
-                echo "    1. MP4  (Paling Kompatibel)"
-                echo "    2. MKV  (Multi-Track, Multi-Sub)"
-                echo "    3. WebM (Ringan, VP9/AV1)"
-                echo "    4. AVI  (Legacy / Kompatibel Lama)"
-                echo "    5. MOV  (Apple / Final Cut Pro)"
-                echo "    6. TS   (MPEG Transport Stream)"
-                echo "    0. KEMBALI"
+                _print_menu_box "FORMAT VIDEO OUTPUT" \
+                    "${GREEN}[1]${RESET} MP4  (Paling Kompatibel)" \
+                    "${GREEN}[2]${RESET} MKV  (Multi-Track, Multi-Sub)" \
+                    "${GREEN}[3]${RESET} WebM (Ringan, VP9/AV1)" \
+                    "${GREEN}[4]${RESET} AVI  (Legacy / Kompatibel Lama)" \
+                    "${GREEN}[5]${RESET} MOV  (Apple / Final Cut Pro)" \
+                    "${GREEN}[6]${RESET} TS   (MPEG Transport Stream)" \
+                    "DIVIDER" \
+                    "${RED}[0]${RESET} KEMBALI"
                 echo -e -n "  ${BOLD}[?] Pilih Format [0-6]: ${RESET}"
                 read -r -n 1 format_pilih
                 echo ""
@@ -594,23 +600,25 @@ download_video() {
             esac
             step=4
         elif [ "$step" -eq 4 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} CODEC VIDEO${RESET}"
-            echo "    1. Copy     (Tanpa Re-encode, Cepat)"
-            echo "    2. x264/H264 (Kompatibel, Cepat)"
-            echo "    3. x265/HEVC (Ukuran Kecil, Lambat)"
-            echo "    0. KEMBALI"
+            _print_menu_box "CODEC VIDEO" \
+                "${GREEN}[1]${RESET} Copy     (Tanpa Re-encode, Cepat)" \
+                "${GREEN}[2]${RESET} x264/H264 (Kompatibel, Cepat)" \
+                "${GREEN}[3]${RESET} x265/HEVC (Ukuran Kecil, Lambat)" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Codec [0-3]: ${RESET}"
             read -r -n 1 codec_pilih
             echo ""
             if [ "$codec_pilih" = "0" ]; then step=3; continue; fi
             step=5
         elif [ "$step" -eq 5 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} SUBTITLE${RESET}"
-            echo "    1. Embed Subtitle ke Video (jika ada)"
-            echo "    2. Download Subtitle Terpisah (.srt)"
-            echo "    3. Embed + Terpisah"
-            echo "    4. Tanpa Subtitle"
-            echo "    0. KEMBALI"
+            _print_menu_box "SUBTITLE" \
+                "${GREEN}[1]${RESET} Embed Subtitle ke Video (jika ada)" \
+                "${GREEN}[2]${RESET} Download Subtitle Terpisah (.srt)" \
+                "${GREEN}[3]${RESET} Embed + Terpisah" \
+                "${GREEN}[4]${RESET} Tanpa Subtitle" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Mode Subtitle [0-4]: ${RESET}"
             read -r -n 1 sub_pilih
             echo ""
@@ -623,11 +631,12 @@ download_video() {
             esac
             step=6
         elif [ "$step" -eq 6 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} MANAJEMEN FOLDER OUTPUT${RESET}"
-            echo "    1. Auto-Folder per Channel/Playlist"
-            echo "    2. Bikin 1 Folder Manual"
-            echo "    3. Tanpa folder baru"
-            echo "    0. KEMBALI"
+            _print_menu_box "MANAJEMEN FOLDER OUTPUT" \
+                "${GREEN}[1]${RESET} Auto-Folder per Channel/Playlist" \
+                "${GREEN}[2]${RESET} Bikin 1 Folder Manual" \
+                "${GREEN}[3]${RESET} Tanpa folder baru" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
             read -r -n 1 folder_mode
             echo ""

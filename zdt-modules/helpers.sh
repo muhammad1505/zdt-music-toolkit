@@ -33,26 +33,30 @@ _check_dependency() {
 # HELPER: SELECT TARGET FOLDER
 # ==========================================
 pilih_folder_target() {
-    echo -e "  ${CYAN}${ICO_ARROW} PILIH TARGET FOLDER${RESET}"
-    echo "    [0] ${ICO_FAIL} BATAL / KEMBALI"
-    echo "    [1] Semua (Root Direktori Saat Ini)"
-
     local folder_list=()
     _safe_find_dirs folder_list "."
 
     local count=${#folder_list[@]}
+    local options=()
+    options+=("${RED}[0]${RESET} BATAL / KEMBALI")
+    options+=("${GREEN}[1]${RESET} Semua (Root Direktori Saat Ini)")
+    
     if [ "$count" -gt 0 ]; then
         for ((i = 0; i < count; i++)); do
             local nama_f
             nama_f=$(basename "${folder_list[$i]}")
-            echo "    [$((i + 2))] $nama_f"
+            options+=("[$((i + 2))] $nama_f")
         done
     else
-        echo -e "    ${GRAY}(Tidak ada sub-folder terdeteksi)${RESET}"
+        options+=("${GRAY}(Tidak ada sub-folder terdeteksi)${RESET}")
     fi
 
     local max_idx=$((count + 1))
+    
+    _print_menu_box "PILIH TARGET FOLDER" "${options[@]}"
+    
     echo -e -n "  ${BOLD}[?] Pilihan [0-$max_idx] (Enter = 1): ${RESET}"
+    local target_idx
     read -r target_idx
     echo ""
 
@@ -100,11 +104,8 @@ import re, sys, os
 base = sys.argv[1]
 name, ext = os.path.splitext(base)
 
-m = re.search(r'(\s*[\(\[\]\s*(?:Official|Live|Music|Video|Lyric|Audio|Performance|Acoustic|Cover|Lirik).*?[\)\]])', name, flags=re.IGNORECASE)
-if m:
-    name = name[:m.end()]
-
-name = re.sub(r'[\(\[\]\s*(?:4K|8K|HD|HQ|1080p|720p).*?[\)\]]', '', name, flags=re.IGNORECASE)
+name = re.sub(r'\s*[\(\[\s]*(?:Official|Live|Music|Video|Lyric|Audio|Performance|Acoustic|Cover|Lirik)[^\)\]]*[\)\]]?', '', name, flags=re.IGNORECASE)
+name = re.sub(r'\s*[\(\[\s]*(?:4K|8K|HD|HQ|1080p|720p)[^\)\]]*[\)\]]?', '', name, flags=re.IGNORECASE)
 
 name = re.sub(r'  +', ' ', name).strip()
 name = re.sub(r' \.', '.', name)

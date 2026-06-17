@@ -97,7 +97,15 @@ start_web_dashboard() {
     echo -e "  ${YELLOW}${ICO_ARROW} Menyalakan Web Dashboard...${RESET}"
     echo ""
     
-    python3 "$web_script" --bind "$WEB_BIND" --port "${WEB_PORT:-5000}"
+    local port="${WEB_PORT:-5000}"
+    local host="${WEB_BIND:-127.0.0.1}"
+    local open_host="$host"
+    [ "$open_host" = "0.0.0.0" ] && open_host="127.0.0.1"
+    
+    # Auto-open browser
+    ( sleep 1.5; command -v xdg-open >/dev/null 2>&1 && xdg-open "http://$open_host:$port" >/dev/null 2>&1 || python3 -m webbrowser "http://$open_host:$port" >/dev/null 2>&1 ) &
+    
+    python3 "$web_script" --bind "$WEB_BIND" --port "$port"
 }
 
 # ==========================================

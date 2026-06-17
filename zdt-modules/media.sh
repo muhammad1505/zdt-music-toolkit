@@ -12,10 +12,11 @@ kompres_media() {
     while true; do
         print_header "SMART MEDIA COMPRESSOR"
 
-        echo -e "  ${CYAN}${ICO_ARROW} TIPE MEDIA${RESET}"
-        echo "    1. Audio"
-        echo "    2. Video"
-        echo "    0. ${ICO_FAIL} KEMBALI KE MENU UTAMA"
+        _print_menu_box "TIPE MEDIA" \
+            "${GREEN}[1]${RESET} Audio" \
+            "${GREEN}[2]${RESET} Video" \
+            "DIVIDER" \
+            "${RED}[0]${RESET} KEMBALI KE MENU UTAMA"
         echo -e -n "  ${BOLD}[?] Pilih Mode [0-2]: ${RESET}"
         local mode_media
         read -r -n 1 mode_media
@@ -47,12 +48,13 @@ _kompres_audio_batch() {
             target_dir="$TARGET_DIR"
             step=2
         elif [ "$step" -eq 2 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} CODEC AUDIO${RESET}"
-            echo "    1. AAC (Default, sangat kompatibel, .m4a)"
-            echo "    2. MP3 (Libmp3lame, universal, .mp3)"
-            echo "    3. FLAC (Lossless, ukuran besar, .flac)"
-            echo "    4. OPUS (Ukuran kecil, suara jernih, .opus)"
-            echo "    0. ${ICO_FAIL} KEMBALI"
+            _print_menu_box "CODEC AUDIO" \
+                "${GREEN}[1]${RESET} AAC (Default, sangat kompatibel, .m4a)" \
+                "${GREEN}[2]${RESET} MP3 (Libmp3lame, universal, .mp3)" \
+                "${GREEN}[3]${RESET} FLAC (Lossless, ukuran besar, .flac)" \
+                "${GREEN}[4]${RESET} OPUS (Ukuran kecil, suara jernih, .opus)" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Codec [1-4, 0=Kembali, Default=1]: ${RESET}"
             read -r -n 1 c_opt; echo ""
             if [ "$c_opt" = "0" ]; then step=1; continue; fi
@@ -64,12 +66,13 @@ _kompres_audio_batch() {
             esac
             if [ "$codec" = "flac" ]; then step=4; else step=3; fi
         elif [ "$step" -eq 3 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} BITRATE AUDIO${RESET}"
-            echo "    1. 128k (Standar, ukuran kecil)"
-            echo "    2. 192k (Menengah, bagus)"
-            echo "    3. 256k (Tinggi, sangat bagus)"
-            echo "    4. 320k (Maksimal, HQ)"
-            echo "    0. ${ICO_FAIL} KEMBALI"
+            _print_menu_box "BITRATE AUDIO" \
+                "${GREEN}[1]${RESET} 128k (Standar, ukuran kecil)" \
+                "${GREEN}[2]${RESET} 192k (Menengah, bagus)" \
+                "${GREEN}[3]${RESET} 256k (Tinggi, sangat bagus)" \
+                "${GREEN}[4]${RESET} 320k (Maksimal, HQ)" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Bitrate [1-4, 0=Kembali, Default=1]: ${RESET}"
             read -r -n 1 b_opt; echo ""
             if [ "$b_opt" = "0" ]; then step=2; continue; fi
@@ -81,10 +84,11 @@ _kompres_audio_batch() {
             esac
             step=4
         elif [ "$step" -eq 4 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} JANGKAUAN SCAN${RESET}"
-            echo "    1. Semua file di target folder"
-            echo "    2. File baru saja (60 menit terakhir)"
-            echo "    0. ${ICO_FAIL} KEMBALI"
+            _print_menu_box "JANGKAUAN SCAN" \
+                "${GREEN}[1]${RESET} Semua file di target folder" \
+                "${GREEN}[2]${RESET} File baru saja (60 menit terakhir)" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Mode [0-2, 0=Kembali, Default=1]: ${RESET}"
             read -r -n 1 mode_scan; echo ""
             if [ "$mode_scan" = "0" ]; then
@@ -165,12 +169,13 @@ _kompres_video_batch() {
             target_dir="$TARGET_DIR"
             step=2
         elif [ "$step" -eq 2 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} CODEC VIDEO${RESET}"
-            echo "    1. x264/AVC (Kompatibel, cepat)"
-            echo "    2. x265/HEVC (Default, ukuran sangat kecil)"
-            echo "    3. AV1 (Ukuran terkecil, sangat lambat)"
-            echo "    4. VP9 (Ringan, cocok untuk WebM)"
-            echo "    0. ${ICO_FAIL} KEMBALI"
+            _print_menu_box "CODEC VIDEO" \
+                "${GREEN}[1]${RESET} x264/AVC (Kompatibel, cepat)" \
+                "${GREEN}[2]${RESET} x265/HEVC (Default, ukuran sangat kecil)" \
+                "${GREEN}[3]${RESET} AV1 (Ukuran terkecil, sangat lambat)" \
+                "${GREEN}[4]${RESET} VP9 (Ringan, cocok untuk WebM)" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Codec [1-4, 0=Kembali, Default=2]: ${RESET}"
             read -r -n 1 c_opt; echo ""
             if [ "$c_opt" = "0" ]; then step=1; continue; fi
@@ -182,12 +187,13 @@ _kompres_video_batch() {
             esac
             step=3
         elif [ "$step" -eq 3 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} KUALITAS (CRF / BITRATE)${RESET}"
-            echo "    1. CRF 28 (Default, ukuran kecil)"
-            echo "    2. CRF 23 (Kualitas bagus, ukuran sedang)"
-            echo "    3. Bitrate 2M (Kualitas stabil menengah)"
-            echo "    4. Bitrate 5M (Kualitas tinggi)"
-            echo "    0. ${ICO_FAIL} KEMBALI"
+            _print_menu_box "KUALITAS (CRF / BITRATE)" \
+                "${GREEN}[1]${RESET} CRF 28 (Default, ukuran kecil)" \
+                "${GREEN}[2]${RESET} CRF 23 (Kualitas bagus, ukuran sedang)" \
+                "${GREEN}[3]${RESET} Bitrate 2M (Kualitas stabil menengah)" \
+                "${GREEN}[4]${RESET} Bitrate 5M (Kualitas tinggi)" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Kualitas [1-4, 0=Kembali, Default=1]: ${RESET}"
             read -r -n 1 b_opt; echo ""
             if [ "$b_opt" = "0" ]; then step=2; continue; fi
@@ -199,12 +205,13 @@ _kompres_video_batch() {
             esac
             step=4
         elif [ "$step" -eq 4 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} FORMAT OUTPUT${RESET}"
-            echo "    1. MP4 (Paling Kompatibel)"
-            echo "    2. MKV (Support banyak fitur/subtitle)"
-            echo "    3. WebM (Khusus VP9/AV1)"
-            echo "    4. Ikuti Codec (Default, .${default_ext})"
-            echo "    0. ${ICO_FAIL} KEMBALI"
+            _print_menu_box "FORMAT OUTPUT" \
+                "${GREEN}[1]${RESET} MP4 (Paling Kompatibel)" \
+                "${GREEN}[2]${RESET} MKV (Support banyak fitur/subtitle)" \
+                "${GREEN}[3]${RESET} WebM (Khusus VP9/AV1)" \
+                "${GREEN}[4]${RESET} Ikuti Codec (Default, .${default_ext})" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Format [1-4, 0=Kembali, Default=4]: ${RESET}"
             read -r -n 1 f_opt; echo ""
             if [ "$f_opt" = "0" ]; then step=3; continue; fi
@@ -216,10 +223,11 @@ _kompres_video_batch() {
             esac
             step=5
         elif [ "$step" -eq 5 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} JANGKAUAN SCAN${RESET}"
-            echo "    1. Semua file di target folder"
-            echo "    2. File baru saja (60 menit terakhir)"
-            echo "    0. ${ICO_FAIL} KEMBALI"
+            _print_menu_box "JANGKAUAN SCAN" \
+                "${GREEN}[1]${RESET} Semua file di target folder" \
+                "${GREEN}[2]${RESET} File baru saja (60 menit terakhir)" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Mode [0-2, 0=Kembali, Default=1]: ${RESET}"
             read -r -n 1 mode_scan; echo ""
             if [ "$mode_scan" = "0" ]; then step=4; continue; fi
@@ -335,10 +343,11 @@ hapus_vokal() {
     else
         while true; do
             if [ "$step" -eq 1 ]; then
-                echo -e "  ${CYAN}${ICO_ARROW} MODE PROSES${RESET}"
-                echo "    1. Batch (Satu Folder Penuh)"
-                echo "    2. Satu File Spesifik"
-                echo "    0. ${ICO_FAIL} KEMBALI"
+                _print_menu_box "MODE PROSES" \
+                    "${GREEN}[1]${RESET} Batch (Satu Folder Penuh)" \
+                    "${GREEN}[2]${RESET} Satu File Spesifik" \
+                    "DIVIDER" \
+                    "${RED}[0]${RESET} KEMBALI"
                 echo -e -n "  ${BOLD}[?] Pilih Mode [0-2]: ${RESET}"
                 read -r -n 1 mode_proses
                 echo ""
@@ -613,10 +622,11 @@ bersih_nama() {
             target_dir="$TARGET_DIR"
             step=2
         elif [ "$step" -eq 2 ]; then
-            echo -e "  ${CYAN}${ICO_ARROW} JANGKAUAN SCAN${RESET}"
-            echo "    1. Semua file di folder tersebut"
-            echo "    2. File baru saja (60 menit terakhir)"
-            echo "    0. ${ICO_FAIL} KEMBALI"
+            _print_menu_box "JANGKAUAN SCAN" \
+                "${GREEN}[1]${RESET} Semua file di folder tersebut" \
+                "${GREEN}[2]${RESET} File baru saja (60 menit terakhir)" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
             echo -e -n "  ${BOLD}[?] Pilih Mode [0-2]: ${RESET}"
             read -r -n 1 mode_scan
             echo ""

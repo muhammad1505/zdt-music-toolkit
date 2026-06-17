@@ -92,13 +92,40 @@ install_missing_tools() {
     fi
 
     # 3. Aktifkan VENV dan install tools
-    echo -e "  ${CYAN}${ICO_ARROW} Menginstal Python tools...${RESET}"
+    echo -e "  ${CYAN}${ICO_ARROW} Menginstal Python tools (yt-dlp, spotdl, mutagen, dll)...${RESET}"
     local pip_cmd="$ZDT_VENV_DIR/bin/pip"
-    $pip_cmd install -U pip setuptools wheel 2>/dev/null
+    $pip_cmd install -U pip setuptools wheel >/dev/null 2>&1
 
-    $pip_cmd install yt-dlp spotdl syncedlyrics mutagen flask pyTelegramBotAPI watchdog 2>&1 | tail -3
+    if $pip_cmd install yt-dlp spotdl syncedlyrics mutagen flask pyTelegramBotAPI watchdog >/dev/null 2>&1; then
+        echo -e "  ${GREEN}${ICO_OK} Semua modul dasar berhasil terinstal!${RESET}"
+    else
+        echo -e "  ${YELLOW}${ICO_WARN} Instalasi modul dasar selesai dengan peringatan.${RESET}"
+    fi
 
-    echo -e "  ${GREEN}${ICO_OK} Semua tools berhasil diinstal!${RESET}"
+    # 4. Setup Demucs VENV (Opsional)
+    echo -e "  ${CYAN}${ICO_ARROW} Mengecek komponen AI (Demucs Vocal Remover)...${RESET}"
+    local demucs_venv="$HOME/.local/share/zdt/demucs_venv"
+    if [ ! -f "$demucs_venv/bin/demucs" ]; then
+        echo -e -n "  ${BOLD}[?] Komponen Demucs sangat besar (PyTorch ~2GB+). Instal sekarang? (y/N): ${RESET}"
+        local ans
+        read -r -n 1 ans; echo ""
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            echo -e "  ${YELLOW}Sedang mengunduh & menginstal Demucs... (Harap bersabar)${RESET}"
+            python3 -m venv "$demucs_venv" >/dev/null 2>&1
+            if "$demucs_venv/bin/pip" install -U pip setuptools demucs torchcodec >/dev/null 2>&1; then
+                echo -e "  ${GREEN}${ICO_OK} Demucs berhasil diinstal!${RESET}"
+            else
+                echo -e "  ${RED}${ICO_FAIL} Gagal menginstal Demucs.${RESET}"
+            fi
+        else
+            echo -e "  ${GRAY}Instalasi Demucs dilewati (Bisa diinstal otomatis nanti di menu [6]).${RESET}"
+        fi
+    else
+        echo -e "  ${GRAY}  ${ICO_CHECK_OK} Demucs sudah terinstal${RESET}"
+    fi
+
+    echo ""
+    echo -e "  ${GREEN}${ICO_OK} Proses Auto Install selesai!${RESET}"
     _log "INFO" "Tools installation completed"
     sleep 1
 }
@@ -249,9 +276,11 @@ setup_storage_dir() {
     local current_dir="${STORAGE_DIR:-$(pwd)}"
     echo -e "  ${CYAN}${ICO_ARROW} Direktori saat ini: ${YELLOW}$current_dir${RESET}"
     echo ""
-    echo "    1. Gunakan direktori saat ini"
-    echo "    2. Pilih folder spesifik"
-    echo "    0. ${ICO_FAIL} KEMBALI"
+    _print_menu_box "SETUP DIREKTORI" \
+        "${GREEN}[1]${RESET} Gunakan direktori saat ini" \
+        "${GREEN}[2]${RESET} Pilih folder spesifik" \
+        "DIVIDER" \
+        "${RED}[0]${RESET} KEMBALI"
     echo -e -n "  ${BOLD}[?] Pilihan [0-2]: ${RESET}"
     local pilihan
     read -r -n 1 pilihan; echo ""
