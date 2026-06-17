@@ -29,20 +29,25 @@ zaki_assistant() {
             salam="Selamat malam"
         fi
 
-        echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}${salam} Bos!${RESET}"
-        echo -e "  ${GRAY}Aku siap bantu download lagu, kompres file, pisahin vokal, dan banyak lagi!${RESET}"
-        echo ""
-        
-        # Tampilkan storage
-        local total_kapasitas
-        local terpakai
-        local sisa
+        local total_kapasitas="N/A"
+        local sisa="N/A"
         if command -v df >/dev/null 2>&1; then
             total_kapasitas=$(df -h . 2>/dev/null | awk 'NR==2{print $2}')
-            terpakai=$(df -h . 2>/dev/null | awk 'NR==2{print $3}')
             sisa=$(df -h . 2>/dev/null | awk 'NR==2{print $4}')
-            echo -e "  ${GRAY}Storage: ${total_kapasitas} total, ${terpakai} terpakai, ${sisa} sisa${RESET}"
         fi
+
+        local ai_opts=(
+            " ${MAGENTA}${BOLD}🤖 ZAKI AI ASSISTANT${RESET}"
+            " ${WHITE}${salam} Bos! Aku siap bantu automasi tugasmu.${RESET}"
+            "DIVIDER"
+            " ${CYAN}Storage :${RESET} ${sisa} free of ${total_kapasitas}"
+            " ${CYAN}AI API  :${RESET} $([ -n "$gemini_key" ] && echo "${GREEN}Connected${RESET}" || echo "${RED}Not Configured${RESET}")"
+            "DIVIDER"
+            " ${GREEN}Ketik apa saja dengan bahasa sehari-hari, atau:${RESET}"
+            "  ${YELLOW}[?]${RESET} Bantuan Cepat"
+            "  ${RED}[0]${RESET} Kembali ke Menu Utama"
+        )
+        _print_menu_box "${ai_opts[@]}"
         echo ""
 
         # Handle auto-actions dari bot
@@ -105,10 +110,7 @@ zaki_assistant() {
         fi
 
         # Tampilkan prompt
-        echo -e "  ${MAGENTA}${ICO_PLAY} ${BOLD}Zaki-Bot:${RESET} ${GRAY}Ada yang bisa saya bantu?${RESET}"
-        echo -e "  ${CYAN}${ICO_LIST} FITUR:${RESET} ${GRAY}download | kompres | vokal | lirik | bersih | playlist | info${RESET}"
-        echo -e "  ${YELLOW}${ICO_EXIT} ${BOLD}0${RESET}${GRAY}=Menu Utama | ${BOLD}?${RESET}${GRAY}=Bantuan${RESET}"
-        echo ""
+        echo -e "  ${MAGENTA}${ICO_PLAY} ${BOLD}Tanya Zaki-Bot:${RESET}"
         
         # Wrap input dengan line continuation
         local bot_prompt=""
@@ -145,31 +147,25 @@ zaki_assistant() {
 
         # Help
         if [ "$input" = "?" ] || [ "$input" = "help" ] || [ "$input" = "bantuan" ]; then
-            echo -e "  ${CYAN}╔══════════════════════════════════════════════════╗${RESET}"
-            echo -e "  ${CYAN}║${RESET}        ${WHITE}${BOLD}BANTUAN CEPAT ZAKI-BOT${RESET}            ${CYAN}║${RESET}"
-            echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
-            echo -e "  ${WHITE}Kamu bisa ngomong pake bahasa sehari-hari kayak:${RESET}"
-            echo ""
-            echo -e "  ${GREEN}▶ Download${RESET}"
-            echo "    'download spotify https://...'"
-            echo "    'download youtube https://...'"
-            echo "    'sedot lagu https://...'"
-            echo ""
-            echo -e "  ${GREEN}▶ Kompres${RESET}"
-            echo "    'kompres audio' / 'kompres video'"
-            echo "    'kecilin ukuran file'"
-            echo ""
-            echo -e "  ${GREEN}▶ Vokal${RESET}"
-            echo "    'pisahin vokal' / 'hapus vokal'"
-            echo "    'buat karaoke'"
-            echo ""
-            echo -e "  ${GREEN}▶ Lainnya${RESET}"
-            echo "    'cari lirik' / 'sync lirik'"
-            echo "    'bersihin nama file'"
-            echo "    'buat playlist'"
-            echo "    'info sistem' / 'status'"
-            echo "    'update tools'"
-            echo ""
+            local help_opts=(
+                " ${WHITE}${BOLD}BANTUAN PINTAR ZAKI-BOT${RESET}"
+                " Ngobrol aja pakai bahasa santai, contohnya:"
+                "DIVIDER"
+                " ${CYAN}▶ Download${RESET}"
+                "   'download spotify https://...'"
+                "   'sedot video youtube https://...'"
+                "DIVIDER"
+                " ${CYAN}▶ Editing & Kompresi${RESET}"
+                "   'kompres audio' / 'kompres video'"
+                "   'pisahin vokal' / 'hapus vokal'"
+                "DIVIDER"
+                " ${CYAN}▶ Utilitas Lainnya${RESET}"
+                "   'cari lirik' / 'sync lirik'"
+                "   'bersihin nama file'"
+                "   'buat playlist'"
+                "   'info sistem' / 'status'"
+            )
+            _print_menu_box "${help_opts[@]}"
             _pause
             continue
         fi
@@ -338,26 +334,30 @@ zaki_assistant() {
             # Halo / greetings
             elif [[ "$input" =~ (halo|hai|hi|hey|selamat|pagi|siang|sore|malam|bro|boss|bang|kak) ]]; then
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Halo juga Bos! Ada yang bisa saya bantu?${RESET}"
+                _pause
 
             # Thanks
             elif [[ "$input" =~ (makasih|terima\ kasih|thanks|thank\ you|thx|tq) ]]; then
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Sama-sama Bos! Kalo butuh bantuan lagi, bilang aja ya!${RESET}"
+                _pause
 
             # Sisanya
             else
                 if [ -n "$gemini_key" ]; then
-                    echo -e "  ${YELLOW}${ICO_WARN} Maaf, AI lagi error. Coba ulangi atau ketik 'help' untuk bantuan.${RESET}"
+                    echo -e "  ${YELLOW}${ICO_WARN} Maaf, AI lagi error. Coba ulangi atau ketik '?' untuk bantuan.${RESET}"
                 else
-                    echo -e "  ${YELLOW}${ICO_WARN} Hmm, maksudnya apa ya? Coba ketik 'help' buat lihat contoh perintah!${RESET}"
+                    echo -e "  ${YELLOW}${ICO_WARN} Hmm, maksudnya apa ya? Coba ketik '?' buat lihat contoh perintah!${RESET}"
                     echo -e "  ${GRAY}  Tips: Belum ada key AI. Isi file ~/.config/zdt/gemini_key dengan${RESET}"
-                    echo -e "  ${GRAY}  Google Gemini API key atau OpenRouter key (sk-or-...) biar Zaki-Bot makin pinter!${RESET}"
+                    echo -e "  ${GRAY}  Google Gemini / OpenRouter API Key biar Zaki-Bot makin pintar!${RESET}"
                 fi
+                _pause
             fi
         else
             # Tampilkan reply AI
             local clean_reply=$(echo "$reply_text" | sed 's/\[AUTO_ACTION:[^\]]*\]//g' | xargs)
             if [ -n "$clean_reply" ]; then
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}$clean_reply${RESET}"
+                _pause
             fi
         fi
 
