@@ -125,6 +125,8 @@ main() {
                 res="${res}${char}"
             done
             echo -n "$res"
+        }
+
         local cols=$(tput cols 2>/dev/null || echo 100)
         
         # We need CPU temp if possible
