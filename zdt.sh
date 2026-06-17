@@ -96,22 +96,32 @@ main() {
         fi
         echo ""
         echo -e "  ${CYAN}╔══════════════════════════════════════════════════╗${RESET}"
-        echo -e "  ${CYAN}║${RESET}${WHITE}${BOLD}   ${APP_NAME} v${APP_VERSION}   ${RESET}${CYAN}║${RESET}"
+        
+        local title_text="   ${APP_NAME} v${APP_VERSION}   "
+        local t_pad=$(( (50 - ${#title_text}) / 2 ))
+        local t_pad_r=$(( 50 - ${#title_text} - t_pad ))
+        printf "  ${CYAN}║${RESET}${WHITE}${BOLD}%*s%s%*s${RESET}${CYAN}║${RESET}\n" "$t_pad" "" "$title_text" "$t_pad_r" ""
+        
         echo -e "  ${CYAN}╠══════════════════════════════════════════════════╣${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${GRAY}OS:${RESET} $os_name  ${GRAY}RAM:${RESET} ${ram_pct}%  ${GRAY}Disk:${RESET} ${storage_pct}%  ${CYAN}║${RESET}"
+        
+        local stat_text="  OS: $os_name  RAM: ${ram_pct}%  Disk: ${storage_pct}%"
+        local s_pad=$(( 50 - ${#stat_text} ))
+        [ $s_pad -lt 0 ] && s_pad=0
+        printf "  ${CYAN}║${RESET}${GRAY}  OS:${RESET} %s  ${GRAY}RAM:${RESET} %s%%  ${GRAY}Disk:${RESET} %s%%%*s${CYAN}║${RESET}\n" "$os_name" "$ram_pct" "$storage_pct" "$s_pad" ""
+        
         echo -e "  ${CYAN}╠══════════════════════════════════════════════════╣${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[1]${RESET} Setup Tools    ${MAGENTA}[2]${RESET} Spotify DL    ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[3]${RESET} YT Audio       ${MAGENTA}[4]${RESET} Video DL      ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[5]${RESET} Compress       ${MAGENTA}[6]${RESET} Vocal Remover ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[7]${RESET} Sync Lyrics    ${MAGENTA}[8]${RESET} Playlist Sync ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[9]${RESET} System Info                              ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}                                                       ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${YELLOW}[S]${RESET} Storage   ${YELLOW}[W]${RESET} Watch   ${YELLOW}[P]${RESET} Playlist  ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${YELLOW}[M]${RESET} Metadata  ${YELLOW}[O]${RESET} Clean   ${YELLOW}[T]${RESET} Telegram  ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${YELLOW}[V]${RESET} Web UI    ${YELLOW}[U]${RESET} Update  ${YELLOW}[A]${RESET} Zaki AI   ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${YELLOW}[X]${RESET} Delete All                               ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}                                                       ${CYAN}║${RESET}"
-        echo -e "  ${CYAN}║${RESET}  ${RED}[0]${RESET} Exit                                       ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[1]${RESET} Setup Tools       ${MAGENTA}[2]${RESET} Spotify DL          ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[3]${RESET} YT Audio          ${MAGENTA}[4]${RESET} Video DL            ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[5]${RESET} Compress          ${MAGENTA}[6]${RESET} Vocal Remover       ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[7]${RESET} Sync Lyrics       ${MAGENTA}[8]${RESET} Playlist Sync       ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${MAGENTA}[9]${RESET} System Info                                 ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}                                                    ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${YELLOW}[S]${RESET} Storage   ${YELLOW}[W]${RESET} Watch   ${YELLOW}[P]${RESET} Playlist        ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${YELLOW}[M]${RESET} Metadata  ${YELLOW}[O]${RESET} Clean   ${YELLOW}[T]${RESET} Telegram        ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${YELLOW}[V]${RESET} Web UI    ${YELLOW}[U]${RESET} Update  ${YELLOW}[A]${RESET} Zaki AI         ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${YELLOW}[X]${RESET} Delete All                                  ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}                                                    ${CYAN}║${RESET}"
+        echo -e "  ${CYAN}║${RESET}  ${RED}[0]${RESET} Exit                                          ${CYAN}║${RESET}"
         echo -e "  ${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
         echo ""
         echo -e -n "  ${BOLD}[?] Pilih menu: ${RESET}"
