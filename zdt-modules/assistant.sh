@@ -16,8 +16,11 @@ zaki_assistant() {
     fi
 
     while true; do
-        print_header "ZAKI AI ASSISTANT"
-        
+        if [ -z "${NO_COLOR:-}" ]; then
+            echo -ne "\033[?25h"
+            clear 2>/dev/null || printf "\033c"
+        fi
+        echo ""
         local jam
         jam=$(date +%H 2>/dev/null || echo "12")
         local salam="Selamat datang"
@@ -147,6 +150,7 @@ zaki_assistant() {
 
         # Help
         if [ "$input" = "?" ] || [ "$input" = "help" ] || [ "$input" = "bantuan" ]; then
+            echo ""
             local help_opts=(
                 " ${WHITE}${BOLD}BANTUAN PINTAR ZAKI-BOT${RESET}"
                 " Ngobrol aja pakai bahasa santai, contohnya:"
@@ -333,16 +337,19 @@ zaki_assistant() {
 
             # Halo / greetings
             elif [[ "$input" =~ (halo|hai|hi|hey|selamat|pagi|siang|sore|malam|bro|boss|bang|kak) ]]; then
+                echo ""
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Halo juga Bos! Ada yang bisa saya bantu?${RESET}"
                 _pause
 
             # Thanks
             elif [[ "$input" =~ (makasih|terima\ kasih|thanks|thank\ you|thx|tq) ]]; then
+                echo ""
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Sama-sama Bos! Kalo butuh bantuan lagi, bilang aja ya!${RESET}"
                 _pause
 
             # Sisanya
             else
+                echo ""
                 if [ -n "$gemini_key" ]; then
                     echo -e "  ${YELLOW}${ICO_WARN} Maaf, AI lagi error. Coba ulangi atau ketik '?' untuk bantuan.${RESET}"
                 else
@@ -356,6 +363,7 @@ zaki_assistant() {
             # Tampilkan reply AI
             local clean_reply=$(echo "$reply_text" | sed 's/\[AUTO_ACTION:[^\]]*\]//g' | xargs)
             if [ -n "$clean_reply" ]; then
+                echo ""
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}$clean_reply${RESET}"
                 _pause
             fi
