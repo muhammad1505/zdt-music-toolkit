@@ -117,7 +117,7 @@ update_zdt_script() {
     echo -e "  ${CYAN}${ICO_ARROW} Mendownload versi terbaru dari GitHub...${RESET}"
     
     local tmp_file="/tmp/zdt_update_$$.sh"
-    if curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt.sh" -o "$tmp_file"; then
+    if curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt.sh?v=$(date +%s)" -o "$tmp_file"; then
         if [ -s "$tmp_file" ] && grep -qE "APP_VERSION|Version :" "$tmp_file"; then
             local new_version
             # Try APP_VERSION="x.y.z" first (monolithic), else fallback to comment # Version : x.y.z (modular)
@@ -152,7 +152,7 @@ update_zdt_script() {
             local mod_dir="$share_dir/zdt-modules"
             mkdir -p "$mod_dir"
             for mod in core helpers download media playlist daemon setup assistant; do
-                curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt-modules/${mod}.sh" -o "${mod_dir}/${mod}.sh" 2>/dev/null
+                curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt-modules/${mod}.sh?v=$(date +%s)" -o "${mod_dir}/${mod}.sh" 2>/dev/null
             done
             
             rm -f "$tmp_file"
