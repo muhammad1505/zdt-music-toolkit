@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
 # Version : 3.8.0
