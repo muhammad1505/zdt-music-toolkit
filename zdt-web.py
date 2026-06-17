@@ -827,14 +827,11 @@ def server_tools():
 
     try:
         if action == 'clean':
-            # Cari seluruh file dan jalankan zdt --clean-file di background
+            # Jalankan zdt --bersih sekali saja untuk seluruh direktori
             if not os.path.exists(target): return jsonify({"success": False, "message": "Direktori kosong/tidak valid."})
-            count = 0
-            for ext in ['*.mp3', '*.m4a', '*.flac', '*.mp4']:
-                for f in glob.glob(os.path.join(target, ext)):
-                    subprocess.Popen([zdt_bin, "--clean-file", f], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    count += 1
-            return jsonify({"success": True, "message": f"Proses pembersihan {count} file sedang berjalan di background!"})
+            with open("/tmp/zdt_web_task.log", "w") as log_file:
+                subprocess.Popen([zdt_bin, "--bersih"], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
+            return jsonify({"success": True, "message": "Proses pembersihan seluruh file sedang berjalan di background!"})
 
         elif action == 'playlist':
             if not os.path.exists(target): return jsonify({"success": False, "message": "Direktori kosong."})
@@ -849,9 +846,15 @@ def server_tools():
         elif action == 'demucs':
             if not filename: return jsonify({"success": False, "message": "Pilih file."})
             filepath = os.path.join(target, filename)
-            # Jalankan demucs manual asinkron
+            # Cari demucs di VENV
+            demucs_bin = os.path.expanduser("~/.local/share/zdt/demucs_venv/bin/demucs")
+            if not os.path.exists(demucs_bin):
+                demucs_bin = shutil.which("demucs")
+            if not demucs_bin:
+                return jsonify({"success": False, "message": "Demucs AI belum terinstal. Instal via CLI Menu Setup."})
+            
             with open("/tmp/zdt_web_task.log", "w") as log_file:
-                subprocess.Popen(["demucs", "--two-stems=vocals", "-o", target, filepath], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
+                subprocess.Popen([demucs_bin, "--two-stems=vocals", "-o", target, filepath], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
             return jsonify({"success": True, "message": "Demucs AI mulai memisahkan vokal di background!"})
 
         elif action == 'compress':
