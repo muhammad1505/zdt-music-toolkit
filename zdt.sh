@@ -3,6 +3,7 @@
 # zdt.sh — Universal Music Toolkit (Modular Build)
 # Version : 3.8.0
 set -uo pipefail
+readonly APP_VERSION="3.8.0"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
