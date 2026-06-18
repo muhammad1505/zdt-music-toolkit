@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 3.8.12
+# Version : 3.8.13
 set -uo pipefail
-readonly APP_VERSION="3.8.12"
+readonly APP_VERSION="3.8.13"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
