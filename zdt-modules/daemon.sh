@@ -212,9 +212,22 @@ update_tools() {
 hapus_semua() {
     print_header "HAPUS SEMUA FILE"
     
-    local target="${TARGET_DIR:-${ROOT_DIR:-.}}"
+    local target="${STORAGE_DIR:-${TARGET_DIR:-${ROOT_DIR:-.}}}"
+    
+    # Safety: refuse to operate on dangerous paths
+    if [ "$target" = "." ] || [ "$target" = "/" ] || [ "$target" = "$HOME" ]; then
+        echo -e "  ${RED}${ICO_DANGER} DITOLAK! Target direktori tidak aman: $target${RESET}"
+        echo -e "  ${YELLOW}Silakan atur direktori penyimpanan terlebih dahulu via menu [S] Storage.${RESET}"
+        return 1
+    fi
+    
+    if [ ! -d "$target" ]; then
+        echo -e "  ${RED}${ICO_FAIL} Direktori tidak ditemukan: $target${RESET}"
+        return 1
+    fi
+    
     echo -e "  ${RED}${ICO_DANGER} PERINGATAN!${RESET}"
-    echo -e "  ${YELLOW}Anda akan menghapus SEMUA file di:${RESET}"
+    echo -e "  ${YELLOW}Anda akan menghapus SEMUA file media di:${RESET}"
     echo -e "  ${WHITE}  $target${RESET}"
     echo ""
     echo -e -n "  ${BOLD}[?] Yakin hapus semua file? (ketik 'yakin' untuk konfirmasi): ${RESET}"

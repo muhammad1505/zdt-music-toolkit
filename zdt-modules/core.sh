@@ -46,13 +46,11 @@ _load_config() {
 
 _save_config() {
     mkdir -p "$(dirname "$ZDT_CONFIG_FILE")" 2>/dev/null
-    cat > "$ZDT_CONFIG_FILE" <<CONFEOF
-CONF_AUDIO_CODEC="$CONF_AUDIO_CODEC"
-CONF_AUDIO_BITRATE="$CONF_AUDIO_BITRATE"
-CONF_VIDEO_CODEC="$CONF_VIDEO_CODEC"
-CONF_VIDEO_QUAL="$CONF_VIDEO_QUAL"
-CONF_VIDEO_FMT="$CONF_VIDEO_FMT"
-CONFEOF
+    _config_set "CONF_AUDIO_CODEC" "$CONF_AUDIO_CODEC"
+    _config_set "CONF_AUDIO_BITRATE" "$CONF_AUDIO_BITRATE"
+    _config_set "CONF_VIDEO_CODEC" "$CONF_VIDEO_CODEC"
+    _config_set "CONF_VIDEO_QUAL" "$CONF_VIDEO_QUAL"
+    _config_set "CONF_VIDEO_FMT" "$CONF_VIDEO_FMT"
 }
 
 # ==========================================

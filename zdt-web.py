@@ -281,6 +281,21 @@ HTML_TEMPLATE = """
             .nav-item.active { border-left: none; border-bottom: 3px solid var(--primary); background: transparent; }
             .main-content { padding: 20px; }
             .stats-grid { grid-template-columns: 1fr; }
+            .tools-grid { grid-template-columns: 1fr; }
+            .switch-wrapper { flex-direction: column; gap: 15px; }
+        }
+        @media (max-width: 600px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; overflow-x: auto; padding: 10px 0; border-right: none; border-bottom: 1px solid var(--border-light); }
+            .sidebar .logo { padding: 5px 15px; font-size: 16px; margin-bottom: 5px; }
+            .sidebar .nav-item { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+            .sidebar .nav-item i { margin-right: 4px; }
+            .main-content { padding: 15px; min-height: auto; }
+            .header h2 { font-size: 20px; }
+            .header p { font-size: 12px; }
+            .stat-card { padding: 15px; }
+            .panel { padding: 20px; }
+            .tool-card { padding: 20px; }
         }
     </style>
 </head>
@@ -953,13 +968,15 @@ def server_tools():
         elif action == 'delete_all':
             if not os.path.exists(target): return jsonify({"success": False, "message": "Direktori kosong."})
             count = 0
-            for root, _, files in os.walk(target):
-                for f in files:
+            media_exts = {'.mp3', '.m4a', '.flac', '.wav', '.ogg', '.opus', '.mp4', '.mkv', '.webm', '.avi', '.mov', '.ts', '.jpg', '.jpeg', '.png', '.lrc', '.m3u', '.srt'}
+            for f in os.listdir(target):
+                fp = os.path.join(target, f)
+                if os.path.isfile(fp) and os.path.splitext(f)[1].lower() in media_exts:
                     try:
-                        os.remove(os.path.join(root, f))
+                        os.remove(fp)
                         count += 1
                     except: pass
-            return jsonify({"success": True, "message": f"Berhasil menghapus {count} file dari Storage!"})
+            return jsonify({"success": True, "message": f"Berhasil menghapus {count} file media dari Storage!"})
 
         elif action == 'demucs':
             if not filename: return jsonify({"success": False, "message": "Pilih file."})

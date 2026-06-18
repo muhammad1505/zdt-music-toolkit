@@ -120,7 +120,7 @@ auto_sync_lirik() {
             echo -e "    ${RED}${ICO_FAIL} Gagal menemukan lirik.${RESET}"
             ((count_failed++))
         fi
-    done < <(_find_media_files "$target_dir" "all" -print0 2>/dev/null | xargs -0 --no-run-if-empty ls -t 2>/dev/null)
+    done < <(_find_media_files "$target_dir" "all" | while IFS= read -r f; do stat -c "%Y %n" "$f" 2>/dev/null; done | sort -rn | cut -d' ' -f2-)
 
     echo -e "  ${CYAN}${ICO_ARROW} LAPORAN AUTO SYNC:${RESET}"
     echo -e "    ${GREEN}Sukses  :${RESET} $count_success lagu"

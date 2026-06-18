@@ -191,10 +191,15 @@ except Exception:
 
 bersih_nama_otomatis() {
     local scan_dir="${1:-.}"
+    local mode="${2:-recent}"
     echo -e "  ${CYAN}${ICO_ARROW} AUTO CLEAN NAMA FILE${RESET}"
+    local time_filter=()
+    if [ "$mode" != "all" ]; then
+        time_filter=(-mmin -60)
+    fi
     while IFS= read -r file; do
         _bersih_satu_nama "$file"
-    done < <(find "$scan_dir" -type f \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" -o -iname "*.mp4" -o -iname "*.lrc" \) -mmin -60 2>/dev/null)
+    done < <(find "$scan_dir" -type f \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" -o -iname "*.mp4" -o -iname "*.lrc" \) "${time_filter[@]}" 2>/dev/null)
 }
 
 # ==========================================

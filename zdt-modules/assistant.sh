@@ -50,7 +50,7 @@ zaki_assistant() {
             "  ${YELLOW}[?]${RESET} Bantuan Cepat"
             "  ${RED}[0]${RESET} Kembali ke Menu Utama"
         )
-        _print_menu_box "${ai_opts[@]}"
+        _print_menu_box "ZAKI AI" "${ai_opts[@]}"
         echo ""
 
         # Handle auto-actions dari bot
@@ -138,6 +138,9 @@ zaki_assistant() {
         local input="${bot_prompt,,}"
         input="${input//\"/}"
         input="${input//\'/}"
+        # Escape for JSON safety
+        local input_escaped
+        input_escaped=$(echo "$input" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
 
         [ -z "$input" ] && continue
 
@@ -195,13 +198,13 @@ zaki_assistant() {
                 # OpenRouter
                 local or_url="https://openrouter.ai/api/v1/chat/completions"
                 local or_models='["meta-llama/llama-3.3-70b-instruct:free","google/gemma-4-31b-it:free","nousresearch/hermes-3-llama-3.1-405b:free"]'
-                local payload="{\"models\": $or_models, \"messages\": [{\"role\": \"system\", \"content\": \"$ai_prompt\"}, {\"role\": \"user\", \"content\": \"$input\"}], \"max_tokens\": 100}"
+                local payload="{\"models\": $or_models, \"messages\": [{\"role\": \"system\", \"content\": \"$ai_prompt\"}, {\"role\": \"user\", \"content\": \"$input_escaped\"}], \"max_tokens\": 100}"
                 
                 ai_response=$(curl -s -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))" 2>/dev/null)
             else
                 # Gemini
-                local gemini_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$gemini_key"
-                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"$input\"}]}], \"generationConfig\": {\"maxOutputTokens\": 100}}"
+                local gemini_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$gemini_key"
+                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"$input_escaped\"}]}], \"generationConfig\": {\"maxOutputTokens\": 100}}"
                 
                 ai_response=$(curl -s -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('candidates',[{}])[0].get('content',{}).get('parts',[{}])[0].get('text',''))" 2>/dev/null)
             fi
@@ -265,7 +268,7 @@ zaki_assistant() {
                             ;;
                         "gas update")
                             echo -e "  ${CYAN}${ICO_ARROW} Melakukan OTA Update...${RESET}"
-                            update_tools
+                            update_zdt_script
                             ;;
                         "gas setup")
                             echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Setup Menu...${RESET}"

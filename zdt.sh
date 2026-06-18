@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 3.8.11
+# Version : 3.8.12
 set -uo pipefail
-readonly APP_VERSION="3.8.11"
+readonly APP_VERSION="3.8.12"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -54,7 +54,7 @@ main() {
             kompres_media) _kompres_audio_batch ;;
             extract_vocal) AUTO_HAPUS_VOKAL_MODE="1"; hapus_vokal ;;
             sync_lirik) AUTO_SYNC_LIRIK="1"; auto_sync_lirik ;;
-            bersih_nama) bersih_nama_otomatis "." ;;
+            bersih_nama) bersih_nama_otomatis "." "all" ;;
             bikin_playlist) bikin_playlist ;;
         esac
         exit 0
