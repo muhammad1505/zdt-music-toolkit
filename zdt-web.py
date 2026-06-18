@@ -21,6 +21,7 @@ if os.path.exists("/tmp/zdt_web_task.log"):
         pass
 
 app = Flask(__name__)
+APP_VERSION = "4.0.0"
 
 CONFIG_FILE = os.path.expanduser("~/.config/zdt/config.env")
 
@@ -302,13 +303,13 @@ HTML_TEMPLATE = """
 <body>
     <div class="sidebar">
         <div class="logo"><i class="fa-solid fa-layer-group"></i> ZDT Enterprise</div>
-        <div class="nav-item active" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie"></i> Dashboard</div>
-        <div class="nav-item" onclick="switchTab('downloader')"><i class="fa-solid fa-cloud-arrow-down"></i> Downloader</div>
-        <div class="nav-item" onclick="switchTab('spotify')"><i class="fa-brands fa-spotify"></i> Spotify Sync</div>
-        <div class="nav-item" onclick="switchTab('metadata')"><i class="fa-solid fa-tags"></i> Metadata</div>
-        <div class="nav-item" onclick="switchTab('servertools')"><i class="fa-solid fa-toolbox"></i> Server Tools</div>
-        <div class="nav-item" onclick="switchTab('system')"><i class="fa-solid fa-server"></i> Daemons</div>
-        <div class="nav-item" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i> Settings</div>
+        <div class="nav-item active" onclick="switchTab('dashboard', this)"><i class="fa-solid fa-chart-pie"></i> Dashboard</div>
+        <div class="nav-item" onclick="switchTab('downloader', this)"><i class="fa-solid fa-cloud-arrow-down"></i> Downloader</div>
+        <div class="nav-item" onclick="switchTab('spotify', this)"><i class="fa-brands fa-spotify"></i> Spotify Sync</div>
+        <div class="nav-item" onclick="switchTab('metadata', this)"><i class="fa-solid fa-tags"></i> Metadata</div>
+        <div class="nav-item" onclick="switchTab('servertools', this)"><i class="fa-solid fa-toolbox"></i> Server Tools</div>
+        <div class="nav-item" onclick="switchTab('system', this)"><i class="fa-solid fa-server"></i> Daemons</div>
+        <div class="nav-item" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i> Settings</div>
     </div>
 
     <div class="main-content">
@@ -339,14 +340,21 @@ HTML_TEMPLATE = """
                     <h3 id="statTele">Checking...</h3>
                 </div>
             </div>
+            <div class="stat-card">
+                <div class="stat-icon" style="color:#a78bfa; background:rgba(167,139,250,0.1);"><i class="fa-solid fa-music"></i></div>
+                <div class="stat-info">
+                    <h4>Media Files</h4>
+                    <h3 id="statFiles">0</h3>
+                </div>
+            </div>
         </div>
 
         <!-- Dashboard Panel -->
         <div id="dashboard" class="panel active">
-            <h3><i class="fa-solid fa-home"></i> Welcome to ZDT Enterprise</h3>
+            <h3><i class="fa-solid fa-home"></i> ZDT Enterprise Dashboard <span id="dashVersion" style="font-size:13px; color:var(--primary); font-weight:400;"></span></h3>
             <p style="color:var(--text-muted); line-height:1.6; font-size:15px;">
-                You are securely connected to the local Zaki Downloader Tools server.
-                Use the sidebar to navigate between modules: download high-quality media, synchronize Spotify playlists, extract vocals via AI, or manage background daemons.
+                Server lokal ZDT aktif dan siap digunakan.
+                Gunakan sidebar untuk navigasi: download media, sinkronisasi Spotify, ekstrak vokal via AI, atau kelola daemon background.
             </p>
             <div style="margin-top: 30px; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid var(--border-light);">
                 <h4 style="margin:0 0 10px 0;">Current Configuration</h4>
@@ -555,11 +563,11 @@ HTML_TEMPLATE = """
             if(document.getElementById("dlFormat")) updateFormatOptions();
         });
 
-        function switchTab(tabId) {
+        function switchTab(tabId, el) {
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
+            if(el) el.classList.add('active');
             
             const titles = {
                 'dashboard': ['Dashboard Overview', 'Monitor your storage and system resources'],
@@ -598,6 +606,8 @@ HTML_TEMPLATE = """
                     document.getElementById('dashTargetDir').innerText = data.target_dir;
                     document.getElementById('setTargetDir').value = data.target_dir;
                 }
+                document.getElementById('statFiles').innerText = (data.file_count || 0) + ' files';
+                if(data.version) document.getElementById('dashVersion').innerText = 'v' + data.version;
             } catch(e) {}
         }
         setInterval(loadStatus, 3000);
@@ -683,6 +693,7 @@ HTML_TEMPLATE = """
                 const data = await res.json();
                 status.className = 'status-box ' + (data.success ? 'success' : 'error');
                 status.innerText = (data.success ? '✅ ' : '❌ ') + data.message;
+                if(data.success) { loadFiles(); loadStatus(); }
             } catch(err) {
                 status.className = 'status-box error'; status.innerText = '❌ Connection Error!';
             }
@@ -757,9 +768,17 @@ def get_status():
     except:
         pass
     
+    # Count media files
+    file_count = 0
+    if os.path.exists(target):
+        for ext in ['*.mp3','*.m4a','*.flac','*.wav','*.ogg','*.opus','*.mp4','*.mkv']:
+            file_count += len(glob.glob(os.path.join(target, ext)))
+    
     return jsonify({
         "target_dir": target,
         "storage_free": storage_free,
+        "file_count": file_count,
+        "version": APP_VERSION,
         "watcher": is_process_running("zdt-watch.py"),
         "telegram": is_process_running("zdt-telegram.py")
     })
@@ -770,7 +789,7 @@ def get_files():
     if not os.path.exists(target): return jsonify({"files": []})
     
     files = []
-    for ext in ['*.mp3', '*.m4a', '*.flac', '*.mp4', '*.mkv']:
+    for ext in ['*.mp3', '*.m4a', '*.flac', '*.wav', '*.ogg', '*.opus', '*.mp4', '*.mkv', '*.webm']:
         for f in glob.glob(os.path.join(target, ext)):
             files.append(os.path.basename(f))
     files.sort()
@@ -783,9 +802,15 @@ def manage_daemon():
     action = data.get('action')
     venv_python = os.path.expanduser("~/.local/share/zdt/venv/bin/python")
     
+    # Try multiple locations for scripts
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    def find_script(name):
+        for p in [os.path.join(script_dir, name), os.path.expanduser(f"~/.local/share/zdt/{name}")]:
+            if os.path.exists(p): return p
+        return os.path.join(script_dir, name)
     script_map = {
-        'watch': os.path.expanduser("~/.local/share/zdt/zdt-watch.py"),
-        'telegram': os.path.expanduser("~/.local/share/zdt/zdt-telegram.py")
+        'watch': find_script('zdt-watch.py'),
+        'telegram': find_script('zdt-telegram.py')
     }
     
     if service not in script_map:
@@ -868,9 +893,9 @@ def trigger_download():
     if "spotify.com" in url:
         cmd = [zdt_bin, "--download-audio", url]
     elif fmt == "audio":
-        cmd = [zdt_bin, "--download-audio", url]
+        cmd = [zdt_bin, "--download-audio", url, "--format-spec", str(spec)] if spec else [zdt_bin, "--download-audio", url]
     else:
-        cmd = [zdt_bin, "--download-video", url]
+        cmd = [zdt_bin, "--download-video", url, "--format-spec", str(spec)] if spec else [zdt_bin, "--download-video", url]
         
     with open("/tmp/zdt_web_task.log", "w") as log_file:
         subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True)
@@ -992,10 +1017,10 @@ def server_tools():
         elif action == 'compress':
             if not filename: return jsonify({"success": False, "message": "Pilih file."})
             filepath = os.path.join(target, filename)
-            outpath = os.path.join(target, "COMPRESSED_" + filename)
-            ext = filepath.lower()
-            if ext.endswith('.mp4') or ext.endswith('.mkv'):
-                cmd = ["ffmpeg", "-y", "-i", filepath, "-vcodec", "libx264", "-crf", "28", outpath]
+            name, fext = os.path.splitext(filename)
+            outpath = os.path.join(target, f"{name}_compressed{fext}")
+            if fext.lower() in ('.mp4', '.mkv', '.webm', '.avi'):
+                cmd = ["ffmpeg", "-y", "-i", filepath, "-vcodec", "libx264", "-crf", "28", "-acodec", "aac", outpath]
             else:
                 cmd = ["ffmpeg", "-y", "-i", filepath, "-b:a", "128k", outpath]
                 
