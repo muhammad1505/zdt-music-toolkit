@@ -148,21 +148,38 @@ update_zdt_script() {
                 share_dir="/usr/local/share/zdt"
             fi
             
-            # Download module files
+            local base_url="https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main"
+            local cache_bust="?v=$(date +%s)"
+            
+            # Download ALL shell modules
             local mod_dir="$share_dir/zdt-modules"
             mkdir -p "$mod_dir"
+            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate shell modules...${RESET}"
             for mod in core helpers download media playlist daemon setup assistant; do
-                curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt-modules/${mod}.sh?v=$(date +%s)" -o "${mod_dir}/${mod}.sh" 2>/dev/null
+                curl -sL "${base_url}/zdt-modules/${mod}.sh${cache_bust}" -o "${mod_dir}/${mod}.sh" 2>/dev/null
             done
             
-            # Download Python scripts
-            for pyfile in zdt-web.py zdt-watch.py; do
-                curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/${pyfile}?v=$(date +%s)" -o "${share_dir}/${pyfile}" 2>/dev/null
+            # Download ALL Python scripts
+            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate Python scripts...${RESET}"
+            for pyfile in zdt-web.py zdt-watch.py zdt-telegram.py; do
+                curl -sL "${base_url}/${pyfile}${cache_bust}" -o "${share_dir}/${pyfile}" 2>/dev/null
             done
+            
+            # Download utility scripts
+            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate utility files...${RESET}"
+            for util in install.sh Makefile README.md; do
+                curl -sL "${base_url}/${util}${cache_bust}" -o "${share_dir}/${util}" 2>/dev/null
+            done
+            chmod +x "${share_dir}/install.sh" 2>/dev/null
             
             rm -f "$tmp_file"
-            echo -e "  ${GREEN}${ICO_OK} Update selesai! Silakan jalankan ulang ZDT.${RESET}"
-            _log "INFO" "OTA Update completed to version $new_version"
+            echo -e "  ${GREEN}${ICO_OK} Update v${new_version} selesai! Semua komponen diperbarui.${RESET}"
+            echo -e "  ${GREEN}   ✓ zdt.sh (main script)${RESET}"
+            echo -e "  ${GREEN}   ✓ 8 shell modules${RESET}"
+            echo -e "  ${GREEN}   ✓ 3 Python scripts (web, watch, telegram)${RESET}"
+            echo -e "  ${GREEN}   ✓ Utility files (installer, readme)${RESET}"
+            echo -e "  ${YELLOW}   Silakan jalankan ulang ZDT.${RESET}"
+            _log "INFO" "OTA Update completed to version $new_version (full update)"
             exit 0
         else
             echo -e "  ${RED}${ICO_FAIL} File download tidak valid!${RESET}"
