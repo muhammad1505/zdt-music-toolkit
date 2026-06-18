@@ -195,16 +195,29 @@ zaki_assistant() {
 
             local ai_response=""
             if [[ "$gemini_key" == sk-or-* ]]; then
-                # OpenRouter
+                # OpenRouter — Auto-Fallback: tries best model first, falls back to next
                 local or_url="https://openrouter.ai/api/v1/chat/completions"
-                local or_models='["meta-llama/llama-3.3-70b-instruct:free","google/gemma-4-31b-it:free","nousresearch/hermes-3-llama-3.1-405b:free"]'
-                local payload="{\"models\": $or_models, \"messages\": [{\"role\": \"system\", \"content\": \"$ai_prompt\"}, {\"role\": \"user\", \"content\": \"$input_escaped\"}], \"max_tokens\": 100}"
+                local or_models='[
+                    "nvidia/nemotron-3-ultra-550b-a55b:free",
+                    "openai/gpt-oss-120b:free",
+                    "nousresearch/hermes-3-llama-3.1-405b:free",
+                    "nvidia/nemotron-3-super-120b-a12b:free",
+                    "qwen/qwen3-next-80b-a3b-instruct:free",
+                    "qwen/qwen3-coder:free",
+                    "meta-llama/llama-3.3-70b-instruct:free",
+                    "google/gemma-4-31b-it:free",
+                    "poolside/laguna-m.1:free",
+                    "nex-agi/nex-n2-pro:free",
+                    "openai/gpt-oss-20b:free",
+                    "nvidia/nemotron-nano-9b-v2:free"
+                ]'
+                local payload="{\"models\": $or_models, \"messages\": [{\"role\": \"system\", \"content\": \"$ai_prompt\"}, {\"role\": \"user\", \"content\": \"$input_escaped\"}], \"max_tokens\": 200}"
                 
                 ai_response=$(curl -s -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))" 2>/dev/null)
             else
                 # Gemini
                 local gemini_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$gemini_key"
-                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"$input_escaped\"}]}], \"generationConfig\": {\"maxOutputTokens\": 100}}"
+                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"$input_escaped\"}]}], \"generationConfig\": {\"maxOutputTokens\": 200}}"
                 
                 ai_response=$(curl -s -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('candidates',[{}])[0].get('content',{}).get('parts',[{}])[0].get('text',''))" 2>/dev/null)
             fi
