@@ -155,6 +155,11 @@ update_zdt_script() {
                 curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt-modules/${mod}.sh?v=$(date +%s)" -o "${mod_dir}/${mod}.sh" 2>/dev/null
             done
             
+            # Download Python scripts
+            for pyfile in zdt-web.py zdt-watch.py; do
+                curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/${pyfile}?v=$(date +%s)" -o "${share_dir}/${pyfile}" 2>/dev/null
+            done
+            
             rm -f "$tmp_file"
             echo -e "  ${GREEN}${ICO_OK} Update selesai! Silakan jalankan ulang ZDT.${RESET}"
             _log "INFO" "OTA Update completed to version $new_version"
