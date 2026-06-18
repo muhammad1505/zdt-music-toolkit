@@ -191,7 +191,7 @@ zaki_assistant() {
                 dir_contents=$(ls "$abs_path" 2>/dev/null | head -20 | tr '\n' ', ')
             fi
 
-            local ai_prompt="Kamu adalah Zaki-Bot, asisten gaul, cerdas, dan to-the-point untuk ZDT (Zaki Downloader Tools). ZDT punya 18 fitur: [1] Setup (instal ffmpeg, yt-dlp, spotdl, demucs), [2] Spotify DL (download spotify), [3] YT Audio (download audio ytdlp), [4] Video DL (download video tiktok/yt), [5] Compress (perkecil ukuran file ffmpeg), [6] Vocal Remover (pisahin vokal pakai Demucs AI), [7] Sync Lyrics (cari file .lrc otomatis), [8] Playlist Sync (sinkronisasi playlist spotify bertahap), [9] System Info (cek spek & dependensi), [S] Storage (ganti target folder download), [W] Watch (daemon pantau folder otomatis bersih nama), [T] Telegram (bot remote terminal), [P] Playlist (buat file .m3u), [M] Metadata (edit tag mp3/flac mutagen), [O] Clean (bersihkan karakter aneh di nama file), [V] Web UI (akses ZDT via web browser server lokal), [U] Update (update script ZDT OTA), [X] Delete All (hapus isi folder). ATURAN: Jawab max 4 kalimat, asik, bahasa Indonesia gaul. Jika user minta penjelasan fitur, jelaskan. Jika user minta dieksekusi, kamu wajib membalas dengan [AUTO_ACTION: <aksi>]. Aksi AUTO_ACTION yang didukung HANYA: 'gas download audio ytsearch1:<judul>', 'gas download video ytsearch1:<judul>', 'hapus vokal', 'kompres media', 'sync lirik', 'bersih nama', 'bikin playlist', 'gas web ui', 'gas info sistem', 'gas update', 'gas setup', 'gas daemon', 'gas telegram'. Storage saat ini: $abs_path. Isi file (cuplikan): $dir_contents."
+            local ai_prompt="IDENTITAS: Kamu adalah Zaki-Bot, asisten cerdas untuk ZDT (Zaki Downloader Tools). BAHASA: WAJIB 100% Bahasa Indonesia gaul/santai. DILARANG KERAS menulis dalam bahasa Inggris, dilarang menunjukkan proses berpikir, dilarang menulis reasoning. FORMAT: Jawab LANGSUNG max 3 kalimat singkat. FITUR ZDT: [1]Setup [2]Spotify DL [3]YT Audio [4]Video DL [5]Kompres [6]Hapus Vokal AI [7]Sync Lirik [8]Playlist Sync [9]Info Sistem [S]Storage [W]Watch Daemon [T]Telegram Bot [P]Playlist M3U [M]Metadata Editor [O]Bersih Nama [V]Web UI [U]Update OTA [X]Hapus File. AKSI: Jika user minta eksekusi, WAJIB sertakan tag [AUTO_ACTION: <aksi>] di akhir jawaban. Aksi yang didukung: gas download audio ytsearch1:<judul>, gas download video ytsearch1:<judul>, hapus vokal, kompres media, sync lirik, bersih nama, bikin playlist, gas web ui, gas info sistem, gas update, gas setup, gas daemon, gas telegram. KONTEKS: Storage=$abs_path File=$dir_contents"
 
             local ai_response=""
             if [[ "$gemini_key" == sk-or-* ]]; then
@@ -204,15 +204,30 @@ zaki_assistant() {
                     '["nex-agi/nex-n2-pro:free","openai/gpt-oss-20b:free","nvidia/nemotron-nano-9b-v2:free"]'
                 )
 
+                local or_parse='
+import sys, json, re
+try:
+    d = json.load(sys.stdin)
+    txt = d.get("choices",[{}])[0].get("message",{}).get("content","")
+    # Strip reasoning blocks like <think>...</think> or **Thinking:**...
+    txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL)
+    txt = re.sub(r"\*\*(?:Thinking|Reasoning|Analysis|Internal)[:\*].*?(?=\n[A-Z]|\n\n|$)", "", txt, flags=re.DOTALL|re.IGNORECASE)
+    txt = txt.strip()
+    if txt:
+        print(txt)
+except:
+    pass
+'
+
                 for tier_models in "${or_tiers[@]}"; do
-                    local payload="{\"models\": $tier_models, \"messages\": [{\"role\": \"system\", \"content\": \"$ai_prompt\"}, {\"role\": \"user\", \"content\": \"$input_escaped\"}], \"max_tokens\": 200}"
-                    ai_response=$(curl -s --max-time 15 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))" 2>/dev/null)
+                    local payload="{\"models\": $tier_models, \"messages\": [{\"role\": \"system\", \"content\": \"$ai_prompt\"}, {\"role\": \"user\", \"content\": \"$input_escaped\"}], \"max_tokens\": 150}"
+                    ai_response=$(curl -s --max-time 15 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null | python3 -c "$or_parse" 2>/dev/null)
                     [ -n "$ai_response" ] && break
                 done
             else
                 # Gemini
                 local gemini_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$gemini_key"
-                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"$input_escaped\"}]}], \"generationConfig\": {\"maxOutputTokens\": 200}}"
+                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"$input_escaped\"}]}], \"generationConfig\": {\"maxOutputTokens\": 150}}"
                 
                 ai_response=$(curl -s -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('candidates',[{}])[0].get('content',{}).get('parts',[{}])[0].get('text',''))" 2>/dev/null)
             fi
