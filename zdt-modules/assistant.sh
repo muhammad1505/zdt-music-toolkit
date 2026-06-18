@@ -258,18 +258,43 @@ zaki_assistant() {
                 file_count=$(find "$abs_path" -maxdepth 2 -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.mp4" \) 2>/dev/null | wc -l)
             fi
 
-            local ai_prompt="IDENTITAS: Kamu Zaki-Bot, asisten pintar untuk ZDT (Zaki Downloader Tools) v${APP_VERSION}.
-BAHASA: WAJIB 100% Bahasa Indonesia santai. DILARANG bahasa Inggris. DILARANG tampilkan proses berpikir/reasoning.
-FORMAT: Jawab LANGSUNG, singkat, dan jelas. Maksimal 3 kalimat. Pakai emoji jika perlu.
-FITUR ZDT:
-- Download: Spotify[2], YouTube Audio[3], Video[4] — support link langsung atau cari judul
-- Editing: Kompres Audio/Video[5], Hapus Vokal AI Demucs[6], Edit Metadata[M], Bersih Nama File[O]
-- Utilitas: Sync Lirik[7], Playlist Sync Spotify[8], Buat Playlist M3U[P], Watch Daemon[W]
-- Sistem: Setup[1], Info Sistem[9], Storage[S], Web UI[V], Update OTA[U], Telegram Bot[T], Hapus File[X]
-AKSI OTOMATIS: Jika user minta jalankan fitur, WAJIB tambahkan [AUTO_ACTION: <aksi>] di akhir jawaban.
-Daftar aksi: gas download audio ytsearch1:<judul>, gas download video ytsearch1:<judul>, hapus vokal, kompres media, sync lirik, bersih nama, bikin playlist, gas web ui, gas info sistem, gas update, gas setup, gas daemon, gas telegram.
-Contoh: User bilang 'download lagu Tulus Hati-Hati' -> jawab 'Siap Bos, gas download! [AUTO_ACTION: gas download audio ytsearch1:Tulus Hati-Hati]'
-KONTEKS: Storage=$abs_path ($file_count file). File: $dir_contents"
+            local ai_prompt="IDENTITAS: Kamu Zaki-Bot, asisten cerdas untuk ZDT (Zaki Downloader Tools) v${APP_VERSION}.
+ATURAN WAJIB:
+1. HARUS 100% Bahasa Indonesia santai/gaul. DILARANG bahasa Inggris.
+2. DILARANG menampilkan proses berpikir, reasoning, atau analisis internal.
+3. Jawab LANGSUNG, singkat, jelas. Maksimal 3 kalimat. Boleh pakai emoji.
+4. Jika user minta JALANKAN fitur, WAJIB sertakan tag [AUTO_ACTION: <aksi>] di akhir jawaban.
+5. Jika user tanya/ngobrol biasa (bukan minta jalankan), jawab biasa TANPA AUTO_ACTION.
+
+DAFTAR LENGKAP 18 FITUR ZDT:
+[1] Setup — Instal dependensi (ffmpeg, yt-dlp, spotdl, demucs) → aksi: gas setup
+[2] Spotify DL — Download lagu/album/playlist dari Spotify → aksi: gas spotify <url>
+[3] YT Audio — Download audio dari YouTube/TikTok/SoundCloud → aksi: gas download audio ytsearch1:<judul> atau gas download audio <url>
+[4] Video DL — Download video dari YouTube/TikTok → aksi: gas download video ytsearch1:<judul> atau gas download video <url>
+[5] Kompres Audio — Perkecil ukuran file audio → aksi: kompres media
+[5b] Kompres Video — Perkecil ukuran file video → aksi: kompres video
+[6] Hapus Vokal — Pisahkan vokal dan instrumen pakai AI Demucs → aksi: hapus vokal
+[7] Sync Lirik — Cari dan download file .lrc otomatis → aksi: sync lirik
+[8] Playlist Sync — Sinkronisasi playlist Spotify (hanya download yang belum ada) → aksi: gas playlist sync <url>
+[9] Info Sistem — Cek spesifikasi dan status dependensi → aksi: gas info sistem
+[S] Storage — Ubah folder target download → aksi: gas storage
+[W] Watch Daemon — Jalankan daemon otomatis bersih nama file → aksi: gas daemon
+[P] Playlist M3U — Buat file playlist .m3u dari semua lagu → aksi: bikin playlist
+[M] Metadata — Edit tag ID3 (judul/artis) file audio → aksi: gas metadata
+[O] Bersih Nama — Hapus karakter aneh dari nama file → aksi: bersih nama
+[T] Telegram Bot — Kendali ZDT jarak jauh via Telegram → aksi: gas telegram
+[V] Web UI — Buka dashboard ZDT di browser → aksi: gas web ui
+[U] Update — Update ZDT ke versi terbaru via OTA → aksi: gas update
+[X] Hapus Semua — Hapus semua file media di folder target → aksi: gas hapus semua
+
+CONTOH PENGGUNAAN:
+- User: 'download lagu Tulus Hati-Hati' → 'Siap Bos, langsung gas download! 🎵 [AUTO_ACTION: gas download audio ytsearch1:Tulus Hati-Hati]'
+- User: 'download spotify https://open.spotify.com/track/abc' → 'Oke gas download dari Spotify! 🎧 [AUTO_ACTION: gas spotify https://open.spotify.com/track/abc]'
+- User: 'bersihin nama file dong' → 'Gas, aku rapihin nama filenya ya! ✨ [AUTO_ACTION: bersih nama]'
+- User: 'apa itu demucs?' → 'Demucs itu AI dari Meta buat misahin vokal dan instrumen dari lagu. Keren banget buat bikin karaoke! 🎤' (TANPA AUTO_ACTION karena cuma tanya)
+- User: 'hapus semua file' → 'Oke Bos, aku hapus semua file media di folder target ya! ⚠️ [AUTO_ACTION: gas hapus semua]'
+
+KONTEKS SAAT INI: Storage=$abs_path ($file_count file media). Isi folder: $dir_contents"
 
             # Add current message to history
             _zaki_add_history "user" "$input_escaped"
@@ -310,7 +335,7 @@ except:
 '
 
                 for tier_models in "${or_tiers[@]}"; do
-                    local payload="{\"models\": $tier_models, \"messages\": $messages, \"max_tokens\": 180}"
+                    local payload="{\"models\": $tier_models, \"messages\": $messages, \"max_tokens\": 200}"
                     
                     # Run curl in background with spinner
                     curl -s --max-time 20 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
@@ -333,7 +358,7 @@ except:
                     fi
                     gemini_contents="$gemini_contents{\"role\": \"$msg_role\", \"parts\": [{\"text\": \"$msg_content\"}]}"
                 done
-                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [$gemini_contents], \"generationConfig\": {\"maxOutputTokens\": 180}}"
+                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [$gemini_contents], \"generationConfig\": {\"maxOutputTokens\": 200}}"
                 
                 curl -s --max-time 20 -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null > "$ai_tmpfile" &
                 local curl_pid=$!
@@ -376,6 +401,17 @@ except:
                             echo -e "  ${CYAN}${ICO_ARROW} Mendownload video: $dl_url${RESET}"
                             download_video
                             ;;
+                        "gas spotify"*)
+                            local sp_url=$(echo "$action_match" | sed 's/^gas spotify //')
+                            AUTO_DOWNLOAD_URL="$sp_url"
+                            echo -e "  ${CYAN}${ICO_ARROW} Download Spotify: $sp_url${RESET}"
+                            download_spotdl
+                            ;;
+                        "gas playlist sync"*)
+                            local ps_url=$(echo "$action_match" | sed 's/^gas playlist sync //')
+                            echo -e "  ${CYAN}${ICO_ARROW} Sinkronisasi playlist Spotify: $ps_url${RESET}"
+                            sync_spotify_playlist
+                            ;;
                         "hapus vokal")
                             echo -e "  ${CYAN}${ICO_ARROW} Memisahkan vokal...${RESET}"
                             AUTO_HAPUS_VOKAL_MODE="1"
@@ -383,8 +419,12 @@ except:
                             hapus_vokal
                             ;;
                         "kompres media")
-                            echo -e "  ${CYAN}${ICO_ARROW} Kompres media...${RESET}"
+                            echo -e "  ${CYAN}${ICO_ARROW} Kompres audio...${RESET}"
                             _kompres_audio_batch
+                            ;;
+                        "kompres video")
+                            echo -e "  ${CYAN}${ICO_ARROW} Kompres video...${RESET}"
+                            _kompres_video_batch
                             ;;
                         "sync lirik")
                             echo -e "  ${CYAN}${ICO_ARROW} Sinkronisasi lirik...${RESET}"
@@ -396,7 +436,7 @@ except:
                             bersih_nama_otomatis "."
                             ;;
                         "bikin playlist")
-                            echo -e "  ${CYAN}${ICO_ARROW} Membuat playlist...${RESET}"
+                            echo -e "  ${CYAN}${ICO_ARROW} Membuat playlist M3U...${RESET}"
                             bikin_playlist
                             ;;
                         "gas web ui")
@@ -412,16 +452,28 @@ except:
                             update_zdt_script
                             ;;
                         "gas setup")
-                            echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Setup Menu...${RESET}"
+                            echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Setup...${RESET}"
                             install_missing_tools
                             ;;
                         "gas daemon")
-                            echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Watchdog Daemon...${RESET}"
+                            echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Watch Daemon...${RESET}"
                             start_watch_daemon
                             ;;
                         "gas telegram")
                             echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Telegram Bot...${RESET}"
                             start_telegram_bot
+                            ;;
+                        "gas metadata")
+                            echo -e "  ${CYAN}${ICO_ARROW} Membuka Metadata Editor...${RESET}"
+                            edit_metadata_manual
+                            ;;
+                        "gas storage")
+                            echo -e "  ${CYAN}${ICO_ARROW} Mengubah folder Storage...${RESET}"
+                            setup_storage_dir
+                            ;;
+                        "gas hapus semua")
+                            echo -e "  ${YELLOW}${ICO_WARN} Menghapus semua file media...${RESET}"
+                            hapus_semua
                             ;;
                     esac
                     
