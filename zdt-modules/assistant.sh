@@ -1,8 +1,44 @@
 # ==========================================
-# ZDT Zaki AI Assistant Module
+# ZDT Zaki AI Assistant Module v4.0
 # ==========================================
-# Conversational AI interface with Gemini/OpenRouter integration
+# Professional AI interface with conversation
+# memory, multi-tier model fallback, and
+# structured intent recognition
 # ==========================================
+
+# Conversation history (kept in memory)
+declare -a ZDT_CHAT_HISTORY=()
+
+_zaki_add_history() {
+    local role="$1" content="$2"
+    ZDT_CHAT_HISTORY+=("{\"role\": \"$role\", \"content\": \"$content\"}")
+    # Keep only last 10 entries (5 user + 5 assistant)
+    if [ ${#ZDT_CHAT_HISTORY[@]} -gt 10 ]; then
+        ZDT_CHAT_HISTORY=("${ZDT_CHAT_HISTORY[@]:2}")
+    fi
+}
+
+_zaki_build_messages() {
+    local system_prompt="$1"
+    local result="{\"role\": \"system\", \"content\": \"$system_prompt\"}"
+    for msg in "${ZDT_CHAT_HISTORY[@]}"; do
+        result="$result, $msg"
+    done
+    echo "[$result]"
+}
+
+_zaki_spinner() {
+    local pid=$1
+    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local i=0
+    echo -ne "  ${MAGENTA}"
+    while kill -0 "$pid" 2>/dev/null; do
+        echo -ne "\r  ${MAGENTA}${frames[$i]} Zaki-Bot sedang mikir...${RESET}  "
+        i=$(( (i + 1) % ${#frames[@]} ))
+        sleep 0.12
+    done
+    echo -ne "\r                                      \r"
+}
 
 # ==========================================
 # ZAKI AI ASSISTANT
@@ -12,7 +48,7 @@ zaki_assistant() {
     local gemini_key_file="$HOME/.config/zdt/gemini_key"
 
     if [ -f "$gemini_key_file" ]; then
-        gemini_key=$(cat "$gemini_key_file")
+        gemini_key=$(cat "$gemini_key_file" | tr -d '[:space:]')
     fi
 
     while true; do
@@ -39,15 +75,25 @@ zaki_assistant() {
             sisa=$(df -h . 2>/dev/null | awk 'NR==2{print $4}')
         fi
 
+        local ai_status="${RED}Belum Dikonfigurasi${RESET}"
+        if [ -n "$gemini_key" ]; then
+            if [[ "$gemini_key" == sk-or-* ]]; then
+                ai_status="${GREEN}OpenRouter Connected${RESET}"
+            else
+                ai_status="${GREEN}Gemini Connected${RESET}"
+            fi
+        fi
+
         local ai_opts=(
-            " ${MAGENTA}${BOLD}🤖 ZAKI AI ASSISTANT${RESET}"
+            " ${MAGENTA}${BOLD}🤖 ZAKI AI ASSISTANT v4.0${RESET}"
             " ${WHITE}${salam} Bos! Aku siap bantu automasi tugasmu.${RESET}"
             "DIVIDER"
             " ${CYAN}Storage :${RESET} ${sisa} free of ${total_kapasitas}"
-            " ${CYAN}AI API  :${RESET} $([ -n "$gemini_key" ] && echo "${GREEN}Connected${RESET}" || echo "${RED}Not Configured${RESET}")"
+            " ${CYAN}AI API  :${RESET} $ai_status"
+            " ${CYAN}Memori  :${RESET} ${#ZDT_CHAT_HISTORY[@]} pesan tersimpan"
             "DIVIDER"
             " ${GREEN}Ketik apa saja dengan bahasa sehari-hari, atau:${RESET}"
-            "  ${YELLOW}[?]${RESET} Bantuan Cepat"
+            "  ${YELLOW}[?]${RESET} Bantuan Cepat       ${YELLOW}[!]${RESET} Reset Memori"
             "  ${RED}[0]${RESET} Kembali ke Menu Utama"
         )
         _print_menu_box "ZAKI AI" "${ai_opts[@]}"
@@ -118,7 +164,7 @@ zaki_assistant() {
         # Wrap input dengan line continuation
         local bot_prompt=""
         while true; do
-            echo -e -n "  ${MAGENTA}► Ketik pesan:${RESET} "
+            echo -e -n "  ${MAGENTA}► ${RESET}"
             local current_input
             read -r current_input
             if [ -z "$current_input" ]; then
@@ -138,9 +184,6 @@ zaki_assistant() {
         local input="${bot_prompt,,}"
         input="${input//\"/}"
         input="${input//\'/}"
-        # Escape for JSON safety
-        local input_escaped
-        input_escaped=$(echo "$input" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
 
         [ -z "$input" ] && continue
 
@@ -151,6 +194,14 @@ zaki_assistant() {
             return 0
         fi
 
+        # Reset memory
+        if [ "$input" = "!" ] || [ "$input" = "reset" ] || [ "$input" = "clear" ]; then
+            ZDT_CHAT_HISTORY=()
+            echo -e "  ${GREEN}${ICO_OK} Memori percakapan direset!${RESET}"
+            sleep 1
+            continue
+        fi
+
         # Help
         if [ "$input" = "?" ] || [ "$input" = "help" ] || [ "$input" = "bantuan" ]; then
             echo ""
@@ -159,20 +210,26 @@ zaki_assistant() {
                 " Ngobrol aja pakai bahasa santai, contohnya:"
                 "DIVIDER"
                 " ${CYAN}▶ Download${RESET}"
-                "   'download spotify https://...'"
+                "   'download lagu Tulus Hati-Hati'"
                 "   'sedot video youtube https://...'"
+                "   'download playlist spotify https://...'"
                 "DIVIDER"
-                " ${CYAN}▶ Editing & Kompresi${RESET}"
-                "   'kompres audio' / 'kompres video'"
-                "   'pisahin vokal' / 'hapus vokal'"
+                " ${CYAN}▶ Editing & Tools${RESET}"
+                "   'kompres semua audio' / 'kompres video'"
+                "   'pisahin vokal lagu ini'"
+                "   'cariin lirik semua lagu'"
+                "   'bersihin nama file yang berantakan'"
                 "DIVIDER"
-                " ${CYAN}▶ Utilitas Lainnya${RESET}"
-                "   'cari lirik' / 'sync lirik'"
-                "   'bersihin nama file'"
-                "   'buat playlist'"
-                "   'info sistem' / 'status'"
+                " ${CYAN}▶ Sistem & Utilitas${RESET}"
+                "   'info sistem' / 'cek status'"
+                "   'buat playlist M3U'"
+                "   'jalankan web ui' / 'update tools'"
+                "DIVIDER"
+                " ${CYAN}▶ Kontrol Bot${RESET}"
+                "   ${YELLOW}[!]${RESET} Reset memori percakapan"
+                "   ${RED}[0]${RESET} Kembali ke menu utama"
             )
-            _print_menu_box "${help_opts[@]}"
+            _print_menu_box "BANTUAN" "${help_opts[@]}"
             _pause
             continue
         fi
@@ -183,17 +240,47 @@ zaki_assistant() {
         local ai_used=false
         local reply_text=""
 
+        # Escape for JSON safety
+        local input_escaped
+        input_escaped=$(echo "$input" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
+
         # Coba pakai AI jika ada key
         if [ -n "$gemini_key" ]; then
             local abs_path="${STORAGE_DIR:-$HOME/Music/ZDT}"
             local dir_contents=""
             if [ -d "$abs_path" ]; then
-                dir_contents=$(ls "$abs_path" 2>/dev/null | head -20 | tr '\n' ', ')
+                dir_contents=$(ls "$abs_path" 2>/dev/null | head -15 | tr '\n' ', ')
             fi
 
-            local ai_prompt="IDENTITAS: Kamu adalah Zaki-Bot, asisten cerdas untuk ZDT (Zaki Downloader Tools). BAHASA: WAJIB 100% Bahasa Indonesia gaul/santai. DILARANG KERAS menulis dalam bahasa Inggris, dilarang menunjukkan proses berpikir, dilarang menulis reasoning. FORMAT: Jawab LANGSUNG max 3 kalimat singkat. FITUR ZDT: [1]Setup [2]Spotify DL [3]YT Audio [4]Video DL [5]Kompres [6]Hapus Vokal AI [7]Sync Lirik [8]Playlist Sync [9]Info Sistem [S]Storage [W]Watch Daemon [T]Telegram Bot [P]Playlist M3U [M]Metadata Editor [O]Bersih Nama [V]Web UI [U]Update OTA [X]Hapus File. AKSI: Jika user minta eksekusi, WAJIB sertakan tag [AUTO_ACTION: <aksi>] di akhir jawaban. Aksi yang didukung: gas download audio ytsearch1:<judul>, gas download video ytsearch1:<judul>, hapus vokal, kompres media, sync lirik, bersih nama, bikin playlist, gas web ui, gas info sistem, gas update, gas setup, gas daemon, gas telegram. KONTEKS: Storage=$abs_path File=$dir_contents"
+            # File count stats
+            local file_count=0
+            if [ -d "$abs_path" ]; then
+                file_count=$(find "$abs_path" -maxdepth 2 -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.mp4" \) 2>/dev/null | wc -l)
+            fi
+
+            local ai_prompt="IDENTITAS: Kamu Zaki-Bot, asisten pintar untuk ZDT (Zaki Downloader Tools) v${APP_VERSION}.
+BAHASA: WAJIB 100% Bahasa Indonesia santai. DILARANG bahasa Inggris. DILARANG tampilkan proses berpikir/reasoning.
+FORMAT: Jawab LANGSUNG, singkat, dan jelas. Maksimal 3 kalimat. Pakai emoji jika perlu.
+FITUR ZDT:
+- Download: Spotify[2], YouTube Audio[3], Video[4] — support link langsung atau cari judul
+- Editing: Kompres Audio/Video[5], Hapus Vokal AI Demucs[6], Edit Metadata[M], Bersih Nama File[O]
+- Utilitas: Sync Lirik[7], Playlist Sync Spotify[8], Buat Playlist M3U[P], Watch Daemon[W]
+- Sistem: Setup[1], Info Sistem[9], Storage[S], Web UI[V], Update OTA[U], Telegram Bot[T], Hapus File[X]
+AKSI OTOMATIS: Jika user minta jalankan fitur, WAJIB tambahkan [AUTO_ACTION: <aksi>] di akhir jawaban.
+Daftar aksi: gas download audio ytsearch1:<judul>, gas download video ytsearch1:<judul>, hapus vokal, kompres media, sync lirik, bersih nama, bikin playlist, gas web ui, gas info sistem, gas update, gas setup, gas daemon, gas telegram.
+Contoh: User bilang 'download lagu Tulus Hati-Hati' -> jawab 'Siap Bos, gas download! [AUTO_ACTION: gas download audio ytsearch1:Tulus Hati-Hati]'
+KONTEKS: Storage=$abs_path ($file_count file). File: $dir_contents"
+
+            # Add current message to history
+            _zaki_add_history "user" "$input_escaped"
+
+            # Build messages with history
+            local messages
+            messages=$(_zaki_build_messages "$ai_prompt")
 
             local ai_response=""
+            local ai_tmpfile="/tmp/.zdt_ai_resp_$$"
+
             if [[ "$gemini_key" == sk-or-* ]]; then
                 # OpenRouter — Multi-tier fallback (max 3 models per request)
                 local or_url="https://openrouter.ai/api/v1/chat/completions"
@@ -208,10 +295,13 @@ zaki_assistant() {
 import sys, json, re
 try:
     d = json.load(sys.stdin)
+    if "error" in d:
+        sys.exit(1)
     txt = d.get("choices",[{}])[0].get("message",{}).get("content","")
-    # Strip reasoning blocks like <think>...</think> or **Thinking:**...
     txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL)
-    txt = re.sub(r"\*\*(?:Thinking|Reasoning|Analysis|Internal)[:\*].*?(?=\n[A-Z]|\n\n|$)", "", txt, flags=re.DOTALL|re.IGNORECASE)
+    txt = re.sub(r"<reasoning>.*?</reasoning>", "", txt, flags=re.DOTALL)
+    txt = re.sub(r"\*\*(?:Thinking|Reasoning|Analysis|Internal|Step)[:\*].*?(?=\n[A-Z]|\n\n|$)", "", txt, flags=re.DOTALL|re.IGNORECASE)
+    txt = re.sub(r"^(?:Let me|I need to|The user|User wants).*?\n", "", txt, flags=re.MULTILINE|re.IGNORECASE)
     txt = txt.strip()
     if txt:
         print(txt)
@@ -220,21 +310,49 @@ except:
 '
 
                 for tier_models in "${or_tiers[@]}"; do
-                    local payload="{\"models\": $tier_models, \"messages\": [{\"role\": \"system\", \"content\": \"$ai_prompt\"}, {\"role\": \"user\", \"content\": \"$input_escaped\"}], \"max_tokens\": 150}"
-                    ai_response=$(curl -s --max-time 15 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null | python3 -c "$or_parse" 2>/dev/null)
+                    local payload="{\"models\": $tier_models, \"messages\": $messages, \"max_tokens\": 180}"
+                    
+                    # Run curl in background with spinner
+                    curl -s --max-time 20 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
+                    local curl_pid=$!
+                    _zaki_spinner $curl_pid
+                    wait $curl_pid 2>/dev/null
+
+                    ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$or_parse" 2>/dev/null)
                     [ -n "$ai_response" ] && break
                 done
             else
                 # Gemini
                 local gemini_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$gemini_key"
-                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"$input_escaped\"}]}], \"generationConfig\": {\"maxOutputTokens\": 150}}"
+                local gemini_contents=""
+                for msg in "${ZDT_CHAT_HISTORY[@]}"; do
+                    local msg_role=$(echo "$msg" | python3 -c "import sys,json; m=json.loads(sys.stdin.read()); r=m['role']; print('user' if r=='user' else 'model')" 2>/dev/null)
+                    local msg_content=$(echo "$msg" | python3 -c "import sys,json; m=json.loads(sys.stdin.read()); print(m['content'])" 2>/dev/null)
+                    if [ -n "$gemini_contents" ]; then
+                        gemini_contents="$gemini_contents, "
+                    fi
+                    gemini_contents="$gemini_contents{\"role\": \"$msg_role\", \"parts\": [{\"text\": \"$msg_content\"}]}"
+                done
+                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [$gemini_contents], \"generationConfig\": {\"maxOutputTokens\": 180}}"
                 
-                ai_response=$(curl -s -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('candidates',[{}])[0].get('content',{}).get('parts',[{}])[0].get('text',''))" 2>/dev/null)
+                curl -s --max-time 20 -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null > "$ai_tmpfile" &
+                local curl_pid=$!
+                _zaki_spinner $curl_pid
+                wait $curl_pid 2>/dev/null
+
+                ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('candidates',[{}])[0].get('content',{}).get('parts',[{}])[0].get('text',''))" 2>/dev/null)
             fi
+
+            rm -f "$ai_tmpfile" 2>/dev/null
 
             if [ -n "$ai_response" ]; then
                 ai_used=true
                 reply_text="$ai_response"
+                
+                # Save AI response to history
+                local resp_escaped
+                resp_escaped=$(echo "$ai_response" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
+                _zaki_add_history "assistant" "$resp_escaped"
                 
                 # Proses AUTO_ACTION
                 if [[ "$ai_response" == *"[AUTO_ACTION:"* ]]; then
@@ -378,34 +496,51 @@ except:
                 system_info
 
             # Update tools
-            elif [[ "$input" =~ (update|upgrade|perbarui|install|setup) ]]; then
-                update_tools
+            elif [[ "$input" =~ (update|upgrade|perbarui) ]]; then
+                update_zdt_script
+
+            # Setup/install
+            elif [[ "$input" =~ (install|setup) ]]; then
+                install_missing_tools
 
             # Storage
             elif [[ "$input" =~ (storage|folder|direktori|directory|path|save|simpan) ]]; then
                 setup_storage_dir
 
+            # Web UI
+            elif [[ "$input" =~ (web|dashboard|browser) ]]; then
+                start_web_dashboard
+
+            # Telegram
+            elif [[ "$input" =~ (telegram|bot) ]]; then
+                start_telegram_bot
+
+            # Watch daemon
+            elif [[ "$input" =~ (watch|daemon|pantau|monitor) ]]; then
+                start_watch_daemon
+
             # Halo / greetings
-            elif [[ "$input" =~ (halo|hai|hi|hey|selamat|pagi|siang|sore|malam|bro|boss|bang|kak) ]]; then
+            elif [[ "$input" =~ (halo|hai|hi|hey|selamat|pagi|siang|sore|malam|bro|boss|bang|kak|woi) ]]; then
                 echo ""
-                echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Halo juga Bos! Ada yang bisa saya bantu?${RESET}"
+                echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Halo juga Bos! Ada yang bisa saya bantu hari ini? 😎${RESET}"
                 _pause
 
             # Thanks
-            elif [[ "$input" =~ (makasih|terima\ kasih|thanks|thank\ you|thx|tq) ]]; then
+            elif [[ "$input" =~ (makasih|terima\ kasih|thanks|thank\ you|thx|tq|mantap|keren|gokil) ]]; then
                 echo ""
-                echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Sama-sama Bos! Kalo butuh bantuan lagi, bilang aja ya!${RESET}"
+                echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Sama-sama Bos! Senang bisa bantu! 🙏${RESET}"
                 _pause
 
             # Sisanya
             else
                 echo ""
                 if [ -n "$gemini_key" ]; then
-                    echo -e "  ${YELLOW}${ICO_WARN} Maaf, AI lagi error. Coba ulangi atau ketik '?' untuk bantuan.${RESET}"
+                    echo -e "  ${YELLOW}${ICO_WARN} Wah, AI lagi sibuk atau koneksi lambat. Coba lagi ya!${RESET}"
+                    echo -e "  ${GRAY}  Ketik ${BOLD}?${RESET}${GRAY} untuk lihat daftar perintah yang bisa langsung dijalankan.${RESET}"
                 else
-                    echo -e "  ${YELLOW}${ICO_WARN} Hmm, maksudnya apa ya? Coba ketik '?' buat lihat contoh perintah!${RESET}"
-                    echo -e "  ${GRAY}  Tips: Belum ada key AI. Isi file ~/.config/zdt/gemini_key dengan${RESET}"
-                    echo -e "  ${GRAY}  Google Gemini / OpenRouter API Key biar Zaki-Bot makin pintar!${RESET}"
+                    echo -e "  ${YELLOW}${ICO_WARN} Hmm, aku belum bisa jawab itu. Ketik '?' buat lihat daftar perintah!${RESET}"
+                    echo -e "  ${GRAY}  Tips: Isi file ~/.config/zdt/gemini_key dengan API Key untuk${RESET}"
+                    echo -e "  ${GRAY}  mengaktifkan AI (Google Gemini atau OpenRouter).${RESET}"
                 fi
                 _pause
             fi

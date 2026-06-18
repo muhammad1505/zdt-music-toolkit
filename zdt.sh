@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 3.8.14
+# Version : 4.0.0
 set -uo pipefail
-readonly APP_VERSION="3.8.14"
+readonly APP_VERSION="4.0.0"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -289,7 +289,7 @@ main() {
             o) bersih_nama ;;
             t) start_telegram_bot ;;
             v) start_web_dashboard ;;
-            u) update_tools ;;
+            u) update_zdt_script ;;
             a) zaki_assistant ;;
             x) hapus_semua ;;
             *) echo -e "  ${RED}Pilihan tidak valid!${RESET}"; sleep 1; continue ;;
