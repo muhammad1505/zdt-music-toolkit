@@ -609,3 +609,4 @@ except:
         echo ""
     done
 }
+# Auto-version hook installed
