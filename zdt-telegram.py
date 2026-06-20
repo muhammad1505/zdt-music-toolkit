@@ -193,7 +193,7 @@ def auto_download_audio(message):
                         dir_contents = "Gagal membaca direktori."
 
                     history_context = "\\n".join(chat_history.get(message.chat.id, []))
-                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}. ATURAN SUPER PENTING: JIKA DAN HANYA JIKA user SECARA EKSPLISIT menyuruh mengeksekusi suatu aksi, WAJIB sertakan tag berikut di jawabanmu:\n1) Perintah DOWNLOAD AUDIO/LAGU: [AUTO_ACTION: gas download audio ytsearch1:judul_lagu_yang_dicari]\n2) Perintah DOWNLOAD VIDEO: [AUTO_ACTION: gas download video ytsearch1:judul_video_yang_dicari]\n3) Perintah CARI/SEARCH lagu/video di YouTube: [AUTO_ACTION: cari youtube judul_yang_dicari]\n4) Perintah pisah vokal: [AUTO_ACTION: hapus vokal]\n5) Perintah kompres media: [AUTO_ACTION: kompres media]\n6) Perintah cari lirik: [AUTO_ACTION: sync lirik]\n7) Perintah rapikan nama file: [AUTO_ACTION: bersih nama]\n8) Perintah buat playlist: [AUTO_ACTION: bikin playlist]\n9) Perintah hapus semua file: [AUTO_ACTION: hapus semua]\n\nCatatan: Pencarian playlist YouTube tidak didukung. Jika user minta cari playlist, suruh kasih link langsung.\n\nJIKA user hanya tanya-tanya, curhat, minta penjelasan, JANGAN GUNAKAN TAG AUTO_ACTION SAMA SEKALI! Jawab saja seperti biasa.\n\nRiwayat Chat Terbaru:\n{history_context}'
+                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}. ATURAN SUPER PENTING: JIKA DAN HANYA JIKA user SECARA EKSPLISIT menyuruh mengeksekusi suatu aksi, WAJIB sertakan tag berikut di jawabanmu:\n1) Perintah DOWNLOAD AUDIO/LAGU: [AUTO_ACTION: gas download audio ytsearch1:judul_lagu_yang_dicari]\n2) Perintah DOWNLOAD VIDEO: [AUTO_ACTION: gas download video ytsearch1:judul_video_yang_dicari]\n3) Perintah CARI/SEARCH lagu/video biasa di YouTube: [AUTO_ACTION: cari youtube judul_yang_dicari]\n4) Perintah CARI/SEARCH PLAYLIST/ALBUM di YouTube: [AUTO_ACTION: cari playlist judul_yang_dicari]\n5) Perintah pisah vokal: [AUTO_ACTION: hapus vokal]\n6) Perintah kompres media: [AUTO_ACTION: kompres media]\n7) Perintah cari lirik: [AUTO_ACTION: sync lirik]\n8) Perintah rapikan nama file: [AUTO_ACTION: bersih nama]\n9) Perintah buat playlist: [AUTO_ACTION: bikin playlist]\n10) Perintah hapus semua file: [AUTO_ACTION: hapus semua]\n\nJIKA user hanya tanya-tanya, curhat, minta penjelasan, JANGAN GUNAKAN TAG AUTO_ACTION SAMA SEKALI! Jawab saja seperti biasa.\n\nRiwayat Chat Terbaru:\n{history_context}'
 
                     def process_reply(reply_text):
                         if "[AUTO_ACTION:" in reply_text:
@@ -242,6 +242,24 @@ def auto_download_audio(message):
                                         except Exception as e:
                                             bot.reply_to(message, f"❌ Error pencarian: {e}")
                                     threading.Thread(target=_search_task).start()
+                                elif action.startswith("cari playlist"):
+                                    query = action.replace("cari playlist", "").strip()
+                                    import urllib.parse
+                                    bot.reply_to(message, f"🔍 *Mencari Playlist di YouTube...*\nKata kunci: `{query}`", parse_mode="Markdown")
+                                    
+                                    def _search_playlist_task():
+                                        try:
+                                            # &sp=EgIQAw%253D%253D is YouTube's filter for Playlists
+                                            search_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}&sp=EgIQAw%253D%253D"
+                                            res = subprocess.run(["yt-dlp", search_url, "--flat-playlist", "--print", "%(title)s\n%(webpage_url)s\n", "--playlist-end", "5"], capture_output=True, text=True)
+                                            if res.returncode == 0 and res.stdout.strip():
+                                                import telebot
+                                                bot.reply_to(message, f"🎯 *Hasil Pencarian Playlist:*\n\n{res.stdout.strip()}\n\n_Balas dengan link playlistnya untuk mendownload semua lagu di dalamnya!_", parse_mode="Markdown", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
+                                            else:
+                                                bot.reply_to(message, "❌ Pencarian playlist tidak menemukan hasil.")
+                                        except Exception as e:
+                                            bot.reply_to(message, f"❌ Error pencarian playlist: {e}")
+                                    threading.Thread(target=_search_playlist_task).start()
                                 elif action == "hapus vokal":
                                     bot.reply_to(message, "⏳ Memisahkan vokal di background...")
                                     run_bg_task(["--extract-vocal-all"], "Vokal berhasil dipisah!")
