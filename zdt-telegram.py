@@ -265,7 +265,7 @@ def auto_download_audio(message):
                             data = json.dumps(payload).encode("utf-8")
                             req = urllib.request.Request(url, data=data, headers=headers)
                             try:
-                                with urllib.request.urlopen(req, timeout=10) as response:
+                                with urllib.request.urlopen(req, timeout=20) as response:
                                     res = json.loads(response.read().decode())
                                     if "error" in res:
                                         reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
@@ -276,12 +276,10 @@ def auto_download_audio(message):
                             except urllib.error.HTTPError as e:
                                 err_msg = e.read().decode()
                                 reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {err_msg}'
-                                if e.code == 429:
-                                    continue
-                                break
+                                continue
                             except Exception as e:
                                 reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {str(e)}'
-                                break
+                                continue
                         process_reply(reply_text)
                         return
                     else:
@@ -290,13 +288,13 @@ def auto_download_audio(message):
                         payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 100}}
                         data = json.dumps(payload).encode("utf-8")
                         req = urllib.request.Request(url, data=data, headers=headers)
-                        with urllib.request.urlopen(req, timeout=10) as response:
+                        with urllib.request.urlopen(req, timeout=20) as response:
                             res = json.loads(response.read().decode())
-                            if "error" in res:
-                                reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
-                            else:
-                                content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
-                                reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                        if "error" in res:
+                            reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
+                        else:
+                            content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
+                            reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
                         process_reply(reply_text)
                         return
             except Exception as e:
