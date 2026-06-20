@@ -45,9 +45,9 @@ original_send_message = bot.send_message
 def logging_send_message(chat_id, text, **kwargs):
     logging.info(f"Bot mengirim pesan ke {chat_id}: {text}")
     if chat_id not in chat_history:
-        chat_history[chat_id] = []
-    chat_history[chat_id].append(f"Zaki-Bot: {text}")
-    chat_history[chat_id] = chat_history[chat_id][-6:]
+        chat_history[chat_id] = {"messages": [], "search_results": []}
+    chat_history[chat_id]["messages"].append(f"Zaki-Bot: {text}")
+    chat_history[chat_id]["messages"] = chat_history[chat_id]["messages"][-6:]
     return original_send_message(chat_id, text, **kwargs)
 bot.send_message = logging_send_message
 
@@ -58,9 +58,9 @@ def listener(messages):
             user = m.from_user.first_name if m.from_user else "Unknown"
             logging.info(f"Pesan masuk dari {user} (ID: {m.chat.id}): {m.text}")
             if m.chat.id not in chat_history:
-                chat_history[m.chat.id] = []
-            chat_history[m.chat.id].append(f"User: {m.text}")
-            chat_history[m.chat.id] = chat_history[m.chat.id][-6:]
+                chat_history[m.chat.id] = {"messages": [], "search_results": []}
+            chat_history[m.chat.id]["messages"].append(f"User: {m.text}")
+            chat_history[m.chat.id]["messages"] = chat_history[m.chat.id]["messages"][-6:]
 
 bot.set_update_listener(listener)
 
@@ -192,8 +192,14 @@ def auto_download_audio(message):
                     except Exception:
                         dir_contents = "Gagal membaca direktori."
 
-                    history_context = "\\n".join(chat_history.get(message.chat.id, []))
-                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}. ATURAN SUPER PENTING: JIKA DAN HANYA JIKA user SECARA EKSPLISIT menyuruh mengeksekusi suatu aksi, WAJIB sertakan tag berikut di jawabanmu:\n1) Perintah DOWNLOAD AUDIO/LAGU: [AUTO_ACTION: gas download audio ytsearch1:judul_lagu_yang_dicari]\n2) Perintah DOWNLOAD VIDEO: [AUTO_ACTION: gas download video ytsearch1:judul_video_yang_dicari]\n3) Perintah CARI/SEARCH lagu/video biasa di YouTube: [AUTO_ACTION: cari youtube judul_yang_dicari]\n4) Perintah CARI/SEARCH PLAYLIST/ALBUM di YouTube: [AUTO_ACTION: cari playlist judul_yang_dicari]\n5) Perintah pisah vokal: [AUTO_ACTION: hapus vokal]\n6) Perintah kompres media: [AUTO_ACTION: kompres media]\n7) Perintah cari lirik: [AUTO_ACTION: sync lirik]\n8) Perintah rapikan nama file: [AUTO_ACTION: bersih nama]\n9) Perintah buat playlist: [AUTO_ACTION: bikin playlist]\n10) Perintah hapus semua file: [AUTO_ACTION: hapus semua]\n\nJIKA user hanya tanya-tanya, curhat, minta penjelasan, JANGAN GUNAKAN TAG AUTO_ACTION SAMA SEKALI! Jawab saja seperti biasa.\n\nRiwayat Chat Terbaru:\n{history_context}'
+                    chat_data = chat_history.get(message.chat.id, {"messages": [], "search_results": []})
+                    history_context = "\\n".join(chat_data["messages"])
+                    search_context = "\\n".join(chat_data["search_results"])
+                    
+                    if search_context:
+                        search_context = f"\\n\\nInfo Hasil Pencarian Terakhir (Ganti nomor dengan URL yang sesuai jika user memilih):\\n{search_context}"
+                        
+                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}. ATURAN SUPER PENTING: JIKA DAN HANYA JIKA user SECARA EKSPLISIT menyuruh mengeksekusi suatu aksi, WAJIB sertakan tag berikut di jawabanmu:\n1) Perintah DOWNLOAD AUDIO/LAGU: [AUTO_ACTION: gas download audio ytsearch1:judul_lagu_yang_dicari atau URL]\n2) Perintah DOWNLOAD VIDEO: [AUTO_ACTION: gas download video ytsearch1:judul_video_yang_dicari atau URL]\n3) Perintah CARI/SEARCH lagu/video biasa di YouTube: [AUTO_ACTION: cari youtube judul_yang_dicari]\n4) Perintah CARI/SEARCH PLAYLIST/ALBUM di YouTube: [AUTO_ACTION: cari playlist judul_yang_dicari]\n5) Perintah pisah vokal: [AUTO_ACTION: hapus vokal]\n6) Perintah kompres media: [AUTO_ACTION: kompres media]\n7) Perintah cari lirik: [AUTO_ACTION: sync lirik]\n8) Perintah rapikan nama file: [AUTO_ACTION: bersih nama]\n9) Perintah buat playlist: [AUTO_ACTION: bikin playlist]\n10) Perintah hapus semua file: [AUTO_ACTION: hapus semua]\n\nJIKA user hanya tanya-tanya, curhat, minta penjelasan, JANGAN GUNAKAN TAG AUTO_ACTION SAMA SEKALI! Jawab saja seperti biasa.{search_context}\n\nRiwayat Chat Terbaru:\n{history_context}'
 
                     def process_reply(reply_text):
                         if "[AUTO_ACTION:" in reply_text:
@@ -234,12 +240,27 @@ def auto_download_audio(message):
                                     
                                     def _search_task():
                                         try:
-                                            res = subprocess.run(["yt-dlp", f"ytsearch5:{query}", "--print", "%(title)s\n%(webpage_url)s\n"], capture_output=True, text=True)
+                                            res = subprocess.run(["yt-dlp", f"ytsearch5:{query}", "--print", "%(title)s|%(webpage_url)s"], capture_output=True, text=True)
                                             if res.returncode == 0 and res.stdout.strip():
                                                 import telebot
                                                 import html
-                                                safe_text = html.escape(res.stdout.strip())
-                                                bot.reply_to(message, f"🎯 <b>Hasil Pencarian:</b>\n\n{safe_text}\n\n<i>Balas dengan link atau suruh saya download salah satunya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
+                                                
+                                                lines = res.stdout.strip().split('\n')
+                                                formatted = []
+                                                urls = []
+                                                for idx, line in enumerate(lines, 1):
+                                                    parts = line.split('|', 1)
+                                                    if len(parts) == 2:
+                                                        title = html.escape(parts[0].strip())
+                                                        url = html.escape(parts[1].strip())
+                                                        formatted.append(f"{idx}. <b>{title}</b>\n{url}")
+                                                        urls.append(f"{idx}) {parts[1].strip()}")
+                                                
+                                                if chat_history.get(message.chat.id):
+                                                    chat_history[message.chat.id]["search_results"] = urls
+                                                
+                                                out_text = "\n\n".join(formatted)
+                                                bot.reply_to(message, f"🎯 <b>Hasil Pencarian:</b>\n\n{out_text}\n\n<i>Balas dengan nomor (misal: 'download nomor 1') atau linknya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
                                             else:
                                                 bot.reply_to(message, "❌ Pencarian tidak menemukan hasil.")
                                         except Exception as e:
@@ -255,12 +276,30 @@ def auto_download_audio(message):
                                         try:
                                             # &sp=EgIQAw%253D%253D is YouTube's filter for Playlists
                                             search_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}&sp=EgIQAw%253D%253D"
-                                            res = subprocess.run(["yt-dlp", search_url, "--flat-playlist", "--print", "%(title)s\n%(webpage_url)s\n", "--playlist-end", "5"], capture_output=True, text=True)
+                                            res = subprocess.run(["yt-dlp", search_url, "--flat-playlist", "--print", "%(title)s|%(webpage_url)s", "--playlist-end", "5"], capture_output=True, text=True)
                                             if res.returncode == 0 and res.stdout.strip():
                                                 import telebot
                                                 import html
-                                                safe_text = html.escape(res.stdout.strip())
-                                                bot.reply_to(message, f"🎯 <b>Hasil Pencarian Playlist:</b>\n\n{safe_text}\n\n<i>Balas dengan link playlistnya untuk mendownload semua lagu di dalamnya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
+                                                
+                                                lines = res.stdout.strip().split('\n')
+                                                formatted = []
+                                                urls = []
+                                                # Sometimes yt-dlp returns channel links on playlist searches, we should filter or just list them
+                                                idx = 1
+                                                for line in lines:
+                                                    parts = line.split('|', 1)
+                                                    if len(parts) == 2:
+                                                        title = html.escape(parts[0].strip())
+                                                        url = html.escape(parts[1].strip())
+                                                        formatted.append(f"{idx}. <b>{title}</b>\n{url}")
+                                                        urls.append(f"{idx}) {parts[1].strip()}")
+                                                        idx += 1
+                                                
+                                                if chat_history.get(message.chat.id):
+                                                    chat_history[message.chat.id]["search_results"] = urls
+                                                
+                                                out_text = "\n\n".join(formatted)
+                                                bot.reply_to(message, f"🎯 <b>Hasil Pencarian Playlist:</b>\n\n{out_text}\n\n<i>Balas dengan nomor (misal: 'download playlist nomor 1') atau linknya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
                                             else:
                                                 bot.reply_to(message, "❌ Pencarian playlist tidak menemukan hasil.")
                                         except Exception as e:
