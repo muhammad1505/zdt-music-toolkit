@@ -273,7 +273,6 @@ HTML_TEMPLATE = """
         .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
         .badge-active { background: rgba(16, 185, 129, 0.15); color: var(--accent); }
         .badge-inactive { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-
         /* ===== MOBILE BOTTOM NAV ===== */
         .mobile-header {
             display: none;
@@ -283,38 +282,77 @@ HTML_TEMPLATE = """
             padding: 12px 20px; align-items: center; justify-content: space-between;
         }
         .mobile-header .logo { margin: 0; font-size: 20px; padding: 0; }
-        .mobile-header .hamburger {
-            background: none; border: none; color: var(--text-main);
-            font-size: 22px; cursor: pointer; padding: 8px;
+
+        /* More menu popup */
+        .more-overlay {
+            display: none; position: fixed; inset: 0; z-index: 300;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
         }
+        .more-overlay.show { display: block; }
+        .more-sheet {
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 301;
+            background: var(--bg-surface); backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border-light);
+            border-radius: 20px 20px 0 0;
+            padding: 20px 16px 30px;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .more-sheet.show { transform: translateY(0); }
+        .more-sheet-handle {
+            width: 40px; height: 4px; background: rgba(255,255,255,0.2);
+            border-radius: 2px; margin: 0 auto 18px;
+        }
+        .more-sheet-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 16px; border-radius: 10px; cursor: pointer;
+            color: var(--text-muted); font-size: 15px; font-weight: 500;
+            transition: all 0.15s;
+        }
+        .more-sheet-item:hover, .more-sheet-item:active {
+            background: rgba(255,255,255,0.05); color: var(--text-main);
+        }
+        .more-sheet-item i { width: 24px; font-size: 18px; text-align: center; color: var(--primary); }
+        .more-sheet-item.active { color: var(--primary); background: rgba(59,130,246,0.1); }
+
+        /* Mobile nav: hide overflow items */
+        .nav-more-trigger { display: none; }
 
         @media (max-width: 900px) {
             .sidebar {
                 position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
                 width: 100%; height: auto; border-right: none;
                 border-top: 1px solid var(--border-light);
-                padding: 0; flex-direction: row;
-                overflow-x: auto; overflow-y: hidden;
-                -webkit-overflow-scrolling: touch;
+                padding: 0; flex-direction: row; justify-content: space-around;
+                overflow: visible;
                 scrollbar-width: none;
             }
             .sidebar::-webkit-scrollbar { display: none; }
             .sidebar .logo { display: none; }
             .sidebar .nav-item {
-                flex: 0 0 auto; padding: 10px 16px;
+                flex: 1; padding: 8px 4px;
                 border-left: none; border-top: 3px solid transparent;
-                font-size: 11px; flex-direction: column; gap: 4px;
+                font-size: 10px; flex-direction: column; gap: 3px;
                 text-align: center; white-space: nowrap;
-                min-width: 70px;
             }
-            .sidebar .nav-item i { width: auto; font-size: 18px; margin: 0; }
+            .sidebar .nav-item i { width: auto; font-size: 20px; margin: 0; }
             .sidebar .nav-item.active {
                 border-left: none; border-top: 3px solid var(--primary);
-                background: linear-gradient(0deg, rgba(59, 130, 246, 0.1), transparent);
+                background: linear-gradient(0deg, rgba(59, 130, 246, 0.08), transparent);
             }
+            /* Hide these from bottom nav on mobile */
+            .sidebar .nav-hide-mobile { display: none; }
+            .nav-more-trigger {
+                display: flex; flex: 1; padding: 8px 4px;
+                flex-direction: column; gap: 3px; align-items: center;
+                font-size: 10px; color: var(--text-muted); cursor: pointer;
+                border-top: 3px solid transparent; transition: all 0.2s;
+            }
+            .nav-more-trigger i { font-size: 20px; }
+            .nav-more-trigger.active { color: var(--primary); border-top-color: var(--primary); }
             
             .mobile-header { display: flex; }
-            body { flex-direction: column; padding-top: 56px; padding-bottom: 70px; }
+            body { flex-direction: column; padding-top: 56px; padding-bottom: 66px; }
             .main-content { padding: 20px 16px; max-width: 100%; }
             .header { margin-bottom: 24px; }
             .header h2 { font-size: 22px; }
@@ -365,12 +403,22 @@ HTML_TEMPLATE = """
     <div class="sidebar">
         <div class="logo"><i class="fa-solid fa-layer-group"></i> ZDT Enterprise</div>
         <div class="nav-item active" onclick="switchTab('dashboard', this)"><i class="fa-solid fa-chart-pie"></i> Dashboard</div>
-        <div class="nav-item" onclick="switchTab('downloader', this)"><i class="fa-solid fa-cloud-arrow-down"></i> Downloader</div>
+        <div class="nav-item" onclick="switchTab('downloader', this)"><i class="fa-solid fa-cloud-arrow-down"></i> Download</div>
         <div class="nav-item" onclick="switchTab('spotify', this)"><i class="fa-brands fa-spotify"></i> Spotify</div>
-        <div class="nav-item" onclick="switchTab('metadata', this)"><i class="fa-solid fa-tags"></i> Metadata</div>
+        <div class="nav-item nav-hide-mobile" onclick="switchTab('metadata', this)"><i class="fa-solid fa-tags"></i> Metadata</div>
         <div class="nav-item" onclick="switchTab('servertools', this)"><i class="fa-solid fa-toolbox"></i> Tools</div>
-        <div class="nav-item" onclick="switchTab('system', this)"><i class="fa-solid fa-server"></i> Daemons</div>
-        <div class="nav-item" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i> Settings</div>
+        <div class="nav-item nav-hide-mobile" onclick="switchTab('system', this)"><i class="fa-solid fa-server"></i> Daemons</div>
+        <div class="nav-item nav-hide-mobile" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i> Settings</div>
+        <div class="nav-more-trigger" onclick="toggleMoreMenu()"><i class="fa-solid fa-ellipsis"></i> Lainnya</div>
+    </div>
+
+    <!-- Mobile More Sheet -->
+    <div class="more-overlay" id="moreOverlay" onclick="closeMoreMenu()"></div>
+    <div class="more-sheet" id="moreSheet">
+        <div class="more-sheet-handle"></div>
+        <div class="more-sheet-item" onclick="moreNav('metadata')"><i class="fa-solid fa-tags"></i> Metadata Editor</div>
+        <div class="more-sheet-item" onclick="moreNav('system')"><i class="fa-solid fa-server"></i> System Daemons</div>
+        <div class="more-sheet-item" onclick="moreNav('settings')"><i class="fa-solid fa-gear"></i> Pengaturan</div>
     </div>
 
     <div class="main-content">
@@ -779,6 +827,40 @@ HTML_TEMPLATE = """
             } catch(err) {
                 status.className = 'status-box error'; status.innerText = '❌ Connection Error!';
             }
+        }
+
+        // More menu functions
+        function toggleMoreMenu() {
+            document.getElementById('moreOverlay').classList.toggle('show');
+            document.getElementById('moreSheet').classList.toggle('show');
+            document.querySelector('.nav-more-trigger').classList.toggle('active');
+        }
+        function closeMoreMenu() {
+            document.getElementById('moreOverlay').classList.remove('show');
+            document.getElementById('moreSheet').classList.remove('show');
+            document.querySelector('.nav-more-trigger').classList.remove('active');
+        }
+        function moreNav(tabId) {
+            closeMoreMenu();
+            // Find the hidden nav-item for this tab and activate it
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            // Highlight the correct sidebar item
+            document.querySelectorAll('.nav-item').forEach(n => {
+                if(n.getAttribute('onclick') && n.getAttribute('onclick').includes(tabId)) n.classList.add('active');
+            });
+            document.querySelector('.nav-more-trigger').classList.add('active');
+            const titles = {
+                'metadata': ['Metadata Editor', 'Fix missing album art and ID3 tags'],
+                'system': ['System Daemons', 'Manage background automation services'],
+                'settings': ['Global Settings', 'Configure ZDT core behaviors']
+            };
+            if(titles[tabId]) {
+                document.getElementById('pageTitle').innerText = titles[tabId][0];
+                document.getElementById('pageSubtitle').innerText = titles[tabId][1];
+            }
+            if(tabId === 'metadata') loadFiles();
         }
 
         function closeLogs() {
