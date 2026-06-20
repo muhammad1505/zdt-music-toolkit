@@ -21,7 +21,7 @@ if os.path.exists("/tmp/zdt_web_task.log"):
         pass
 
 app = Flask(__name__)
-APP_VERSION = "4.1.5"
+APP_VERSION = "4.1.6"
 
 CONFIG_FILE = os.path.expanduser("~/.config/zdt/config.env")
 

@@ -101,9 +101,32 @@ start_web_dashboard() {
     local host="${WEB_BIND:-127.0.0.1}"
     local open_host="$host"
     [ "$open_host" = "0.0.0.0" ] && open_host="127.0.0.1"
+    local url="http://$open_host:$port"
     
-    # Auto-open browser
-    ( sleep 1.5; command -v xdg-open >/dev/null 2>&1 && xdg-open "http://$open_host:$port" >/dev/null 2>&1 || python3 -m webbrowser "http://$open_host:$port" >/dev/null 2>&1 ) &
+    # Auto-open browser (multi-platform)
+    ( sleep 1.5
+        if command -v termux-open-url >/dev/null 2>&1; then
+            # Native Termux
+            termux-open-url "$url" >/dev/null 2>&1
+        elif [ -x "/host-rootfs/data/data/com.termux/files/usr/bin/termux-open-url" ]; then
+            # Proot-distro → call host Termux
+            /host-rootfs/data/data/com.termux/files/usr/bin/termux-open-url "$url" >/dev/null 2>&1
+        elif command -v am >/dev/null 2>&1; then
+            # Android via am (Activity Manager)
+            am start -a android.intent.action.VIEW -d "$url" >/dev/null 2>&1
+        elif command -v xdg-open >/dev/null 2>&1; then
+            # Linux desktop
+            xdg-open "$url" >/dev/null 2>&1
+        elif command -v open >/dev/null 2>&1; then
+            # macOS
+            open "$url" >/dev/null 2>&1
+        else
+            python3 -m webbrowser "$url" >/dev/null 2>&1
+        fi
+    ) &
+    
+    echo -e "  ${GREEN}${ICO_OK} Dashboard: ${CYAN}${url}${RESET}"
+    echo ""
     
     "$ZDT_VENV_DIR/bin/python" "$web_script" --bind "$WEB_BIND" --port "$port"
 }
