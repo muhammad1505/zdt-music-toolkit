@@ -604,8 +604,7 @@ HTML_TEMPLATE = """
                     <p>Automatically cleans filenames and metadata whenever a new file is detected in the folder.</p>
                 </div>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn" style="width:auto; padding: 10px 15px;" onclick="toggleDaemon('watch', 'start')"><i class="fa-solid fa-play"></i> Start</button>
-                    <button class="btn btn-danger" style="width:auto; padding: 10px 15px;" onclick="toggleDaemon('watch', 'stop')"><i class="fa-solid fa-stop"></i> Stop</button>
+                    <button id="btnWatch" class="btn" style="width:auto; padding: 10px 15px;" onclick="toggleDaemon('watch', 'start')"><i class="fa-solid fa-play"></i> Start</button>
                 </div>
             </div>
 
@@ -615,8 +614,7 @@ HTML_TEMPLATE = """
                     <p>Control ZDT remotely via Telegram. Requires bot token to be configured.</p>
                 </div>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn" style="width:auto; padding: 10px 15px;" onclick="toggleDaemon('telegram', 'start')"><i class="fa-solid fa-play"></i> Start</button>
-                    <button class="btn btn-danger" style="width:auto; padding: 10px 15px;" onclick="toggleDaemon('telegram', 'stop')"><i class="fa-solid fa-stop"></i> Stop</button>
+                    <button id="btnTele" class="btn" style="width:auto; padding: 10px 15px;" onclick="toggleDaemon('telegram', 'start')"><i class="fa-solid fa-play"></i> Start</button>
                 </div>
             </div>
         </div>
@@ -704,12 +702,24 @@ HTML_TEMPLATE = """
                 const bWatcher = document.getElementById('badgeWatcher');
                 bWatcher.className = wStatus ? 'badge badge-active' : 'badge badge-inactive';
                 bWatcher.innerText = wStatus ? 'Running' : 'Offline';
+                const btnWatch = document.getElementById('btnWatch');
+                if (btnWatch) {
+                    btnWatch.className = wStatus ? 'btn btn-danger' : 'btn';
+                    btnWatch.innerHTML = wStatus ? '<i class="fa-solid fa-stop"></i> Stop' : '<i class="fa-solid fa-play"></i> Start';
+                    btnWatch.onclick = () => toggleDaemon('watch', wStatus ? 'stop' : 'start');
+                }
 
                 const tStatus = data.telegram;
                 document.getElementById('statTele').innerText = tStatus ? 'Active' : 'Offline';
                 const bTele = document.getElementById('badgeTele');
                 bTele.className = tStatus ? 'badge badge-active' : 'badge badge-inactive';
                 bTele.innerText = tStatus ? 'Active' : 'Offline';
+                const btnTele = document.getElementById('btnTele');
+                if (btnTele) {
+                    btnTele.className = tStatus ? 'btn btn-danger' : 'btn';
+                    btnTele.innerHTML = tStatus ? '<i class="fa-solid fa-stop"></i> Stop' : '<i class="fa-solid fa-play"></i> Start';
+                    btnTele.onclick = () => toggleDaemon('telegram', tStatus ? 'stop' : 'start');
+                }
 
                 if(document.getElementById('dashTargetDir').innerText === 'Loading...') {
                     document.getElementById('dashTargetDir').innerText = data.target_dir;
@@ -967,17 +977,24 @@ def manage_daemon():
     if action == 'start':
         if is_process_running(os.path.basename(script_path)):
             return jsonify({"success": True, "message": f"{service.capitalize()} is already running."})
-        subprocess.Popen([venv_python, script_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        # Use close_fds=True and stdin=DEVNULL to fully detach and prevent hanging the API request
+        subprocess.Popen([venv_python, script_path], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
         return jsonify({"success": True, "message": f"Started {service} daemon."})
         
     elif action == 'stop':
         try:
             output = subprocess.check_output(["ps", "aux"]).decode()
+            killed = False
             for line in output.split("\n"):
                 if os.path.basename(script_path) in line and "python" in line and not "grep" in line:
                     pid = int(line.split()[1])
-                    os.kill(pid, 9)
-            return jsonify({"success": True, "message": f"Stopped {service} daemon."})
+                    import signal
+                    os.kill(pid, signal.SIGTERM)
+                    killed = True
+            if killed:
+                return jsonify({"success": True, "message": f"Stopped {service} daemon."})
+            else:
+                return jsonify({"success": True, "message": f"{service.capitalize()} is not running."})
         except Exception as e:
             return jsonify({"success": False, "message": f"Failed to stop: {str(e)}"})
 
