@@ -254,6 +254,7 @@ ARGUMEN CLI:
   zdt --debug                 - Mode debug (error tracing)
   zdt --web                   - Jalankan Web Dashboard
   zdt --web-bind 0.0.0.0     - Web Dashboard untuk semua interface
+  zdt --telegram              - Jalankan Telegram Bot Daemon
   zdt --update                - Update ZDT via OTA
   zdt --download-audio <url>  - Download audio langsung
   zdt --download-video <url>  - Download video langsung
@@ -462,6 +463,13 @@ _parse_args() {
                 _setup_unicode
                 _init_logging
                 start_web_dashboard
+                exit 0
+                ;;
+            --telegram)
+                _setup_colors
+                _setup_unicode
+                _init_logging
+                start_telegram_bot
                 exit 0
                 ;;
             --web-bind)
