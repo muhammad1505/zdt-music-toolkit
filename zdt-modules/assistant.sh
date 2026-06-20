@@ -326,8 +326,19 @@ try:
     txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL)
     txt = re.sub(r"<reasoning>.*?</reasoning>", "", txt, flags=re.DOTALL)
     txt = re.sub(r"\*\*(?:Thinking|Reasoning|Analysis|Internal|Step)[:\*].*?(?=\n[A-Z]|\n\n|$)", "", txt, flags=re.DOTALL|re.IGNORECASE)
-    txt = re.sub(r"^(?:Let me|I need to|The user|User wants).*?\n", "", txt, flags=re.MULTILINE|re.IGNORECASE)
-    txt = txt.strip()
+    txt = re.sub(r"^(?:Let me|I need to|I will|I should|The user|User wants|User is|Okay,? the user|Looking at|Wait,|So,? the|First,? I|Now,? I|Alright|Here,? the).*?\n", "", txt, flags=re.MULTILINE|re.IGNORECASE)
+    # Strip any remaining full-English sentences (no Indonesian chars)
+    lines = txt.strip().split("\n")
+    clean = []
+    for line in lines:
+        l = line.strip()
+        if not l:
+            continue
+        # Skip lines that look like internal reasoning
+        if re.match(r"^(Okay|Wait|Hmm|So|Now|Let|Looking|The user|I need|I will|I should|First|Alright|Here)", l, re.IGNORECASE):
+            continue
+        clean.append(line)
+    txt = "\n".join(clean).strip()
     if txt:
         print(txt)
 except:
@@ -598,7 +609,7 @@ except:
             fi
         else
             # Tampilkan reply AI
-            local clean_reply=$(echo "$reply_text" | sed 's/\[AUTO_ACTION:[^\]]*\]//g' | xargs)
+            local clean_reply=$(echo "$reply_text" | sed 's/\[AUTO_ACTION:[^\]]*\]//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
             if [ -n "$clean_reply" ]; then
                 echo ""
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}$clean_reply${RESET}"

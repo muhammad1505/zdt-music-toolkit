@@ -106,14 +106,28 @@ import re, sys, os
 base = sys.argv[1]
 name, ext = os.path.splitext(base)
 
-name = re.sub(r'\s*[\(\[\s]*(?:Official|Live|Music|Video|Lyric|Audio|Performance|Acoustic|Cover|Lirik)[^\)\]]*[\)\]]?', '', name, flags=re.IGNORECASE)
-name = re.sub(r'\s*[\(\[\s]*(?:4K|8K|HD|HQ|1080p|720p)[^\)\]]*[\)\]]?', '', name, flags=re.IGNORECASE)
+# Only strip tags that are INSIDE parentheses () or brackets []
+name = re.sub(r'\s*\([^)]*(?:Official|Music Video|Video Klip|Video Clip|Lyric Video|Audio Only|Live Performance|MV|Cover|Acoustic|Lirik)[^)]*\)', '', name, flags=re.IGNORECASE)
+name = re.sub(r'\s*\[[^\]]*(?:Official|Music Video|Video Klip|Video Clip|Lyric Video|Audio Only|Live Performance|MV|Cover|Acoustic|Lirik)[^\]]*\]', '', name, flags=re.IGNORECASE)
+name = re.sub(r'\s*[\(\[][^\)\]]*(4K|8K|HD|HQ|1080p|720p)[^\)\]]*[\)\]]', '', name, flags=re.IGNORECASE)
 
+# Cleanup whitespace
 name = re.sub(r'  +', ' ', name).strip()
 name = re.sub(r' \.', '.', name)
+name = re.sub(r'\s*-\s*$', '', name).strip()
+
+# SAFETY: never produce empty name
+if not name:
+    name = os.path.splitext(base)[0]
 
 print(name + ext)
 " "$base" 2>/dev/null || echo "$base")
+
+    # Safety: skip if result is empty or just extension
+    local newname_only="${newbase%.*}"
+    if [ -z "$newname_only" ] || [ "$newbase" = "$base" ]; then
+        return 0
+    fi
 
     if [ "$base" != "$newbase" ] && [ -n "$newbase" ]; then
         if [ -e "$dir/$newbase" ]; then
