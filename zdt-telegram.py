@@ -181,7 +181,7 @@ def auto_download_audio(message):
                     except Exception:
                         dir_contents = "Gagal membaca direktori."
 
-                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Jawab santai max 3 kalimat. Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}. ATURAN SUPER PENTING: JIKA DAN HANYA JIKA user SECARA EKSPLISIT menyuruh mengeksekusi suatu aksi, WAJIB sertakan tag berikut di jawabanmu:\n1) Perintah DOWNLOAD/UNDUH AUDIO/LAGU (Jika user hanya minta "cari" atau "minta list", JANGAN gunakan tag ini!): [AUTO_ACTION: gas download audio ytsearch1:judul_lagu_yang_dicari]\n2) Perintah DOWNLOAD/UNDUH VIDEO: [AUTO_ACTION: gas download video ytsearch1:judul_video_yang_dicari]\n3) Perintah pisah vokal: [AUTO_ACTION: hapus vokal]\n4) Perintah kompres media: [AUTO_ACTION: kompres media]\n5) Perintah cari lirik: [AUTO_ACTION: sync lirik]\n6) Perintah rapikan nama file: [AUTO_ACTION: bersih nama]\n7) Perintah buat playlist: [AUTO_ACTION: bikin playlist]\n8) Perintah hapus semua file: [AUTO_ACTION: hapus semua]\n\nJIKA user hanya tanya-tanya, curhat, minta rekomendasi/list lagu, minta penjelasan, atau minta tolong tanpa instruksi download/eksekusi yang eksplisit, JANGAN GUNAKAN TAG AUTO_ACTION SAMA SEKALI! Jawab saja seperti biasa.'
+                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}. ATURAN SUPER PENTING: JIKA DAN HANYA JIKA user SECARA EKSPLISIT menyuruh mengeksekusi suatu aksi, WAJIB sertakan tag berikut di jawabanmu:\n1) Perintah DOWNLOAD/UNDUH AUDIO/LAGU: [AUTO_ACTION: gas download audio ytsearch1:judul_lagu_yang_dicari]\n2) Perintah DOWNLOAD/UNDUH VIDEO: [AUTO_ACTION: gas download video ytsearch1:judul_video_yang_dicari]\n3) Perintah CARI/SEARCH lagu/video di YouTube (JIKA user minta rekomendasi/dicarikan list/link): [AUTO_ACTION: cari youtube judul_yang_dicari]\n4) Perintah pisah vokal: [AUTO_ACTION: hapus vokal]\n5) Perintah kompres media: [AUTO_ACTION: kompres media]\n6) Perintah cari lirik: [AUTO_ACTION: sync lirik]\n7) Perintah rapikan nama file: [AUTO_ACTION: bersih nama]\n8) Perintah buat playlist: [AUTO_ACTION: bikin playlist]\n9) Perintah hapus semua file: [AUTO_ACTION: hapus semua]\n\nJIKA user hanya tanya-tanya, curhat, minta penjelasan, atau minta tolong tanpa instruksi aksi/pencarian yang jelas, JANGAN GUNAKAN TAG AUTO_ACTION SAMA SEKALI! Jawab saja seperti biasa.'
 
                     def process_reply(reply_text):
                         if "[AUTO_ACTION:" in reply_text:
@@ -215,6 +215,20 @@ def auto_download_audio(message):
                                     url = action.replace("gas download video", "").strip()
                                     bot.reply_to(message, f"⏳ *Sedang Mendownload Video...*\n📍 `Server` memproses link.", parse_mode="Markdown")
                                     run_bg_task(["--download-video", url], "Video berhasil di-download!")
+                                elif action.startswith("cari youtube"):
+                                    query = action.replace("cari youtube", "").strip()
+                                    bot.reply_to(message, f"🔍 *Mencari di YouTube...*\nKata kunci: `{query}`", parse_mode="Markdown")
+                                    
+                                    def _search_task():
+                                        try:
+                                            res = subprocess.run(["yt-dlp", f"ytsearch5:{query}", "--print", "%(title)s\n%(webpage_url)s\n"], capture_output=True, text=True)
+                                            if res.returncode == 0 and res.stdout.strip():
+                                                bot.reply_to(message, f"🎯 *Hasil Pencarian:*\n\n{res.stdout.strip()}\n\n_Balas dengan link atau suruh saya download salah satunya!_", parse_mode="Markdown", disable_web_page_preview=True)
+                                            else:
+                                                bot.reply_to(message, "❌ Pencarian tidak menemukan hasil.")
+                                        except Exception as e:
+                                            bot.reply_to(message, f"❌ Error pencarian: {e}")
+                                    threading.Thread(target=_search_task).start()
                                 elif action == "hapus vokal":
                                     bot.reply_to(message, "⏳ Memisahkan vokal di background...")
                                     run_bg_task(["--extract-vocal-all"], "Vokal berhasil dipisah!")
@@ -261,7 +275,7 @@ def auto_download_audio(message):
                         reply_text = ""
                         import urllib.error
                         for models in fallback_arrays:
-                            payload = {"models": models, "messages": messages, "max_tokens": 100}
+                            payload = {"models": models, "messages": messages, "max_tokens": 400}
                             data = json.dumps(payload).encode("utf-8")
                             req = urllib.request.Request(url, data=data, headers=headers)
                             try:
@@ -285,7 +299,7 @@ def auto_download_audio(message):
                     else:
                         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
                         headers = {"Content-Type": "application/json"}
-                        payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 100}}
+                        payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 400}}
                         data = json.dumps(payload).encode("utf-8")
                         req = urllib.request.Request(url, data=data, headers=headers)
                         with urllib.request.urlopen(req, timeout=20) as response:
