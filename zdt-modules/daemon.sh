@@ -17,6 +17,13 @@ start_watch_daemon() {
         if [ -f "$dir/zdt-watch.py" ]; then watch_script="$dir/zdt-watch.py"; break; fi
     done
 
+    if pgrep -f "zdt-watch.py" > /dev/null; then
+        echo -e "  ${RED}${ICO_FAIL} Watcher Daemon sudah berjalan di background!${RESET}"
+        echo -e "  ${YELLOW}${ICO_ARROW} Matikan dulu via Web UI (Menu Daemons) atau jalankan:${RESET}"
+        echo -e "  ${BOLD}  pkill -f zdt-watch.py${RESET}"
+        return 1
+    fi
+
     if [ -z "$watch_script" ]; then
         echo -e "  ${RED}${ICO_FAIL} Script zdt-watch.py tidak ditemukan!${RESET}"
         return 1
@@ -40,6 +47,13 @@ start_telegram_bot() {
     for dir in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
         if [ -f "$dir/zdt-telegram.py" ]; then tele_script="$dir/zdt-telegram.py"; break; fi
     done
+
+    if pgrep -f "zdt-telegram.py" > /dev/null; then
+        echo -e "  ${RED}${ICO_FAIL} Telegram Bot sudah berjalan di background!${RESET}"
+        echo -e "  ${YELLOW}${ICO_ARROW} Matikan dulu via Web UI (Menu Daemons) atau jalankan:${RESET}"
+        echo -e "  ${BOLD}  pkill -f zdt-telegram.py${RESET}"
+        return 1
+    fi
 
     if [ -z "$tele_script" ]; then
         echo -e "  ${RED}${ICO_FAIL} Script zdt-telegram.py tidak ditemukan!${RESET}"
