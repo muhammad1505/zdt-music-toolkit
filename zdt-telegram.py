@@ -229,14 +229,17 @@ def auto_download_audio(message):
                                     run_bg_task(["--download-video", url], "Video berhasil di-download!")
                                 elif action.startswith("cari youtube"):
                                     query = action.replace("cari youtube", "").strip()
-                                    bot.reply_to(message, f"🔍 *Mencari di YouTube...*\nKata kunci: `{query}`", parse_mode="Markdown")
+                                    import html
+                                    bot.reply_to(message, f"🔍 <b>Mencari di YouTube...</b>\nKata kunci: <code>{html.escape(query)}</code>", parse_mode="HTML")
                                     
                                     def _search_task():
                                         try:
                                             res = subprocess.run(["yt-dlp", f"ytsearch5:{query}", "--print", "%(title)s\n%(webpage_url)s\n"], capture_output=True, text=True)
                                             if res.returncode == 0 and res.stdout.strip():
                                                 import telebot
-                                                bot.reply_to(message, f"🎯 *Hasil Pencarian:*\n\n{res.stdout.strip()}\n\n_Balas dengan link atau suruh saya download salah satunya!_", parse_mode="Markdown", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
+                                                import html
+                                                safe_text = html.escape(res.stdout.strip())
+                                                bot.reply_to(message, f"🎯 <b>Hasil Pencarian:</b>\n\n{safe_text}\n\n<i>Balas dengan link atau suruh saya download salah satunya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
                                             else:
                                                 bot.reply_to(message, "❌ Pencarian tidak menemukan hasil.")
                                         except Exception as e:
@@ -245,7 +248,8 @@ def auto_download_audio(message):
                                 elif action.startswith("cari playlist"):
                                     query = action.replace("cari playlist", "").strip()
                                     import urllib.parse
-                                    bot.reply_to(message, f"🔍 *Mencari Playlist di YouTube...*\nKata kunci: `{query}`", parse_mode="Markdown")
+                                    import html
+                                    bot.reply_to(message, f"🔍 <b>Mencari Playlist di YouTube...</b>\nKata kunci: <code>{html.escape(query)}</code>", parse_mode="HTML")
                                     
                                     def _search_playlist_task():
                                         try:
@@ -254,7 +258,9 @@ def auto_download_audio(message):
                                             res = subprocess.run(["yt-dlp", search_url, "--flat-playlist", "--print", "%(title)s\n%(webpage_url)s\n", "--playlist-end", "5"], capture_output=True, text=True)
                                             if res.returncode == 0 and res.stdout.strip():
                                                 import telebot
-                                                bot.reply_to(message, f"🎯 *Hasil Pencarian Playlist:*\n\n{res.stdout.strip()}\n\n_Balas dengan link playlistnya untuk mendownload semua lagu di dalamnya!_", parse_mode="Markdown", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
+                                                import html
+                                                safe_text = html.escape(res.stdout.strip())
+                                                bot.reply_to(message, f"🎯 <b>Hasil Pencarian Playlist:</b>\n\n{safe_text}\n\n<i>Balas dengan link playlistnya untuk mendownload semua lagu di dalamnya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
                                             else:
                                                 bot.reply_to(message, "❌ Pencarian playlist tidak menemukan hasil.")
                                         except Exception as e:
