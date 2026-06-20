@@ -274,40 +274,101 @@ HTML_TEMPLATE = """
         .badge-active { background: rgba(16, 185, 129, 0.15); color: var(--accent); }
         .badge-inactive { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
 
-        @media (max-width: 900px) {
-            body { flex-direction: column; }
-            .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border-light); padding: 20px; flex-direction: row; overflow-x: auto; white-space: nowrap; }
-            .logo { display: none; }
-            .nav-item { padding: 10px 20px; border-left: none; border-bottom: 3px solid transparent; }
-            .nav-item.active { border-left: none; border-bottom: 3px solid var(--primary); background: transparent; }
-            .main-content { padding: 20px; }
-            .stats-grid { grid-template-columns: 1fr; }
-            .tools-grid { grid-template-columns: 1fr; }
-            .switch-wrapper { flex-direction: column; gap: 15px; }
+        /* ===== MOBILE BOTTOM NAV ===== */
+        .mobile-header {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+            background: var(--bg-surface); backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-light);
+            padding: 12px 20px; align-items: center; justify-content: space-between;
         }
-        @media (max-width: 600px) {
-            body { flex-direction: column; }
-            .sidebar { width: 100%; overflow-x: auto; padding: 10px 0; border-right: none; border-bottom: 1px solid var(--border-light); }
-            .sidebar .logo { padding: 5px 15px; font-size: 16px; margin-bottom: 5px; }
-            .sidebar .nav-item { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
-            .sidebar .nav-item i { margin-right: 4px; }
-            .main-content { padding: 15px; min-height: auto; }
+        .mobile-header .logo { margin: 0; font-size: 20px; padding: 0; }
+        .mobile-header .hamburger {
+            background: none; border: none; color: var(--text-main);
+            font-size: 22px; cursor: pointer; padding: 8px;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+                width: 100%; height: auto; border-right: none;
+                border-top: 1px solid var(--border-light);
+                padding: 0; flex-direction: row;
+                overflow-x: auto; overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .sidebar::-webkit-scrollbar { display: none; }
+            .sidebar .logo { display: none; }
+            .sidebar .nav-item {
+                flex: 0 0 auto; padding: 10px 16px;
+                border-left: none; border-top: 3px solid transparent;
+                font-size: 11px; flex-direction: column; gap: 4px;
+                text-align: center; white-space: nowrap;
+                min-width: 70px;
+            }
+            .sidebar .nav-item i { width: auto; font-size: 18px; margin: 0; }
+            .sidebar .nav-item.active {
+                border-left: none; border-top: 3px solid var(--primary);
+                background: linear-gradient(0deg, rgba(59, 130, 246, 0.1), transparent);
+            }
+            
+            .mobile-header { display: flex; }
+            body { flex-direction: column; padding-top: 56px; padding-bottom: 70px; }
+            .main-content { padding: 20px 16px; max-width: 100%; }
+            .header { margin-bottom: 24px; }
+            .header h2 { font-size: 22px; }
+            .header p { font-size: 13px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+            .stat-card { padding: 16px; gap: 12px; }
+            .stat-icon { width: 40px; height: 40px; font-size: 16px; }
+            .stat-info h3 { font-size: 18px; }
+            .stat-info h4 { font-size: 11px; }
+            .panel { padding: 20px; margin-bottom: 20px; border-radius: 12px; }
+            .panel h3 { font-size: 17px; margin-bottom: 18px; }
+            .tools-grid { grid-template-columns: 1fr; gap: 14px; }
+            .tool-card { padding: 18px; }
+            .switch-wrapper { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .switch-wrapper > div:last-child { width: 100%; display: flex; gap: 10px; }
+            .switch-wrapper > div:last-child .btn { flex: 1; }
+            .form-group { margin-bottom: 18px; }
+            input[type="text"], select { padding: 12px 14px; font-size: 16px; }
+            .btn { padding: 14px 20px; font-size: 15px; }
+            .log-container { height: 200px; font-size: 11px; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .stat-card { padding: 12px 14px; }
+            .stat-icon { width: 36px; height: 36px; font-size: 14px; border-radius: 8px; }
+            .stat-info h3 { font-size: 15px; }
+            .stat-info h4 { font-size: 10px; }
+            .main-content { padding: 16px 12px; }
+            .panel { padding: 16px; }
+            .panel h3 { font-size: 16px; gap: 8px; }
             .header h2 { font-size: 20px; }
-            .header p { font-size: 12px; }
-            .stat-card { padding: 15px; }
-            .panel { padding: 20px; }
-            .tool-card { padding: 20px; }
+            .tool-card { padding: 16px; }
+            .tool-title { font-size: 14px; }
+            .tool-desc { font-size: 12px; margin-bottom: 14px; }
+            .btn { padding: 12px 16px; font-size: 14px; }
+            .log-container { height: 160px; font-size: 10px; }
+            .badge { font-size: 10px; padding: 3px 8px; }
         }
     </style>
 </head>
 <body>
+    <div class="mobile-header">
+        <div class="logo"><i class="fa-solid fa-layer-group"></i> ZDT</div>
+        <span id="mobileVersion" style="font-size:12px; color:var(--primary);"></span>
+    </div>
+
     <div class="sidebar">
         <div class="logo"><i class="fa-solid fa-layer-group"></i> ZDT Enterprise</div>
         <div class="nav-item active" onclick="switchTab('dashboard', this)"><i class="fa-solid fa-chart-pie"></i> Dashboard</div>
         <div class="nav-item" onclick="switchTab('downloader', this)"><i class="fa-solid fa-cloud-arrow-down"></i> Downloader</div>
-        <div class="nav-item" onclick="switchTab('spotify', this)"><i class="fa-brands fa-spotify"></i> Spotify Sync</div>
+        <div class="nav-item" onclick="switchTab('spotify', this)"><i class="fa-brands fa-spotify"></i> Spotify</div>
         <div class="nav-item" onclick="switchTab('metadata', this)"><i class="fa-solid fa-tags"></i> Metadata</div>
-        <div class="nav-item" onclick="switchTab('servertools', this)"><i class="fa-solid fa-toolbox"></i> Server Tools</div>
+        <div class="nav-item" onclick="switchTab('servertools', this)"><i class="fa-solid fa-toolbox"></i> Tools</div>
         <div class="nav-item" onclick="switchTab('system', this)"><i class="fa-solid fa-server"></i> Daemons</div>
         <div class="nav-item" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i> Settings</div>
     </div>
@@ -372,8 +433,8 @@ HTML_TEMPLATE = """
                     <label>Media URL (YouTube / SoundCloud / TikTok)</label>
                     <input type="text" id="dlUrl" placeholder="https://..." required>
                 </div>
-                <div style="display:flex; gap:15px;">
-                    <div class="form-group" style="flex:1;">
+                <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                    <div class="form-group" style="flex:1; min-width:140px;">
                         <label>Format</label>
                         <select id="dlFormat" onchange="updateFormatOptions()">
                             <option value="audio">🎵 Audio Only</option>
@@ -412,8 +473,8 @@ HTML_TEMPLATE = """
                     <label>Select Audio File</label>
                     <select id="metaFile" required><option value="">Loading files...</option></select>
                 </div>
-                <div style="display:flex; gap:15px;">
-                    <div class="form-group" style="flex:1;">
+                <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                    <div class="form-group" style="flex:1; min-width:140px;">
                         <label>New Title</label>
                         <input type="text" id="metaTitle" placeholder="Leave empty to keep current">
                     </div>
@@ -607,7 +668,10 @@ HTML_TEMPLATE = """
                     document.getElementById('setTargetDir').value = data.target_dir;
                 }
                 document.getElementById('statFiles').innerText = (data.file_count || 0) + ' files';
-                if(data.version) document.getElementById('dashVersion').innerText = 'v' + data.version;
+                if(data.version) {
+                    document.getElementById('dashVersion').innerText = 'v' + data.version;
+                    document.getElementById('mobileVersion').innerText = 'v' + data.version;
+                }
             } catch(e) {}
         }
         setInterval(loadStatus, 3000);
