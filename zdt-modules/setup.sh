@@ -487,6 +487,14 @@ _parse_args() {
                 shift 2
                 MAIN_MODE="spotify_sync"
                 ;;
+            --format-spec)
+                AUTO_FORMAT_SPEC="$2"
+                shift 2
+                ;;
+            --bitrate)
+                AUTO_BITRATE="$2"
+                shift 2
+                ;;
             --clean-file)
                 CLEAN_FILE="$2"
                 _setup_colors

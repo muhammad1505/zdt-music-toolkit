@@ -493,6 +493,15 @@ HTML_TEMPLATE = """
                         <label>Quality</label>
                         <select id="dlFormatSpec"></select>
                     </div>
+                    <div class="form-group" style="flex:1; min-width:140px;" id="divBitrate" style="display:none;">
+                        <label>Bitrate</label>
+                        <select id="dlBitrate">
+                            <option value="320">320 kbps (HQ)</option>
+                            <option value="256">256 kbps</option>
+                            <option value="192">192 kbps (Med)</option>
+                            <option value="128">128 kbps (Low)</option>
+                        </select>
+                    </div>
                 </div>
                 <button type="submit" id="btnDl" class="btn"><i class="fa-solid fa-download"></i> Execute Download</button>
             </form>
@@ -649,6 +658,7 @@ HTML_TEMPLATE = """
             const spec = document.getElementById("dlFormatSpec");
             spec.innerHTML = "";
             if (type === "audio") {
+                document.getElementById('divBitrate').style.display = 'block';
                 spec.innerHTML = `
                     <option value="1">M4A (Default, Broad Compatibility)</option>
                     <option value="2">MP3 (Universal)</option>
@@ -658,6 +668,7 @@ HTML_TEMPLATE = """
                     <option value="6">OGG (Open Source)</option>
                 `;
             } else {
+                document.getElementById('divBitrate').style.display = 'none';
                 spec.innerHTML = `
                     <option value="1">MP4 (1080p / Max Res)</option>
                     <option value="2">MKV (1080p / Max Res)</option>
@@ -775,7 +786,8 @@ HTML_TEMPLATE = """
         handleFormSubmit('formDownloader', 'btnDl', 'dlStatus', '/api/download', () => ({
             url: document.getElementById('dlUrl').value,
             format: document.getElementById('dlFormat').value,
-            spec: document.getElementById('dlFormatSpec').value
+            spec: document.getElementById('dlFormatSpec').value,
+            bitrate: document.getElementById('dlBitrate').value
         }), 'EXECUTING...');
 
         handleFormSubmit('formSpotify', 'btnSp', 'spStatus', '/api/spotify-sync', () => ({
@@ -1044,6 +1056,7 @@ def trigger_download():
     url = data.get('url')
     fmt = data.get('format')
     spec = data.get('spec')
+    bitrate = data.get('bitrate')
     if not url: return jsonify({"success": False, "message": "URL tidak boleh kosong!"})
     
     zdt_bin = shutil.which("zdt")
@@ -1056,9 +1069,12 @@ def trigger_download():
     if "spotify.com" in url:
         cmd = [zdt_bin, "--download-audio", url]
     elif fmt == "audio":
-        cmd = [zdt_bin, "--download-audio", url, "--format-spec", str(spec)] if spec else [zdt_bin, "--download-audio", url]
+        cmd = [zdt_bin, "--download-audio", url]
+        if spec: cmd.extend(["--format-spec", str(spec)])
+        if bitrate: cmd.extend(["--bitrate", str(bitrate)])
     else:
-        cmd = [zdt_bin, "--download-video", url, "--format-spec", str(spec)] if spec else [zdt_bin, "--download-video", url]
+        cmd = [zdt_bin, "--download-video", url]
+        if spec: cmd.extend(["--format-spec", str(spec)])
         
     with open("/tmp/zdt_web_task.log", "w") as log_file:
         subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True)

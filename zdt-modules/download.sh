@@ -250,7 +250,7 @@ download_ytdlp() {
         links=("$AUTO_DOWNLOAD_URL")
         AUTO_DOWNLOAD_URL=""
         folder_mode="3"
-        format_pilih="${CONF_AUDIO_CODEC:-1}"
+        format_pilih="${AUTO_FORMAT_SPEC:-${CONF_AUDIO_CODEC:-1}}"
         case "$format_pilih" in
             1) yt_ext="m4a" ;;
             2) yt_ext="mp3" ;;
@@ -447,13 +447,24 @@ download_ytdlp() {
             playlist_arg=("--no-playlist")
         fi
 
+        local bitrate_arg=()
+        if [ -n "${AUTO_BITRATE:-}" ]; then
+            bitrate_arg=("--audio-quality" "${AUTO_BITRATE}K")
+        fi
+
         case "$format_pilih" in
-            1) yt-dlp --no-warnings --no-mtime -f "ba[ext=m4a]/ba" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-            2) yt-dlp --no-warnings --no-mtime -x --audio-format mp3 --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-            3) yt-dlp --no-warnings --no-mtime -x --audio-format flac --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-            4) yt-dlp --no-warnings --no-mtime -x --audio-format wav -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-            5) yt-dlp --no-warnings --no-mtime -x --audio-format opus --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-            6) yt-dlp --no-warnings --no-mtime -x --audio-format ogg --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            1) 
+                if [ -n "${AUTO_BITRATE:-}" ]; then
+                    yt-dlp --no-warnings --no-mtime -x --audio-format m4a "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$?
+                else
+                    yt-dlp --no-warnings --no-mtime -f "ba[ext=m4a]/ba" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$?
+                fi
+                ;;
+            2) yt-dlp --no-warnings --no-mtime -x --audio-format mp3 "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            3) yt-dlp --no-warnings --no-mtime -x --audio-format flac "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            4) yt-dlp --no-warnings --no-mtime -x --audio-format wav "${bitrate_arg[@]}" -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            5) yt-dlp --no-warnings --no-mtime -x --audio-format opus "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            6) yt-dlp --no-warnings --no-mtime -x --audio-format ogg "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
         esac
 
         if [ "$dl_status" -ne 0 ]; then
