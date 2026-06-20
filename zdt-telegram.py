@@ -208,31 +208,76 @@ def auto_download_audio(message):
                             if match:
                                 action = match.group(1).strip()
                                 
-                                def run_bg_task(cmd_args, success_msg):
+                                def run_bg_task(cmd_args, success_msg, progress_msg=None):
                                     import threading
                                     import subprocess
+                                    import time
+                                    import re
                                     def _task():
                                         try:
-                                            res = subprocess.run([zdt_bin] + cmd_args, capture_output=True, text=True)
-                                            # get last 5 lines for context
-                                            log_context = "\n".join([line for line in res.stdout.split("\n") if line.strip()][-5:])
-                                            if res.returncode == 0:
-                                                bot.reply_to(message, f"✅ {success_msg}\n\n📄 Log:\n`{log_context}`", parse_mode="Markdown")
+                                            # Using unbuffered output trick via stdbuf or directly reading
+                                            process = subprocess.Popen([zdt_bin] + cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+                                            
+                                            last_update = time.time()
+                                            log_buffer = []
+                                            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+                                            
+                                            for line in iter(process.stdout.readline, ''):
+                                                if not line:
+                                                    break
+                                                clean_line = ansi_escape.sub('', line).strip()
+                                                
+                                                if clean_line:
+                                                    # yt-dlp outputs progress on lines starting with [download], update it without creating new array items if it's progress
+                                                    if log_buffer and clean_line.startswith("[download]") and log_buffer[-1].startswith("[download]"):
+                                                        log_buffer[-1] = clean_line
+                                                    else:
+                                                        log_buffer.append(clean_line)
+                                                    
+                                                    log_buffer = log_buffer[-6:] # keep last 6 lines
+                                                
+                                                # Update telegram message every 3 seconds
+                                                if progress_msg and time.time() - last_update > 3.0:
+                                                    context = "\n".join(log_buffer)
+                                                    import html
+                                                    try:
+                                                        bot.edit_message_text(f"⏳ <b>Proses Berjalan...</b>\n<pre>{html.escape(context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
+                                                    except Exception:
+                                                        pass # ignore rate limits or unchanged errors
+                                                    last_update = time.time()
+                                            
+                                            process.wait()
+                                            final_context = "\n".join(log_buffer)
+                                            import html
+                                            
+                                            if process.returncode == 0:
+                                                if progress_msg:
+                                                    try:
+                                                        bot.edit_message_text(f"✅ <b>{success_msg}</b>\n\n📄 <b>Log Terakhir:</b>\n<pre>{html.escape(final_context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
+                                                    except:
+                                                        bot.reply_to(message, f"✅ <b>{success_msg}</b>\n\n📄 <b>Log Terakhir:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
+                                                else:
+                                                    bot.reply_to(message, f"✅ <b>{success_msg}</b>\n\n📄 <b>Log Terakhir:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
                                             else:
-                                                err_log = "\n".join([line for line in res.stderr.split("\n") if line.strip()][-5:])
-                                                bot.reply_to(message, f"❌ Terjadi kesalahan.\n\n📄 Error:\n`{err_log}`", parse_mode="Markdown")
+                                                if progress_msg:
+                                                    try:
+                                                        bot.edit_message_text(f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
+                                                    except:
+                                                        bot.reply_to(message, f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
+                                                else:
+                                                    bot.reply_to(message, f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
                                         except Exception as e:
                                             bot.reply_to(message, f"❌ System Error: {e}")
                                     threading.Thread(target=_task).start()
 
                                 if action.startswith("gas download audio"):
                                     url = action.replace("gas download audio", "").strip()
-                                    bot.reply_to(message, f"⏳ *Sedang Mendownload Audio...*\n📍 `Server` memproses link.", parse_mode="Markdown")
-                                    run_bg_task(["--download-audio", url], "Audio berhasil di-download!")
+                                    sent_msg = bot.reply_to(message, f"⏳ <b>Sedang Mendownload Audio...</b>\n📍 <code>Server</code> memproses link.", parse_mode="HTML")
+                                    run_bg_task(["--download-audio", url], "Audio berhasil di-download!", sent_msg)
                                 elif action.startswith("gas download video"):
                                     url = action.replace("gas download video", "").strip()
-                                    bot.reply_to(message, f"⏳ *Sedang Mendownload Video...*\n📍 `Server` memproses link.", parse_mode="Markdown")
-                                    run_bg_task(["--download-video", url], "Video berhasil di-download!")
+                                    sent_msg = bot.reply_to(message, f"⏳ <b>Sedang Mendownload Video...</b>\n📍 <code>Server</code> memproses link.", parse_mode="HTML")
+                                    run_bg_task(["--download-video", url], "Video berhasil di-download!", sent_msg)
                                 elif action.startswith("cari youtube"):
                                     query = action.replace("cari youtube", "").strip()
                                     import html
@@ -306,20 +351,20 @@ def auto_download_audio(message):
                                             bot.reply_to(message, f"❌ Error pencarian playlist: {e}")
                                     threading.Thread(target=_search_playlist_task).start()
                                 elif action == "hapus vokal":
-                                    bot.reply_to(message, "⏳ Memisahkan vokal di background...")
-                                    run_bg_task(["--extract-vocal-all"], "Vokal berhasil dipisah!")
+                                    sent_msg = bot.reply_to(message, "⏳ <b>Memisahkan vokal di background...</b>", parse_mode="HTML")
+                                    run_bg_task(["--extract-vocal-all"], "Vokal berhasil dipisah!", sent_msg)
                                 elif action == "kompres media":
-                                    bot.reply_to(message, "⏳ Mengkompres media di background...")
-                                    run_bg_task(["--kompres-media-all"], "Media berhasil dikompres!")
+                                    sent_msg = bot.reply_to(message, "⏳ <b>Mengompres media di background...</b>", parse_mode="HTML")
+                                    run_bg_task(["--compress-all"], "Media berhasil dikompresi!", sent_msg)
                                 elif action == "sync lirik":
-                                    bot.reply_to(message, "⏳ Menyinkronkan lirik di background...")
-                                    run_bg_task(["--sync-lirik-all"], "Lirik berhasil disinkronisasi!")
+                                    sent_msg = bot.reply_to(message, "⏳ <b>Menyelaraskan lirik di background...</b>", parse_mode="HTML")
+                                    run_bg_task(["--sync-lyrics-all"], "Lirik berhasil di-sync!", sent_msg)
                                 elif action == "bersih nama":
-                                    bot.reply_to(message, "⏳ Merapikan nama file di background...")
-                                    run_bg_task(["--bersih-nama-all"], "Nama file berhasil dirapikan!")
+                                    sent_msg = bot.reply_to(message, "⏳ <b>Membersihkan nama file di background...</b>", parse_mode="HTML")
+                                    run_bg_task(["--clean-names"], "Nama file berhasil dirapikan!", sent_msg)
                                 elif action == "bikin playlist":
-                                    bot.reply_to(message, "⏳ Membuat playlist di background...")
-                                    run_bg_task(["--bikin-playlist-all"], "Playlist berhasil dibuat!")
+                                    sent_msg = bot.reply_to(message, "⏳ <b>Membuat playlist di background...</b>", parse_mode="HTML")
+                                    run_bg_task(["--create-playlist"], "Playlist M3U8 berhasil dibuat!", sent_msg)
                                 elif action == "hapus semua":
                                     # Konfirmasi keamanan sebelum hapus
                                     markup = InlineKeyboardMarkup()
