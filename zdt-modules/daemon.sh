@@ -117,7 +117,11 @@ update_zdt_script() {
     echo -e "  ${CYAN}${ICO_ARROW} Mendownload versi terbaru dari GitHub...${RESET}"
     
     local tmp_file="/tmp/zdt_update_$$.sh"
-    if curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt.sh?v=$(date +%s)" -o "$tmp_file"; then
+    # Get latest commit SHA to bypass GitHub CDN cache
+    local latest_sha
+    latest_sha=$(curl -sL "https://api.github.com/repos/muhammad1505/zdt-music-toolkit/commits/main" 2>/dev/null | grep -oP '"sha":\s*"\K[^"]+' | head -1)
+    local dl_ref="${latest_sha:-main}"
+    if curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/${dl_ref}/zdt.sh" -o "$tmp_file"; then
         if [ -s "$tmp_file" ] && grep -qE "APP_VERSION|Version :" "$tmp_file"; then
             local new_version
             # Try APP_VERSION="x.y.z" first (monolithic), else fallback to comment # Version : x.y.z (modular)
@@ -147,8 +151,16 @@ update_zdt_script() {
             else
                 share_dir="/usr/local/share/zdt"
             fi
-            
+            # Use GitHub API (no CDN cache) instead of raw.githubusercontent (cached ~5min)
             local base_url="https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main"
+            local api_url="https://api.github.com/repos/muhammad1505/zdt-music-toolkit/contents"
+            
+            # Get latest commit SHA for cache-busting
+            local latest_sha
+            latest_sha=$(curl -sL "https://api.github.com/repos/muhammad1505/zdt-music-toolkit/commits/main" 2>/dev/null | grep -oP '"sha":\s*"\K[^"]+' | head -1)
+            if [ -n "$latest_sha" ]; then
+                base_url="https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/${latest_sha}"
+            fi
             local cache_bust="?v=$(date +%s)"
             
             # Download ALL shell modules
