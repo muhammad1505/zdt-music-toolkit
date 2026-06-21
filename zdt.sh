@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.28
+# Version : 4.1.29
 set -uo pipefail
-readonly APP_VERSION="4.1.28"
+readonly APP_VERSION="4.1.29"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -109,7 +109,6 @@ main() {
             echo -ne "\033[?25h"
             clear
         fi
-        echo ""
         local current_user=$(whoami 2>/dev/null || echo "user")
         local net_str="OFFLINE"
         local net_col="${RED}"
@@ -144,7 +143,6 @@ main() {
             echo -e "  ${CYAN} ███╔╝  ██║  ██║   ██║   ${RESET}   ${CYAN}ARCH   :${RESET} $arch"
             echo -e "  ${CYAN}███████╗██████╔╝   ██║   ${RESET}   ${CYAN}UPTIME :${RESET} $uptime_val"
             echo -e "  ${CYAN}╚══════╝╚═════╝    ╚═╝   ${RESET}   ${CYAN}USER   :${RESET} $current_user"
-            echo ""
             
             local stats_text="  CPU: $(grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}' | cut -d. -f1)%   RAM: ${ram_pct}%   DISK: ${storage_pct}%   TEMP: ${temp}   NET: ${net_str} "
             local stats_pad=$(_pad_str "$stats_text" $((inner_cols)))
