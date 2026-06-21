@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.26
+# Version : 4.1.27
 set -uo pipefail
-readonly APP_VERSION="4.1.26"
+readonly APP_VERSION="4.1.27"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -160,9 +160,6 @@ main() {
                 "  ${CYAN}[3]${RESET} YT Audio         ${CYAN}[8]${RESET} Playlist Sync"
                 "  ${CYAN}[4]${RESET} Video DL         ${CYAN}[9]${RESET} System Info"
                 "  ${CYAN}[5]${RESET} Compress"
-                ""
-                ""
-                ""
                 "DIVIDER"
                 " ${MAGENTA}UTILITIES${RESET}"
                 "  ${YELLOW}[S]${RESET} Storage          ${YELLOW}[O]${RESET} Clean"
@@ -184,10 +181,7 @@ main() {
                 "  ${CYAN}Distro  ${RESET}: ${os_name:0:22}"
                 "  ${CYAN}Storage ${RESET}: $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:22}${RESET}" || echo "${GRAY}(Default)${RESET}")"
                 "  ${CYAN}Hostname${RESET}: $(hostname)"
-                "  ${CYAN}Shell   ${RESET}: $SHELL"
-                "  ${CYAN}Terminal${RESET}: $TERM"
-                "  ${CYAN}Packages${RESET}: $pkgs (dpkg)"
-                "  ${CYAN}Load Avg${RESET}: $load_avg"
+                ""
                 "DIVIDER"
                 " ${MAGENTA}DEPENDENCIES${RESET}"
                 "  ${CYAN}FFmpeg  ${RESET}: $(command -v ffmpeg >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
