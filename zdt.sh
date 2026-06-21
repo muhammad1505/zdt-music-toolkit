@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.31
+# Version : 4.1.32
 set -uo pipefail
-readonly APP_VERSION="4.1.31"
+readonly APP_VERSION="4.1.32"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -215,21 +215,6 @@ main() {
             [ "$inner_cols" -lt 30 ] && inner_cols=30
             
             local mobile_lines=(
-                " ${MAGENTA}${BOLD}■ SYSTEM OVERVIEW${RESET}"
-                "   ${GRAY}UI: ${RESET} Mobile (${cols}x${lines})"
-                "   ${GRAY}OS: ${RESET} ${os_name}"
-                "   ${GRAY}Dir:${RESET} $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:30}${RESET}" || echo "${GRAY}(Default)${RESET}")"
-                "   ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}   ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
-                "   ${GRAY}NET:${RESET} ${net_col}${net_str}${RESET}"
-                "DIVIDER"
-                " ${MAGENTA}${BOLD}■ DEPENDENCIES${RESET}"
-                "   ${GRAY}FFmpeg :${RESET} $(command -v ffmpeg >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "   ${GRAY}Python3:${RESET} $(command -v python3 >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "   ${GRAY}YT-DLP :${RESET} $(command -v yt-dlp >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "   ${GRAY}SpotDL :${RESET} $(command -v spotdl >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "   ${GRAY}Demucs :${RESET} $([ -f "$HOME/.local/share/zdt/demucs_venv/bin/demucs" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "   ${GRAY}Mutagen:${RESET} $([ -f "$HOME/.local/share/zdt/venv/bin/python" ] && "$HOME/.local/share/zdt/venv/bin/python" -c "import mutagen" >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "DIVIDER"
                 " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
                 "   ${GREEN}[1]${RESET} Setup Tools      ${GREEN}[6]${RESET} Vocal Remover"
                 "   ${GREEN}[2]${RESET} Spotify DL       ${GREEN}[7]${RESET} Sync Lyrics"
@@ -246,6 +231,10 @@ main() {
                 "DIVIDER"
                 " ${RED}${BOLD}■ SYSTEM${RESET}"
                 "   ${RED}[0]${RESET} Shutdown Terminal"
+                "DIVIDER"
+                " ${CYAN}${BOLD}■ QUICK INFO${RESET}"
+                "   ${GRAY}Dir :${RESET} $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:28}${RESET}" || echo "${GRAY}(Default)${RESET}")"
+                "   ${GRAY}Stat:${RESET} ${YELLOW}${ram_pct}% RAM${RESET} | ${YELLOW}${storage_pct}% DISK${RESET}"
             )
 
             local top_text=" ZDT v${APP_VERSION} | UPT: $uptime_val | NET: $net_str "
