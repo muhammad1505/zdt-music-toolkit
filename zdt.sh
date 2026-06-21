@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.23
+# Version : 4.1.24
 set -uo pipefail
-readonly APP_VERSION="4.1.23"
+readonly APP_VERSION="4.1.24"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -132,7 +132,7 @@ main() {
         local pkgs=$(dpkg-query -f '.\n' -W 2>/dev/null | wc -l || echo 0)
         local load_avg=$(cat /proc/loadavg 2>/dev/null | awk '{print $1" "$2" "$3}' || echo "N/A")
         
-        if [ "$cols" -ge 85 ]; then
+        if [ "$cols" -ge 75 ]; then
             # DESKTOP VIEW (Gacor Graphic Dashboard)
             local inner_cols=$(( cols - 4 ))
             local left_width=41
