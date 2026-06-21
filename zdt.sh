@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.25
+# Version : 4.1.26
 set -uo pipefail
-readonly APP_VERSION="4.1.25"
+readonly APP_VERSION="4.1.26"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -161,6 +161,8 @@ main() {
                 "  ${CYAN}[4]${RESET} Video DL         ${CYAN}[9]${RESET} System Info"
                 "  ${CYAN}[5]${RESET} Compress"
                 ""
+                ""
+                ""
                 "DIVIDER"
                 " ${MAGENTA}UTILITIES${RESET}"
                 "  ${YELLOW}[S]${RESET} Storage          ${YELLOW}[O]${RESET} Clean"
@@ -173,6 +175,7 @@ main() {
                 "DIVIDER"
                 " ${RED}SYSTEM${RESET}"
                 "  ${RED}⏻ [0]${RESET} Shutdown Terminal"
+                ""
             )
 
             local right_lines=(
