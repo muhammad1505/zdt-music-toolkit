@@ -177,6 +177,7 @@ main() {
             local right_lines=(
                 " ${MAGENTA}QUICK INFO${RESET}"
                 "  ${CYAN}Distro  ${RESET}: ${os_name:0:22}"
+                "  ${CYAN}Storage ${RESET}: $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:22}${RESET}" || echo "${GRAY}(Default)${RESET}")"
                 "  ${CYAN}Hostname${RESET}: $(hostname)"
                 "  ${CYAN}Shell   ${RESET}: $SHELL"
                 "  ${CYAN}Terminal${RESET}: $TERM"
@@ -223,6 +224,7 @@ main() {
             local mobile_lines=(
                 " ${MAGENTA}${BOLD}■ SYSTEM OVERVIEW${RESET}"
                 "   ${GRAY}OS:${RESET} ${os_name}"
+                "   ${GRAY}Dir:${RESET} $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:30}${RESET}" || echo "${GRAY}(Default)${RESET}")"
                 "   ${GRAY}RAM:${RESET} ${YELLOW}${ram_pct}% USED${RESET}   ${GRAY}DISK:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
                 "   ${GRAY}NET:${RESET} ${net_col}${net_str}${RESET}"
                 "DIVIDER"
