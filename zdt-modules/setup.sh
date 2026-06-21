@@ -160,7 +160,7 @@ system_info() {
     echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${title_pad}${RESET}${CYAN}│${RESET}"
     echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
 
-    local lines=(
+    local sys_lines=(
         " ${GRAY}OS      :${RESET} $os_name"
         " ${GRAY}Env     :${RESET} $env"
         " ${GRAY}RAM     :${RESET} ${YELLOW}${ram}% USED${RESET}"
@@ -188,7 +188,10 @@ system_info() {
                 stat="${RED}Missing${RESET}"
             fi
         elif command -v "$tool" >/dev/null 2>&1; then
-            local ver=$("$tool" --version 2>/dev/null | head -1 | awk '{print $1" "$2}' | tr -d '\r')
+            local ver=""
+            if [ "$tool" != "syncedlyrics" ]; then
+                ver=$(timeout 1 "$tool" --version 2>/dev/null | head -1 | awk '{print $1" "$2}' | tr -d '\r')
+            fi
             if [ -z "$ver" ]; then ver="OK"; fi
             ver=${ver:0:25}
             stat="${GREEN}Installed${RESET} (${GRAY}${ver}${RESET})"
@@ -199,10 +202,10 @@ system_info() {
         fi
         
         local tool_disp="   ${CYAN}${tool}${RESET} $(_repeat_char '.' $(( 16 - ${#tool} )))"
-        lines+=("${tool_disp} $stat")
+        sys_lines+=("${tool_disp} $stat")
     done
 
-    for l_text in "${lines[@]}"; do
+    for l_text in "${sys_lines[@]}"; do
         if [ "$l_text" = "DIVIDER" ]; then
             echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
         else
