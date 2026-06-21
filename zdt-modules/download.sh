@@ -127,7 +127,7 @@ download_spotdl() {
                     step=8
                 fi
             elif [ "$step" -eq 7 ]; then
-                echo -e -n "  ${BOLD}[?] Kompres otomatis 128kbps AAC? (y/n/0=Kembali): ${RESET}"
+                echo -e -n "  ${BOLD}[?] Kompres otomatis 128kbps? (y/n/0=Kembali): ${RESET}"
                 read -r -n 1 pilih_kompres
                 echo ""
                 if [ "$pilih_kompres" = "0" ]; then step=6; continue; fi
@@ -213,8 +213,16 @@ download_spotdl() {
 
         if [[ "$pilih_kompres" =~ ^[Yy]$ ]]; then
             echo -e "  ${CYAN}${ICO_ARROW} AUTO COMPRESS AUDIO${RESET}"
+            
+            local c_codec="aac"
+            local c_ext="m4a"
+            if [ "$spotdl_ext" = "mp3" ]; then
+                c_codec="libmp3lame"
+                c_ext="mp3"
+            fi
+            
             while IFS= read -r file; do
-                _kompres_audio_file "$file"
+                _kompres_audio_file "$file" "$c_codec" "128k" "$c_ext"
             done < <(find "$scan_dir" -type f -iname "*.$spotdl_ext" ! -name "*_temp.*" -mmin -60 2>/dev/null)
         fi
 
@@ -377,7 +385,7 @@ download_ytdlp() {
             if [ "$pilih_lirik" = "0" ]; then step=6; continue; fi
             if [[ "$yt_ext" == "m4a" || "$yt_ext" == "mp3" ]]; then step=8; else step=9; fi
         elif [ "$step" -eq 8 ]; then
-            echo -e -n "  ${BOLD}[?] Kompres otomatis 128kbps AAC? (y/n/0=Kembali): ${RESET}"
+            echo -e -n "  ${BOLD}[?] Kompres otomatis 128kbps? (y/n/0=Kembali): ${RESET}"
             read -r -n 1 pilih_kompres
             echo ""
             if [ "$pilih_kompres" = "0" ]; then step=7; continue; fi
@@ -501,8 +509,16 @@ download_ytdlp() {
 
         if [[ "$pilih_kompres" =~ ^[Yy]$ && "$yt_ext" != "mp4" ]]; then
             echo -e "  ${CYAN}${ICO_ARROW} AUTO COMPRESS AUDIO${RESET}"
+            
+            local c_codec="aac"
+            local c_ext="m4a"
+            if [ "$yt_ext" = "mp3" ]; then
+                c_codec="libmp3lame"
+                c_ext="mp3"
+            fi
+            
             while IFS= read -r file; do
-                _kompres_audio_file "$file"
+                _kompres_audio_file "$file" "$c_codec" "128k" "$c_ext"
             done < <(find "$scan_dir" -type f -iname "*.$yt_ext" ! -name "*_temp.*" -mmin -60 2>/dev/null)
         fi
 
