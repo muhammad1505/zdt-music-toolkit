@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.22
+# Version : 4.1.23
 set -uo pipefail
-readonly APP_VERSION="4.1.22"
+readonly APP_VERSION="4.1.23"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -119,6 +119,7 @@ main() {
         fi
 
         local cols=$(tput cols 2>/dev/null || echo 100)
+        local lines=$(tput lines 2>/dev/null || echo 30)
         
         # We need CPU temp if possible
         local temp="N/A"
