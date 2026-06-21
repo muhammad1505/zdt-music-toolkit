@@ -305,18 +305,27 @@ hapus_semua() {
     local confirm
     read -r confirm
     
+    # Trim whitespace and convert to lowercase
+    confirm=$(echo "$confirm" | xargs | tr '[:upper:]' '[:lower:]')
+    
     if [ "$confirm" != "yakin" ]; then
         echo -e "  ${GREEN}${ICO_OK} Dibatalkan.${RESET}"
         return 0
     fi
     
-    local count=0
-    while IFS= read -r f; do
-        rm -f "$f"
-        ((count++))
-    done < <(_find_media_files "$target" "media_with_lyrics")
+    local count=$(find "$target" -mindepth 1 | wc -l)
     
-    echo -e "  ${GREEN}${ICO_OK} Berhasil menghapus $count file!${RESET}"
-    _log "INFO" "Deleted $count files from $target"
+    if [ "$count" -eq 0 ]; then
+        echo -e "  ${GREEN}${ICO_OK} Direktori sudah kosong!${RESET}"
+        return 0
+    fi
+
+    # Hapus semua isi direktori (termasuk folder, thumbnail, json, dll)
+    rm -rf "$target"/* 2>/dev/null || true
+    # Hapus file hidden (jika ada, selain . dan ..)
+    rm -rf "$target"/.[!.]* 2>/dev/null || true
+    
+    echo -e "  ${GREEN}${ICO_OK} Berhasil mengosongkan direktori ($count item dihapus)!${RESET}"
+    _log "INFO" "Cleared storage directory $target ($count items)"
     _pause
 }
