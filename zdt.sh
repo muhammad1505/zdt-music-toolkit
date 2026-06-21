@@ -48,6 +48,11 @@ main() {
     _parse_args "$@"
     if [ -n "$MAIN_MODE" ]; then
         _setup_colors; _setup_unicode; _init_logging; _load_config; _load_storage_dir
+        ROOT_DIR="$(pwd)"
+        [ -n "$STORAGE_DIR" ] && ROOT_DIR="$STORAGE_DIR"
+        if [ "$ROOT_DIR" != "$(pwd)" ]; then
+            cd "$ROOT_DIR" || true
+        fi
         case "$MAIN_MODE" in
             download_audio) download_spotdl ;;
             download_video) download_video ;;
@@ -65,6 +70,9 @@ main() {
     ROOT_DIR="$(pwd)"
     _load_storage_dir
     [ -n "$STORAGE_DIR" ] && ROOT_DIR="$STORAGE_DIR"
+    if [ "$ROOT_DIR" != "$(pwd)" ]; then
+        cd "$ROOT_DIR" || echo -e "  ${YELLOW}${ICO_WARN} Gagal pindah ke $ROOT_DIR. Menggunakan $(pwd)${RESET}"
+    fi
     if ! _acquire_lock; then exit 1; fi
     trap '_trap_ctrlc' SIGINT
     trap '_trap_exit' EXIT
