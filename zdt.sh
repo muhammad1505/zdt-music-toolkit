@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.29
+# Version : 4.1.30
 set -uo pipefail
-readonly APP_VERSION="4.1.29"
+readonly APP_VERSION="4.1.30"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -187,9 +187,9 @@ main() {
                 "  ${CYAN}Mutagen ${RESET}: $([ -f "$HOME/.local/share/zdt/venv/bin/python" ] && "$HOME/.local/share/zdt/venv/bin/python" -c "import mutagen" >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
                 "DIVIDER"
                 " ${MAGENTA}RECENT LOGS${RESET}"
-                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} System initialized"
-                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Dependencies checked"
-                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Ready for commands"
+                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} System init"
+                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Deps checked"
+                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Ready"
             )
 
             local max_lines=${#left_lines[@]}
