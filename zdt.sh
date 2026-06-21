@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.33
+# Version : 4.1.34
 set -uo pipefail
-readonly APP_VERSION="4.1.33"
+readonly APP_VERSION="4.1.34"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -232,14 +232,15 @@ main() {
             local q7="   ${GRAY}Net :${RESET} ${net_col}${net_str}${RESET}"
 
             local mobile_lines=(
-                "$(_pad_str "$q1" $lw)$d1"
-                "$(_pad_str "$q2" $lw)$d2"
-                "$(_pad_str "$q3" $lw)$d3"
-                "$(_pad_str "$q4" $lw)$d4"
-                "$(_pad_str "$q5" $lw)$d5"
-                "$(_pad_str "$q6" $lw)$d6"
-                "$(_pad_str "$q7" $lw)$d7"
-                "DIVIDER"
+                "DIVIDER_2COL_TOP"
+                "$(_pad_str "$q1" $lw)${CYAN}│${RESET}$d1"
+                "$(_pad_str "$q2" $lw)${CYAN}│${RESET}$d2"
+                "$(_pad_str "$q3" $lw)${CYAN}│${RESET}$d3"
+                "$(_pad_str "$q4" $lw)${CYAN}│${RESET}$d4"
+                "$(_pad_str "$q5" $lw)${CYAN}│${RESET}$d5"
+                "$(_pad_str "$q6" $lw)${CYAN}│${RESET}$d6"
+                "$(_pad_str "$q7" $lw)${CYAN}│${RESET}$d7"
+                "DIVIDER_2COL_BOT"
                 " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
                 "   ${GREEN}[1]${RESET} Setup Tools      ${GREEN}[6]${RESET} Vocal Remover"
                 "   ${GREEN}[2]${RESET} Spotify DL       ${GREEN}[7]${RESET} Sync Lyrics"
@@ -266,11 +267,16 @@ main() {
 
             echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
             echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${top_pad}${RESET}${CYAN}│${RESET}"
-            echo -e "  ${CYAN}├$(_repeat_char '─' $inner_cols)┤${RESET}"
 
             for ((i=0; i<${#mobile_lines[@]}; i++)); do
                 local l_text="${mobile_lines[i]}"
-                if [ "$l_text" = "DIVIDER" ]; then
+                if [ "$l_text" = "DIVIDER_2COL_TOP" ]; then
+                    local rw=$(( inner_cols - lw - 1 ))
+                    echo -e "  ${CYAN}├$(_repeat_char '─' $lw)┬$(_repeat_char '─' $rw)┤${RESET}"
+                elif [ "$l_text" = "DIVIDER_2COL_BOT" ]; then
+                    local rw=$(( inner_cols - lw - 1 ))
+                    echo -e "  ${CYAN}├$(_repeat_char '─' $lw)┴$(_repeat_char '─' $rw)┤${RESET}"
+                elif [ "$l_text" = "DIVIDER" ]; then
                     echo -e "  ${CYAN}├$(_repeat_char '─' $inner_cols)┤${RESET}"
                 else
                     local l_pad=$(_pad_str "$l_text" $inner_cols)
