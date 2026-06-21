@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.32
+# Version : 4.1.33
 set -uo pipefail
-readonly APP_VERSION="4.1.32"
+readonly APP_VERSION="4.1.33"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -214,7 +214,32 @@ main() {
             local inner_cols=$(( cols - 4 ))
             [ "$inner_cols" -lt 30 ] && inner_cols=30
             
+            local lw=34
+            local d1=" ${MAGENTA}${BOLD}■ DEPENDENCIES${RESET}"
+            local d2="   ${GRAY}FFmpeg :${RESET} $(command -v ffmpeg >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
+            local d3="   ${GRAY}Python3:${RESET} $(command -v python3 >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
+            local d4="   ${GRAY}YT-DLP :${RESET} $(command -v yt-dlp >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
+            local d5="   ${GRAY}SpotDL :${RESET} $(command -v spotdl >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
+            local d6="   ${GRAY}Demucs :${RESET} $([ -f "$HOME/.local/share/zdt/demucs_venv/bin/demucs" ] && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
+            local d7="   ${GRAY}Mutagen:${RESET} $([ -f "$HOME/.local/share/zdt/venv/bin/python" ] && "$HOME/.local/share/zdt/venv/bin/python" -c "import mutagen" >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
+
+            local q1=" ${CYAN}${BOLD}■ QUICK INFO${RESET}"
+            local q2="   ${GRAY}Dir :${RESET} $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:15}${RESET}" || echo "${GRAY}(Def)${RESET}")"
+            local q3="   ${GRAY}RAM :${RESET} ${YELLOW}${ram_pct}% USED${RESET}"
+            local q4="   ${GRAY}Disk:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
+            local q5="   ${GRAY}OS  :${RESET} ${os_name:0:15}"
+            local q6="   ${GRAY}UI  :${RESET} Mobile"
+            local q7="   ${GRAY}Net :${RESET} ${net_col}${net_str}${RESET}"
+
             local mobile_lines=(
+                "$(_pad_str "$q1" $lw)$d1"
+                "$(_pad_str "$q2" $lw)$d2"
+                "$(_pad_str "$q3" $lw)$d3"
+                "$(_pad_str "$q4" $lw)$d4"
+                "$(_pad_str "$q5" $lw)$d5"
+                "$(_pad_str "$q6" $lw)$d6"
+                "$(_pad_str "$q7" $lw)$d7"
+                "DIVIDER"
                 " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
                 "   ${GREEN}[1]${RESET} Setup Tools      ${GREEN}[6]${RESET} Vocal Remover"
                 "   ${GREEN}[2]${RESET} Spotify DL       ${GREEN}[7]${RESET} Sync Lyrics"
@@ -231,10 +256,6 @@ main() {
                 "DIVIDER"
                 " ${RED}${BOLD}■ SYSTEM${RESET}"
                 "   ${RED}[0]${RESET} Shutdown Terminal"
-                "DIVIDER"
-                " ${CYAN}${BOLD}■ QUICK INFO${RESET}"
-                "   ${GRAY}Dir :${RESET} $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:28}${RESET}" || echo "${GRAY}(Default)${RESET}")"
-                "   ${GRAY}Stat:${RESET} ${YELLOW}${ram_pct}% RAM${RESET} | ${YELLOW}${storage_pct}% DISK${RESET}"
             )
 
             local top_text=" ZDT v${APP_VERSION} | UPT: $uptime_val | NET: $net_str "
