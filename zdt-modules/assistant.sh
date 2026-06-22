@@ -266,6 +266,7 @@ ATURAN WAJIB:
 4. Jika user minta JALANKAN fitur, WAJIB sertakan tag [AUTO_ACTION: <aksi>] di akhir jawaban.
 5. Jika user tanya/ngobrol biasa (bukan minta jalankan), jawab biasa TANPA AUTO_ACTION.
 6. PROAKTIF! Jika user minta dicarikan 1 lagu, jalankan [AUTO_ACTION: gas download audio ytsearch1:<kata kunci>]. Jika minta PLAYLIST/MIX tanpa link, JANGAN gunakan AUTO_ACTION! Beritahu user untuk mengirimkan LINK PLAYLIST agar bot bisa mengunduh ratusan lagu dengan akurat.
+7. LINK MENTAH! Jika user HANYA mengirimkan link tanpa perintah apa-apa, asumsikan user ingin sedot audio! Langsung jalankan [AUTO_ACTION: gas download audio <url>] atau [AUTO_ACTION: gas spotify <url>].
 
 DAFTAR LENGKAP 18 FITUR ZDT:
 [1] Setup — Instal dependensi (ffmpeg, yt-dlp, spotdl, demucs) → aksi: gas setup
@@ -336,7 +337,7 @@ try:
         if not l:
             continue
         # Skip lines that look like internal reasoning
-        if re.match(r"^(Okay|Wait|Hmm|So|Now|Let|Looking|The user|I need|I will|I should|First|Alright|Here|We need|We should|As an AI)", l, re.IGNORECASE):
+        if re.match(r"^(Okay|Wait|Hmm|So|Now|Let|Looking|The user|I need|I will|I should|First|Alright|Here|We need|We should|As an AI|According|But|However|Because|Since|In YouTube|The link|If the user)", l, re.IGNORECASE):
             continue
         clean.append(line)
     txt = "\n".join(clean).strip()
