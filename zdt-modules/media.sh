@@ -502,7 +502,12 @@ hapus_vokal() {
             ext_lower=$(echo "$ext_original" | tr '[:upper:]' '[:lower:]')
 
             if [ "$has_video" -eq 1 ]; then
-                ffmpeg -y -nostdin -v quiet -threads 2 -i "$file" -i "$novocals_file" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a "$src_bitrate" "$final_output" &
+                local a_codec="aac"
+                [ "$ext_lower" = "mp3" ] && a_codec="libmp3lame"
+                [ "$ext_lower" = "ogg" ] && a_codec="libvorbis"
+                [ "$ext_lower" = "flac" ] && a_codec="flac"
+                
+                ffmpeg -y -nostdin -v quiet -threads 2 -i "$file" -i "$novocals_file" -map 0:v:0 -map 1:a:0 -c:v copy -c:a "$a_codec" -b:a "$src_bitrate" "$final_output" &
             elif [ "$ext_lower" = "wav" ] || [ "$ext_lower" = "flac" ]; then
                 cp "$novocals_file" "$final_output" &
             elif [ "$ext_lower" = "mp3" ]; then
@@ -520,10 +525,16 @@ hapus_vokal() {
                 sleep 0.1
             done
             wait $fpid2
+            local f2_exit=$?
             echo -e "\b "
 
-            rm -rf "$tmp_out_dir"
-            echo -e "    ${GREEN}${ICO_OK} SUKSES:${RESET} ${filename_noext}_karaoke.$ext_original"
+            if [ "$f2_exit" -eq 0 ] && [ -s "$final_output" ]; then
+                rm -rf "$tmp_out_dir"
+                echo -e "    ${GREEN}${ICO_OK} SUKSES:${RESET} ${filename_noext}_karaoke.$ext_original"
+            else
+                rm -f "$final_output" 2>/dev/null
+                echo -e "    ${RED}${ICO_FAIL} GAGAL KONVERSI:${RESET} Ext: $ext_original. Data vokal mentah tersimpan di: $tmp_out_dir"
+            fi
         else
             rm -rf "$tmp_out_dir"
             echo -e "    ${RED}${ICO_FAIL} GAGAL PROSES:${RESET} Pastikan RAM cukup & file tidak corrupt."
