@@ -377,6 +377,16 @@ download_ytdlp() {
                             step=65
                             continue
                         fi
+                        
+                        local new_links=()
+                        for l in "${links[@]}"; do
+                            if [[ "$l" == *"list="* || "$l" == *"playlist"* ]]; then
+                                new_links+=("${SELECTED_PLAYLIST_URLS[@]}")
+                            else
+                                new_links+=("$l")
+                            fi
+                        done
+                        links=("${new_links[@]}")
                         pilih_playlist="n"
                     else
                         pilih_playlist="y"
@@ -457,10 +467,7 @@ download_ytdlp() {
         fi
 
         local playlist_arg=()
-        if [ -n "${SELECTED_PLAYLIST_ITEMS:-}" ]; then
-            playlist_arg=("--yes-playlist" "-I" "$SELECTED_PLAYLIST_ITEMS")
-            SELECTED_PLAYLIST_ITEMS=""
-        elif [[ ! "$pilih_playlist" =~ ^[Yy]$ ]]; then
+        if [[ ! "$pilih_playlist" =~ ^[Yy]$ ]]; then
             playlist_arg=("--no-playlist")
         fi
 
@@ -725,6 +732,16 @@ download_video() {
                         step=95
                         continue
                     fi
+                    
+                    local new_links=()
+                    for l in "${links[@]}"; do
+                        if [[ "$l" == *"list="* || "$l" == *"playlist"* ]]; then
+                            new_links+=("${SELECTED_PLAYLIST_URLS[@]}")
+                        else
+                            new_links+=("$l")
+                        fi
+                    done
+                    links=("${new_links[@]}")
                     pilih_playlist="n"
                 else
                     pilih_playlist="y"
@@ -803,10 +820,7 @@ download_video() {
         esac
 
         local playlist_arg=()
-        if [ -n "${SELECTED_PLAYLIST_ITEMS:-}" ]; then
-            playlist_arg=("--yes-playlist" "-I" "$SELECTED_PLAYLIST_ITEMS")
-            SELECTED_PLAYLIST_ITEMS=""
-        elif [[ ! "$pilih_playlist" =~ ^[Yy]$ ]]; then
+        if [[ ! "$pilih_playlist" =~ ^[Yy]$ ]]; then
             playlist_arg=("--no-playlist")
         fi
 

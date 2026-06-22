@@ -365,7 +365,7 @@ _playlist_selector() {
     local tmp_playlist="meta_temp_$$.playlist"
     
     # Run yt-dlp in background to show spinner
-    yt-dlp --flat-playlist --print "%(playlist_index)s|%(title)s" "$url" > "$tmp_playlist" 2>/dev/null &
+    yt-dlp --flat-playlist --print "%(playlist_index)s|%(url)s|%(title)s" "$url" > "$tmp_playlist" 2>/dev/null &
     local yt_pid=$!
     _zaki_spinner $yt_pid
     
@@ -400,7 +400,9 @@ _playlist_selector() {
         for i in $(seq $start_idx $end_idx); do
             local item="${playlist_items[$i]}"
             local idx="${item%%|*}"
-            local title="${item#*|}"
+            local rest="${item#*|}"
+            local title="${rest#*|}"
+            
             # Truncate title if too long
             if [ ${#title} -gt 50 ]; then
                 title="${title:0:47}..."
@@ -431,6 +433,24 @@ _playlist_selector() {
             # Validasi input regex: format "angka,angka" atau "angka"
             if [[ "$user_input" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
                 SELECTED_PLAYLIST_ITEMS="$user_input"
+                
+                SELECTED_PLAYLIST_URLS=()
+                IFS=',' read -ra sel_indices <<< "$user_input"
+                for sel_idx in "${sel_indices[@]}"; do
+                    # Strip leading zeros safely
+                    sel_idx=$((10#$sel_idx))
+                    for item in "${playlist_items[@]}"; do
+                        local idx="${item%%|*}"
+                        local num_idx=$((10#$idx))
+                        if [ "$num_idx" -eq "$sel_idx" ]; then
+                            local rest="${item#*|}"
+                            local item_url="${rest%%|*}"
+                            SELECTED_PLAYLIST_URLS+=("$item_url")
+                            break
+                        fi
+                    done
+                done
+                
                 return 0
             else
                 echo -e "  ${RED}${ICO_FAIL} Input tidak valid! Masukkan angka atau pisahkan dengan koma.${RESET}"
