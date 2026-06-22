@@ -401,10 +401,10 @@ except:
                             local dl_url=$(echo "$action_match" | sed 's/^gas download audio //')
                             AUTO_DOWNLOAD_URL="$dl_url"
                             echo -e "  ${CYAN}${ICO_ARROW} Mendownload audio: $dl_url${RESET}"
-                            if [[ "$dl_url" =~ ytsearch1: ]]; then
-                                download_ytdlp
-                            else
+                            if [[ "$dl_url" =~ spotify ]]; then
                                 download_spotdl
+                            else
+                                download_ytdlp
                             fi
                             ;;
                         "gas download video"*)
