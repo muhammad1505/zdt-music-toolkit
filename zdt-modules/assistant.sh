@@ -392,14 +392,16 @@ except:
                 resp_escaped=$(echo "$ai_response" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
                 _zaki_add_history "assistant" "$resp_escaped"
                 
-                # Proses AUTO_ACTION
-                if [[ "$ai_response" == *"[AUTO_ACTION:"* ]]; then
+                # Proses AUTO_ACTION (Case-Insensitive)
+                local upper_response="${ai_response^^}"
+                if [[ "$upper_response" == *"[AUTO_ACTION:"* ]]; then
                     local action_match
-                    action_match=$(echo "$ai_response" | grep -oP '\[AUTO_ACTION:\s*\K[^\]]+')
+                    action_match=$(echo "$ai_response" | grep -ioP '\[AUTO_ACTION:\s*\K[^\]]+')
+                    local action_match_lower="${action_match,,}"
                     
-                    case "$action_match" in
+                    case "$action_match_lower" in
                         "gas download smart"*)
-                            local smart_url=$(echo "$action_match" | sed 's/^gas download smart //')
+                            local smart_url=$(echo "$action_match" | sed 's/^gas download smart //I')
                             echo -e "  ${CYAN}${ICO_ARROW} Link terdeteksi: $smart_url${RESET}"
                             if [[ "$smart_url" =~ spotify ]]; then
                                 AUTO_DOWNLOAD_URL="$smart_url"
@@ -425,7 +427,7 @@ except:
                             fi
                             ;;
                         "gas download audio"*)
-                            local dl_url=$(echo "$action_match" | sed 's/^gas download audio //')
+                            local dl_url=$(echo "$action_match" | sed 's/^gas download audio //I')
                             AUTO_DOWNLOAD_URL="$dl_url"
                             echo -e "  ${CYAN}${ICO_ARROW} Mendownload audio: $dl_url${RESET}"
                             if [[ "$dl_url" =~ spotify ]]; then
@@ -435,19 +437,19 @@ except:
                             fi
                             ;;
                         "gas download video"*)
-                            local dl_url=$(echo "$action_match" | sed 's/^gas download video //')
+                            local dl_url=$(echo "$action_match" | sed 's/^gas download video //I')
                             AUTO_DOWNLOAD_URL="$dl_url"
                             echo -e "  ${CYAN}${ICO_ARROW} Mendownload video: $dl_url${RESET}"
                             download_video
                             ;;
                         "gas spotify"*)
-                            local sp_url=$(echo "$action_match" | sed 's/^gas spotify //')
+                            local sp_url=$(echo "$action_match" | sed 's/^gas spotify //I')
                             AUTO_DOWNLOAD_URL="$sp_url"
                             echo -e "  ${CYAN}${ICO_ARROW} Download Spotify: $sp_url${RESET}"
                             download_spotdl
                             ;;
                         "gas playlist sync"*)
-                            local ps_url=$(echo "$action_match" | sed 's/^gas playlist sync //')
+                            local ps_url=$(echo "$action_match" | sed 's/^gas playlist sync //I')
                             echo -e "  ${CYAN}${ICO_ARROW} Sinkronisasi playlist Spotify: $ps_url${RESET}"
                             sync_spotify_playlist
                             ;;
