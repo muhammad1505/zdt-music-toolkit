@@ -85,7 +85,7 @@ zaki_assistant() {
         fi
 
         local ai_opts=(
-            " ${MAGENTA}${BOLD}🤖 ZAKI AI ASSISTANT v4.0${RESET}"
+            " ${MAGENTA}${BOLD}■ ZAKI AI ASSISTANT v4.0${RESET}"
             " ${WHITE}${salam} Bos! Aku siap bantu automasi tugasmu.${RESET}"
             "DIVIDER"
             " ${CYAN}Storage :${RESET} ${sisa} free of ${total_kapasitas}"
