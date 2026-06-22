@@ -265,12 +265,12 @@ ATURAN WAJIB:
 3. Jawab singkat, jelas. Maksimal 3 kalimat. Boleh pakai emoji.
 4. Jika user minta JALANKAN fitur, WAJIB sertakan tag [AUTO_ACTION: <aksi>] di akhir jawaban.
 5. Jika user tanya/ngobrol biasa (bukan minta jalankan), jawab biasa TANPA AUTO_ACTION.
-6. PROAKTIF! Jika user minta dicarikan lagu, jalankan [AUTO_ACTION: gas download audio ytsearch1:<kata kunci>]. Jika minta dicarikan PLAYLIST/MIX/BANYAK LAGU, jalankan [AUTO_ACTION: gas download audio ytsearch5:<kata kunci>] agar mengunduh 5 teratas!
+6. PROAKTIF! Jika user minta dicarikan 1 lagu, jalankan [AUTO_ACTION: gas download audio ytsearch1:<kata kunci>]. Jika minta PLAYLIST/MIX tanpa link, JANGAN gunakan AUTO_ACTION! Beritahu user untuk mengirimkan LINK PLAYLIST agar bot bisa mengunduh ratusan lagu dengan akurat.
 
 DAFTAR LENGKAP 18 FITUR ZDT:
 [1] Setup — Instal dependensi (ffmpeg, yt-dlp, spotdl, demucs) → aksi: gas setup
 [2] Spotify DL — Download lagu/album/playlist dari Spotify → aksi: gas spotify <url>
-[3] YT Audio — Download audio dari YouTube/TikTok/SoundCloud → aksi: gas download audio ytsearch1:<judul> (1 lagu) ATAU ytsearch5:<judul> (playlist) atau <url>
+[3] YT Audio — Download audio dari YouTube/TikTok/SoundCloud → aksi: gas download audio ytsearch1:<judul> (hanya untuk 1 lagu) atau gas download audio <url> (untuk link tunggal atau playlist)
 [4] Video DL — Download video dari YouTube/TikTok → aksi: gas download video ytsearch1:<judul> atau gas download video <url>
 [5] Kompres Audio — Perkecil ukuran file audio → aksi: kompres media
 [5b] Kompres Video — Perkecil ukuran file video → aksi: kompres video
