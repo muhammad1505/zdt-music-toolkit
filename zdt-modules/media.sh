@@ -457,19 +457,26 @@ hapus_vokal() {
         local tmp_out_dir="$dir/.demucs_tmp_$$"
         mkdir -p "$tmp_out_dir"
 
-        echo -e -n "    ${CYAN}${ICO_ARROW} [AI Demucs] Membedah vokal & instrumen... "
-        OMP_NUM_THREADS=2 "$demucs_bin" -n htdemucs --two-stems=vocals "$file" -o "$tmp_out_dir" >/dev/null 2>&1 &
+        local demucs_log="$tmp_out_dir/demucs.log"
+        echo -e -n "    ${CYAN}${ICO_ARROW} [AI Demucs] Membedah vokal & instrumen... [0%]"
+        OMP_NUM_THREADS=2 "$demucs_bin" -n htdemucs --two-stems=vocals "$file" -o "$tmp_out_dir" >"$demucs_log" 2>&1 &
         local fpid=$!
-        local spin='-\|/'
-        local i=0
+        local last_pct="0%"
+
         while kill -0 $fpid 2>/dev/null; do
-            i=$(( (i+1) %4 ))
-            printf "\b${spin:$i:1}"
-            sleep 0.1
+            if [ -f "$demucs_log" ]; then
+                local current_pct
+                current_pct=$(tr '\r' '\n' < "$demucs_log" 2>/dev/null | grep -o '[0-9]\+%' | tail -n 1)
+                if [ -n "$current_pct" ] && [ "$current_pct" != "$last_pct" ]; then
+                    printf "\r    ${CYAN}${ICO_ARROW} [AI Demucs] Membedah vokal & instrumen... [%s]    " "$current_pct"
+                    last_pct="$current_pct"
+                fi
+            fi
+            sleep 0.2
         done
         wait $fpid
         local f_exit=$?
-        echo -e "\b "
+        printf "\r    ${CYAN}${ICO_ARROW} [AI Demucs] Membedah vokal & instrumen... [100%%]   \n"
 
         local novocals_file
         novocals_file=$(find "$tmp_out_dir" -name "no_vocals.wav" -type f 2>/dev/null | head -n 1)
