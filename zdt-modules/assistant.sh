@@ -242,7 +242,7 @@ zaki_assistant() {
 
         # Escape for JSON safety
         local input_escaped
-        input_escaped=$(echo "$input" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
+        input_escaped=$(echo "$bot_prompt" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
 
         # Coba pakai AI jika ada key
         if [ -n "$gemini_key" ]; then
