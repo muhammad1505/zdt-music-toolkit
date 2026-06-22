@@ -327,5 +327,4 @@ hapus_semua() {
     
     echo -e "  ${GREEN}${ICO_OK} Berhasil mengosongkan direktori ($count item dihapus)!${RESET}"
     _log "INFO" "Cleared storage directory $target ($count items)"
-    _pause
 }

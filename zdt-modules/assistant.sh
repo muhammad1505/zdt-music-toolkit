@@ -542,6 +542,9 @@ except:
                     
                     # Bersihkan AUTO_ACTION dari reply
                     reply_text=$(echo "$reply_text" | sed 's/\[AUTO_ACTION:[^\]]*\]//g')
+                    
+                    # Tambahkan _pause agar layar tidak langsung bersih setelah action berjalan
+                    _pause
                 fi
             fi
         fi

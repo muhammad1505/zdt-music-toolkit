@@ -215,7 +215,6 @@ system_info() {
     done
 
     echo -e "  ${CYAN}╰$(_repeat_char '─' $width)╯${RESET}"
-    _pause
 }
 
 # ==========================================
@@ -346,7 +345,6 @@ setup_storage_dir() {
     esac
     
     _log "INFO" "Storage directory set to: $STORAGE_DIR"
-    _pause
 }
 
 # ==========================================
