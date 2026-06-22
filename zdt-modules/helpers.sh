@@ -114,6 +114,10 @@ name = re.sub(r'\s*[\(\[][^\)\]]*(4K|8K|HD|HQ|1080p|720p)[^\)\]]*[\)\]]', '', na
 # Cleanup whitespace
 name = re.sub(r'  +', ' ', name).strip()
 name = re.sub(r' \.', '.', name)
+
+# Strip common Indonesian music channel suffixes at the end
+name = re.sub(r'\s*-\s*(DC MUSIK|DC PRODUCTION|DC\. PRODUCTION|Aneka Safari Records|Aneka Safari|Ageng Music|Global Musik Era Digital|Global Musik|Mabos Channel|Khatulistiwa Record|TA PRO Music|ENY SAGA|Eny Saga|Perdana Record|Sakura Record|Wahanamusik|Adita Music|Bintara|Sandi Records|RC Music|Ngapak|MUARA BINTANG|Teta Record)[^a-zA-Z0-9]*$', '', name, flags=re.IGNORECASE)
+
 name = re.sub(r'\s*-\s*$', '', name).strip()
 
 # SAFETY: never produce empty name

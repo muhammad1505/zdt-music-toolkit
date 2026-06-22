@@ -439,18 +439,18 @@ download_ytdlp() {
                 fi
                 [ -z "$auto_folder_name" ] && auto_folder_name="Unknown-Channel"
                 mkdir -p "$auto_folder_name"
-                output_template="${auto_folder_name}/%(artist,uploader)s-%(title)s.%(ext)s"
+                output_template="${auto_folder_name}/%(title)s.%(ext)s"
                 echo -e "  ${GREEN}${ICO_OK} Auto-Folder:${RESET} $auto_folder_name/"
                 ;;
             2)
                 if [ -n "$folder_manual_name" ]; then
-                    output_template="${folder_manual_name}/%(artist,uploader)s-%(title)s.%(ext)s"
+                    output_template="${folder_manual_name}/%(title)s.%(ext)s"
                 else
-                    output_template="%(artist,uploader)s - %(title)s.%(ext)s"
+                    output_template="%(title)s.%(ext)s"
                 fi
                 ;;
             *)
-                output_template="%(artist,uploader)s-%(title)s.%(ext)s"
+                output_template="%(title)s.%(ext)s"
                 ;;
         esac
 
