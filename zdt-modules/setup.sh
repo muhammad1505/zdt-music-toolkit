@@ -59,7 +59,7 @@ install_missing_tools() {
 
     # 1. Install base system packages
     echo -e "  ${CYAN}${ICO_ARROW} Memasang dependensi sistem...${RESET}"
-    local base_pkgs="python3 ffmpeg"
+    local base_pkgs="python3 ffmpeg nodejs"
     
     # Cek apakah perlu python3-venv
     if command -v apt-get >/dev/null 2>&1 || command -v apt >/dev/null 2>&1; then
