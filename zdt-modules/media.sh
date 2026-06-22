@@ -326,70 +326,110 @@ hapus_vokal() {
     local mode_proses=""
     local files_to_process=()
 
-    if [ -n "$AUTO_HAPUS_VOKAL_MODE" ]; then
-        mode_proses="$AUTO_HAPUS_VOKAL_MODE"
-        if [ "$mode_proses" = "1" ]; then
-            local target_dir="${TARGET_DIR:-${ROOT_DIR:-.}}"
-            while IFS= read -r f; do
-                files_to_process+=("$f")
-            done < <(_find_media_files "$target_dir" "all" "!" -name "*_karaoke.*" -mmin -60)
-        elif [ "$mode_proses" = "2" ]; then
-            if [ -n "$AUTO_HAPUS_VOKAL_PATH" ] && [ -f "$AUTO_HAPUS_VOKAL_PATH" ]; then
-                files_to_process+=("$AUTO_HAPUS_VOKAL_PATH")
+    local target_dir="${STORAGE_DIR:-${TARGET_DIR:-${ROOT_DIR:-.}}}"
+    
+    while true; do
+        if [ "$step" -eq 1 ]; then
+            _print_menu_box "MODE PROSES" \
+                "${GREEN}[1]${RESET} Semua File di Storage (Baru Didownload)" \
+                "${GREEN}[2]${RESET} Per Folder Artis" \
+                "${GREEN}[3]${RESET} Per Lagu Spesifik" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
+            echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
+            read -r -n 1 mode_proses
+            echo ""
+            [ "$mode_proses" = "0" ] && return 0
+            if [[ ! "$mode_proses" =~ ^[1-3]$ ]]; then
+                echo -e "  ${RED}${ICO_FAIL} Pilihan tidak valid!${RESET}"
+                continue
             fi
-        fi
-        AUTO_HAPUS_VOKAL_MODE=""
-        AUTO_HAPUS_VOKAL_PATH=""
-    else
-        while true; do
-            if [ "$step" -eq 1 ]; then
-                _print_menu_box "MODE PROSES" \
-                    "${GREEN}[1]${RESET} Batch (Satu Folder Penuh)" \
-                    "${GREEN}[2]${RESET} Satu File Spesifik" \
-                    "DIVIDER" \
-                    "${RED}[0]${RESET} KEMBALI"
-                echo -e -n "  ${BOLD}[?] Pilih Mode [0-2]: ${RESET}"
-                read -r -n 1 mode_proses
-                echo ""
-                [ "$mode_proses" = "0" ] && return 0
-                if [[ ! "$mode_proses" =~ ^[1-2]$ ]]; then
-                    echo -e "  ${RED}${ICO_FAIL} Pilihan tidak valid!${RESET}"
-                    continue
+            step=2
+        elif [ "$step" -eq 2 ]; then
+            files_to_process=()
+            if [ "$mode_proses" = "1" ]; then
+                while IFS= read -r f; do
+                    files_to_process+=("$f")
+                done < <(_find_media_files "$target_dir" "all" "!" -name "*_karaoke.*" -mmin -60)
+                step=4
+                continue
+            fi
+
+            # Mode 2 & 3: Pilih Folder Artis
+            echo -e "  ${CYAN}${ICO_ARROW} Menampilkan daftar folder artis di: ${YELLOW}$target_dir${RESET}"
+            
+            local fcount=0
+            local folders=()
+            folders+=("$target_dir")
+            echo -e "    ${GREEN}[1]${RESET} [Root Folder / Tidak di dalam sub-folder]"
+            fcount=1
+            
+            while IFS= read -r d; do
+                if [ -n "$d" ]; then
+                    ((fcount++))
+                    folders+=("$d")
+                    printf "    ${GREEN}[%d]${RESET} %s\n" "$fcount" "$(basename "$d")"
                 fi
-                step=2
-            elif [ "$step" -eq 2 ]; then
-                files_to_process=()
-                if [ "$mode_proses" = "1" ]; then
-                    if ! pilih_folder_target; then step=1; continue; fi
-                    local target_dir="$TARGET_DIR"
-
-                    while IFS= read -r f; do
-                        files_to_process+=("$f")
-                    done < <(_find_media_files "$target_dir" "all" "!" -name "*_karaoke.*")
-
-                elif [ "$mode_proses" = "2" ]; then
-                    echo -e -n "  ${BOLD}[?] Masukkan path file lengkap (drag & drop, 0=Kembali): ${RESET}"
-                    local file_input
-                    read -r -e file_input
-                    if [ "$file_input" = "0" ]; then step=1; continue; fi
-                    
-                    file_input="${file_input//\'/}"
-                    file_input="${file_input//\"/}"
-                    file_input="${file_input#"${file_input%%[![:space:]]*}"}"
-                    file_input="${file_input%"${file_input##*[![:space:]]}"}"
-
-                    if [ ! -f "$file_input" ]; then
-                        echo -e "  ${RED}${ICO_FAIL} File tidak ditemukan!${RESET}"
-                        continue
-                    fi
-                    files_to_process+=("$file_input")
-                fi
+            done < <(find "$target_dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+            
+            if [ "$fcount" -eq 1 ]; then
+                echo -e "  ${YELLOW}Tidak ada folder artis ditemukan.${RESET}"
+            fi
+            
+            echo -e -n "\n  ${BOLD}[?] Pilih Folder [1-$fcount, 0=Kembali]: ${RESET}"
+            local pilih_folder
+            read -r pilih_folder
+            if [ -z "$pilih_folder" ] || [ "$pilih_folder" = "0" ] || [ "$pilih_folder" -gt "$fcount" ]; then
+                step=1; continue
+            fi
+            
+            selected_folder="${folders[$((pilih_folder-1))]}"
+            
+            if [ "$mode_proses" = "2" ]; then
+                local find_exts="\( -iname *.mp3 -o -iname *.m4a -o -iname *.flac -o -iname *.wav -o -iname *.ogg -o -iname *.opus \)"
+                while IFS= read -r f; do
+                    files_to_process+=("$f")
+                done < <(eval "find \"\$selected_folder\" -maxdepth 1 -type f $find_exts ! -name \"*_karaoke.*\" 2>/dev/null")
+                step=4
+            else
                 step=3
-            elif [ "$step" -eq 3 ]; then
-                break
             fi
-        done
-    fi
+        elif [ "$step" -eq 3 ]; then
+            # Mode 3: Per Lagu Spesifik
+            local folder_display
+            [ "$selected_folder" = "$target_dir" ] && folder_display="Root Storage" || folder_display="$(basename "$selected_folder")"
+            echo -e "  ${CYAN}${ICO_ARROW} Menampilkan daftar lagu di: ${YELLOW}$folder_display${RESET}"
+            local lcount=0
+            local lagus=()
+            local find_exts="\( -iname *.mp3 -o -iname *.m4a -o -iname *.flac -o -iname *.wav -o -iname *.ogg -o -iname *.opus \)"
+            
+            while IFS= read -r f; do
+                if [ -n "$f" ]; then
+                    ((lcount++))
+                    lagus+=("$f")
+                    printf "    ${GREEN}[%d]${RESET} %s\n" "$lcount" "$(basename "$f")"
+                fi
+            done < <(eval "find \"\$selected_folder\" -maxdepth 1 -type f $find_exts ! -name \"*_karaoke.*\" 2>/dev/null | sort")
+            
+            if [ "$lcount" -eq 0 ]; then
+                echo -e "  ${RED}${ICO_FAIL} Tidak ada file media di folder ini!${RESET}"
+                sleep 2
+                step=2; continue
+            fi
+            
+            echo -e -n "\n  ${BOLD}[?] Pilih Lagu [1-$lcount, 0=Kembali]: ${RESET}"
+            local pilih_lagu
+            read -r pilih_lagu
+            if [ -z "$pilih_lagu" ] || [ "$pilih_lagu" = "0" ] || [ "$pilih_lagu" -gt "$lcount" ]; then
+                step=2; continue
+            fi
+            
+            files_to_process+=("${lagus[$((pilih_lagu-1))]}")
+            step=4
+        elif [ "$step" -eq 4 ]; then
+            break
+        fi
+    done
 
     local total_files=${#files_to_process[@]}
 

@@ -477,8 +477,6 @@ except:
                             ;;
                         "hapus vokal")
                             echo -e "  ${CYAN}${ICO_ARROW} Memisahkan vokal...${RESET}"
-                            AUTO_HAPUS_VOKAL_MODE="1"
-                            AUTO_HAPUS_VOKAL_PATH=""
                             hapus_vokal
                             ;;
                         "kompres media")
