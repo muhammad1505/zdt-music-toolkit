@@ -266,7 +266,7 @@ ATURAN WAJIB:
 4. Jika user minta JALANKAN fitur, WAJIB sertakan tag [AUTO_ACTION: <aksi>] di akhir jawaban.
 5. Jika user tanya/ngobrol biasa (bukan minta jalankan), jawab biasa TANPA AUTO_ACTION.
 6. PROAKTIF! Jika user minta dicarikan 1 lagu, jalankan [AUTO_ACTION: gas download audio ytsearch1:<kata kunci>]. Jika minta PLAYLIST/MIX tanpa link, JANGAN gunakan AUTO_ACTION! Beritahu user untuk mengirimkan LINK PLAYLIST agar bot bisa mengunduh ratusan lagu dengan akurat.
-7. LINK MENTAH! Jika user HANYA mengirimkan link tanpa perintah apa-apa, asumsikan user ingin sedot audio! Langsung jalankan [AUTO_ACTION: gas download audio <url>] atau [AUTO_ACTION: gas spotify <url>].
+7. LINK MENTAH! Jika user HANYA mengirimkan link tanpa perintah apa-apa (YouTube/TikTok/dll), langsung jalankan [AUTO_ACTION: gas download smart <url>]. Jika link Spotify, jalankan [AUTO_ACTION: gas spotify <url>].
 
 DAFTAR LENGKAP 18 FITUR ZDT:
 [1] Setup — Instal dependensi (ffmpeg, yt-dlp, spotdl, demucs) → aksi: gas setup
@@ -398,6 +398,32 @@ except:
                     action_match=$(echo "$ai_response" | grep -oP '\[AUTO_ACTION:\s*\K[^\]]+')
                     
                     case "$action_match" in
+                        "gas download smart"*)
+                            local smart_url=$(echo "$action_match" | sed 's/^gas download smart //')
+                            echo -e "  ${CYAN}${ICO_ARROW} Link terdeteksi: $smart_url${RESET}"
+                            if [[ "$smart_url" =~ spotify ]]; then
+                                AUTO_DOWNLOAD_URL="$smart_url"
+                                download_spotdl
+                            else
+                                _print_menu_box "SMART DOWNLOAD" \
+                                    "${GREEN}[1]${RESET} Download Audio (MP3/M4A/dll)" \
+                                    "${GREEN}[2]${RESET} Download Video (MP4/MKV/dll)" \
+                                    "DIVIDER" \
+                                    "${RED}[0]${RESET} BATAL"
+                                echo -e -n "  ${BOLD}[?] Download sebagai [0-2]: ${RESET}"
+                                read -r -n 1 smart_choice
+                                echo ""
+                                if [ "$smart_choice" = "1" ]; then
+                                    AUTO_DOWNLOAD_URL="$smart_url"
+                                    download_ytdlp
+                                elif [ "$smart_choice" = "2" ]; then
+                                    AUTO_DOWNLOAD_URL="$smart_url"
+                                    download_video
+                                else
+                                    echo -e "  ${YELLOW}${ICO_WARN} Dibatalkan.${RESET}"
+                                fi
+                            fi
+                            ;;
                         "gas download audio"*)
                             local dl_url=$(echo "$action_match" | sed 's/^gas download audio //')
                             AUTO_DOWNLOAD_URL="$dl_url"

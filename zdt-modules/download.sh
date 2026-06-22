@@ -354,10 +354,36 @@ download_ytdlp() {
                     step=7
                 fi
             elif [ "$step" -eq 65 ]; then
-                echo -e -n "  ${BOLD}[?] Link mengandung playlist. Download seluruh isi playlist? (y/n/0=Kembali): ${RESET}"
-                read -r -n 1 pilih_playlist
+                _print_menu_box "DOWNLOAD PLAYLIST" \
+                    "${GREEN}[1]${RESET} Download seluruh isi playlist" \
+                    "${GREEN}[2]${RESET} Pilih lagu spesifik dari daftar" \
+                    "DIVIDER" \
+                    "${RED}[0]${RESET} KEMBALI"
+                echo -e -n "  ${BOLD}[?] Pilihan [0-2]: ${RESET}"
+                read -r -n 1 opsi_playlist
                 echo ""
-                if [ "$pilih_playlist" = "0" ]; then step=6; continue; fi
+                if [ "$opsi_playlist" = "0" ]; then step=6; continue; fi
+                if [ "$opsi_playlist" = "2" ]; then
+                    local playlist_url=""
+                    for l in "${links[@]}"; do
+                        if [[ "$l" == *"list="* || "$l" == *"playlist"* ]]; then
+                            playlist_url="$l"
+                            break
+                        fi
+                    done
+                    if [ -n "$playlist_url" ]; then
+                        if ! _playlist_selector "$playlist_url"; then
+                            # Canceled or failed
+                            step=65
+                            continue
+                        fi
+                        pilih_playlist="n"
+                    else
+                        pilih_playlist="y"
+                    fi
+                else
+                    pilih_playlist="y"
+                fi
                 step=7
             elif [ "$step" -eq 7 ]; then
             echo -e -n "  ${BOLD}[?] Auto-lirik via SyncedLyrics? (y/n/0=Kembali): ${RESET}"
@@ -431,7 +457,10 @@ download_ytdlp() {
         fi
 
         local playlist_arg=()
-        if [[ ! "$pilih_playlist" =~ ^[Yy]$ ]]; then
+        if [ -n "${SELECTED_PLAYLIST_ITEMS:-}" ]; then
+            playlist_arg=("--yes-playlist" "-I" "$SELECTED_PLAYLIST_ITEMS")
+            SELECTED_PLAYLIST_ITEMS=""
+        elif [[ ! "$pilih_playlist" =~ ^[Yy]$ ]]; then
             playlist_arg=("--no-playlist")
         fi
 
@@ -674,10 +703,35 @@ download_video() {
                 step=10
             fi
         elif [ "$step" -eq 95 ]; then
-            echo -e -n "  ${BOLD}[?] Link mengandung playlist. Download seluruh isi playlist? (y/n/0=Kembali): ${RESET}"
-            read -r -n 1 pilih_playlist
+            _print_menu_box "DOWNLOAD PLAYLIST" \
+                "${GREEN}[1]${RESET} Download seluruh isi playlist" \
+                "${GREEN}[2]${RESET} Pilih video spesifik dari daftar" \
+                "DIVIDER" \
+                "${RED}[0]${RESET} KEMBALI"
+            echo -e -n "  ${BOLD}[?] Pilihan [0-2]: ${RESET}"
+            read -r -n 1 opsi_playlist
             echo ""
-            if [ "$pilih_playlist" = "0" ]; then step=9; continue; fi
+            if [ "$opsi_playlist" = "0" ]; then step=9; continue; fi
+            if [ "$opsi_playlist" = "2" ]; then
+                local playlist_url=""
+                for l in "${links[@]}"; do
+                    if [[ "$l" == *"list="* || "$l" == *"playlist"* ]]; then
+                        playlist_url="$l"
+                        break
+                    fi
+                done
+                if [ -n "$playlist_url" ]; then
+                    if ! _playlist_selector "$playlist_url"; then
+                        step=95
+                        continue
+                    fi
+                    pilih_playlist="n"
+                else
+                    pilih_playlist="y"
+                fi
+            else
+                pilih_playlist="y"
+            fi
             step=10
         elif [ "$step" -eq 10 ]; then
             break
@@ -748,7 +802,15 @@ download_video() {
             *) format_str="bv*[height<=1080]+ba/b[height<=1080]" ;;
         esac
 
-        yt-dlp --no-warnings --no-mtime -f "$format_str" --embed-metadata --merge-output-format "$merge_format" -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${sub_args[@]}" "$link" || dl_status=$?
+        local playlist_arg=()
+        if [ -n "${SELECTED_PLAYLIST_ITEMS:-}" ]; then
+            playlist_arg=("--yes-playlist" "-I" "$SELECTED_PLAYLIST_ITEMS")
+            SELECTED_PLAYLIST_ITEMS=""
+        elif [[ ! "$pilih_playlist" =~ ^[Yy]$ ]]; then
+            playlist_arg=("--no-playlist")
+        fi
+
+        yt-dlp --no-warnings --no-mtime -f "$format_str" --embed-metadata --merge-output-format "$merge_format" -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${sub_args[@]}" "${playlist_arg[@]}" "$link" || dl_status=$?
 
         if [ "$dl_status" -ne 0 ]; then
             echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Ada file yang gagal diunduh! Melanjutkan proses file yang berhasil...${RESET}"

@@ -352,3 +352,90 @@ _kompres_video_file() {
         _log "ERROR" "Video compression failed: $base"
     fi
 }
+
+# ==========================================
+# INTERACTIVE PLAYLIST SELECTOR
+# ==========================================
+_playlist_selector() {
+    local url="$1"
+    SELECTED_PLAYLIST_ITEMS=""
+    
+    echo -e -n "  ${CYAN}${ICO_ARROW} Mengambil daftar lagu dari playlist...${RESET} "
+    
+    local tmp_playlist="meta_temp_$$.playlist"
+    
+    # Run yt-dlp in background to show spinner
+    yt-dlp --flat-playlist --print "%(playlist_index)s|%(title)s" "$url" > "$tmp_playlist" 2>/dev/null &
+    local yt_pid=$!
+    _zaki_spinner $yt_pid
+    
+    if [ ! -s "$tmp_playlist" ]; then
+        echo -e "  ${RED}${ICO_FAIL} Gagal mengambil daftar playlist atau playlist kosong.${RESET}"
+        rm -f "$tmp_playlist"
+        return 1
+    fi
+    
+    # Read playlist items into array
+    local playlist_items=()
+    while IFS= read -r line; do
+        playlist_items+=("$line")
+    done < "$tmp_playlist"
+    rm -f "$tmp_playlist"
+    
+    local total_items=${#playlist_items[@]}
+    local page_size=10
+    local total_pages=$(( (total_items + page_size - 1) / page_size ))
+    local current_page=1
+    
+    while true; do
+        local start_idx=$(( (current_page - 1) * page_size ))
+        local end_idx=$(( start_idx + page_size - 1 ))
+        if [ "$end_idx" -ge "$total_items" ]; then
+            end_idx=$(( total_items - 1 ))
+        fi
+        
+        echo -e "\n  ${MAGENTA}■ DAFTAR LAGU PLAYLIST (Halaman $current_page dari $total_pages)${RESET}"
+        echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
+        
+        for i in $(seq $start_idx $end_idx); do
+            local item="${playlist_items[$i]}"
+            local idx="${item%%|*}"
+            local title="${item#*|}"
+            # Truncate title if too long
+            if [ ${#title} -gt 50 ]; then
+                title="${title:0:47}..."
+            fi
+            echo -e "  ${GREEN}[$idx]${RESET} $title"
+        done
+        
+        echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
+        echo -e "  ${YELLOW}Navigasi:${RESET} [n] Next Page | [p] Prev Page | [0] Batal"
+        echo -e -n "  ${BOLD}[?] Masukkan nomor lagu (contoh: 2 atau 1,4,7): ${RESET}"
+        
+        local user_input
+        read -r user_input
+        
+        if [ -z "$user_input" ]; then
+            continue
+        elif [ "$user_input" = "0" ]; then
+            return 1
+        elif [ "${user_input,,}" = "n" ]; then
+            if [ "$current_page" -lt "$total_pages" ]; then
+                current_page=$((current_page + 1))
+            fi
+        elif [ "${user_input,,}" = "p" ]; then
+            if [ "$current_page" -gt 1 ]; then
+                current_page=$((current_page - 1))
+            fi
+        else
+            # Validasi input regex: format "angka,angka" atau "angka"
+            if [[ "$user_input" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
+                SELECTED_PLAYLIST_ITEMS="$user_input"
+                return 0
+            else
+                echo -e "  ${RED}${ICO_FAIL} Input tidak valid! Masukkan angka atau pisahkan dengan koma.${RESET}"
+                sleep 1
+            fi
+        fi
+    done
+}
