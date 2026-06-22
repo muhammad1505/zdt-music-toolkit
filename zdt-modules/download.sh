@@ -26,16 +26,12 @@ download_spotdl() {
 
     if [ -n "$AUTO_DOWNLOAD_URL" ]; then
         links=("$AUTO_DOWNLOAD_URL")
-        folder_mode="3"
-        spotdl_ext="m4a"
-        pilih_archive="y"
-        pilih_lirik="y"
-        lirik_args=("--generate-lrc")
-        pilih_kompres="n"
         AUTO_DOWNLOAD_URL=""
-    else
-        while true; do
-            if [ "$step" -eq 1 ]; then
+        step=2
+    fi
+
+    while true; do
+        if [ "$step" -eq 1 ]; then
                 links=()
                 for i in {1..10}; do
                     echo -e -n "  ${BOLD}[?] Link/Judul ke-$i (Enter=Cukup, 0=Kembali ke Menu Utama): ${RESET}"
@@ -136,7 +132,6 @@ download_spotdl() {
                 break
             fi
         done
-    fi
 
     if [ -n "$folder_manual_name" ]; then
         mkdir -p "$folder_manual_name"
@@ -257,29 +252,11 @@ download_ytdlp() {
     if [ -n "$AUTO_DOWNLOAD_URL" ]; then
         links=("$AUTO_DOWNLOAD_URL")
         AUTO_DOWNLOAD_URL=""
-        folder_mode="3"
-        format_pilih="${AUTO_FORMAT_SPEC:-${CONF_AUDIO_CODEC:-1}}"
-        case "$format_pilih" in
-            1) yt_ext="m4a" ;;
-            2) yt_ext="mp3" ;;
-            3) yt_ext="flac" ;;
-            4) yt_ext="wav" ;;
-            5) yt_ext="opus" ;;
-            6) yt_ext="ogg" ;;
-            *) yt_ext="m4a"; format_pilih="1" ;;
-        esac
-        pilih_archive="n"
-        pilih_lirik="n"
-        pilih_kompres="n"
-        pilih_chapter="n"
-        if [[ "${links[0]}" =~ list= || "${links[0]}" =~ playlist || "${links[0]}" =~ ytsearch[2-9] || "${links[0]}" =~ ytsearch[0-9][0-9] ]]; then
-            pilih_playlist="y"
-        else
-            pilih_playlist="n"
-        fi
-    else
-        while true; do
-            if [ "$step" -eq 1 ]; then
+        step=2
+    fi
+
+    while true; do
+        if [ "$step" -eq 1 ]; then
                 links=()
                 echo -e "  ${CYAN}${ICO_ARROW} Masukkan link YouTube/YT Music (Maks 10 link)${RESET}"
                 for i in {1..10}; do
@@ -398,7 +375,6 @@ download_ytdlp() {
             break
         fi
     done
-    fi
 
     if [ -n "$folder_manual_name" ]; then
         mkdir -p "$folder_manual_name"
@@ -559,26 +535,8 @@ download_video() {
     if [ -n "$AUTO_DOWNLOAD_URL" ]; then
         links=("$AUTO_DOWNLOAD_URL")
         AUTO_DOWNLOAD_URL=""
-        kualitas_pilih="${CONF_VIDEO_QUAL:-1}"
-        format_pilih="${CONF_VIDEO_FMT:-1}"
-        case "$format_pilih" in
-            1) merge_format="mp4"; ext_video="mp4" ;;
-            2) merge_format="mkv"; ext_video="mkv" ;;
-            3) merge_format="webm"; ext_video="webm" ;;
-            4) merge_format="mkv"; ext_video="mkv" ;;
-            *) merge_format="mp4"; ext_video="mp4"; format_pilih="1" ;;
-        esac
-        codec_pilih="${CONF_VIDEO_CODEC:-3}"
-        sub_pilih="n"
-        folder_mode="3"
-        pilih_archive="n"
-        pilih_chapter="n"
-        if [[ "${links[0]}" =~ list= || "${links[0]}" =~ playlist || "${links[0]}" =~ ytsearch[2-9] || "${links[0]}" =~ ytsearch[0-9][0-9] ]]; then
-            pilih_playlist="y"
-        else
-            pilih_playlist="n"
-        fi
-    else
+        step=2
+    fi
         while true; do
             if [ "$step" -eq 1 ]; then
                 links=()
@@ -725,7 +683,6 @@ download_video() {
             break
         fi
     done
-    fi
 
     if [ -n "$folder_manual_name" ]; then
         mkdir -p "$folder_manual_name"
