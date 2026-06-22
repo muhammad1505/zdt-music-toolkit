@@ -392,9 +392,28 @@ except:
                 resp_escaped=$(echo "$ai_response" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
                 _zaki_add_history "assistant" "$resp_escaped"
                 
-                # Proses AUTO_ACTION (Case-Insensitive)
+                # Tampilkan reply AI terlebih dahulu (bersihkan tag action, case-insensitive)
+                local clean_reply=$(echo "$reply_text" | sed 's/\[[Aa][Uu][Tt][Oo]_[Aa][Cc][Tt][Ii][Oo][Nn]:[^]]*\]//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                
+                local is_auto_action=false
                 local upper_response="${ai_response^^}"
                 if [[ "$upper_response" == *"[AUTO_ACTION:"* ]]; then
+                    is_auto_action=true
+                fi
+
+                if [ -n "$clean_reply" ]; then
+                    echo ""
+                    echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}$clean_reply${RESET}"
+                    if [ "$is_auto_action" = false ]; then
+                        _pause
+                    else
+                        echo ""
+                        sleep 1
+                    fi
+                fi
+                
+                # Proses AUTO_ACTION (Case-Insensitive)
+                if [ "$is_auto_action" = true ]; then
                     local action_match
                     action_match=$(echo "$ai_response" | grep -ioP '\[AUTO_ACTION:\s*\K[^\]]+')
                     local action_match_lower="${action_match,,}"
@@ -638,12 +657,10 @@ except:
                 _pause
             fi
         else
-            # Tampilkan reply AI
-            local clean_reply=$(echo "$reply_text" | sed 's/\[AUTO_ACTION:[^\]]*\]//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-            if [ -n "$clean_reply" ]; then
+            # Jika AI tidak dipanggil (fallback mode)
+            # Bagian ini hanya untuk _pause jika fallback dijalankan
+            if [ -z "${input:-}" ]; then
                 echo ""
-                echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}$clean_reply${RESET}"
-                _pause
             fi
         fi
 
