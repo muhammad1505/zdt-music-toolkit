@@ -272,7 +272,11 @@ download_ytdlp() {
         pilih_lirik="n"
         pilih_kompres="n"
         pilih_chapter="n"
-        pilih_playlist="n"
+        if [[ "${links[0]}" =~ list= || "${links[0]}" =~ playlist || "${links[0]}" =~ ytsearch[2-9] || "${links[0]}" =~ ytsearch[0-9][0-9] ]]; then
+            pilih_playlist="y"
+        else
+            pilih_playlist="n"
+        fi
     else
         while true; do
             if [ "$step" -eq 1 ]; then
@@ -569,7 +573,11 @@ download_video() {
         folder_mode="3"
         pilih_archive="n"
         pilih_chapter="n"
-        pilih_playlist="n"
+        if [[ "${links[0]}" =~ list= || "${links[0]}" =~ playlist || "${links[0]}" =~ ytsearch[2-9] || "${links[0]}" =~ ytsearch[0-9][0-9] ]]; then
+            pilih_playlist="y"
+        else
+            pilih_playlist="n"
+        fi
     else
         while true; do
             if [ "$step" -eq 1 ]; then
