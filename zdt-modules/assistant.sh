@@ -261,8 +261,8 @@ zaki_assistant() {
             local ai_prompt="IDENTITAS: Kamu Zaki-Bot, asisten cerdas untuk ZDT (Zaki Downloader Tools) v${APP_VERSION}.
 ATURAN WAJIB:
 1. HARUS 100% Bahasa Indonesia santai/gaul. DILARANG bahasa Inggris.
-2. DILARANG menampilkan proses berpikir, reasoning, atau analisis internal.
-3. Jawab LANGSUNG, singkat, jelas. Maksimal 3 kalimat. Boleh pakai emoji.
+2. DILARANG KERAS menampilkan proses berpikir (reasoning), rencana, atau analisis internal. JAWAB LANGSUNG!
+3. Jawab singkat, jelas. Maksimal 3 kalimat. Boleh pakai emoji.
 4. Jika user minta JALANKAN fitur, WAJIB sertakan tag [AUTO_ACTION: <aksi>] di akhir jawaban.
 5. Jika user tanya/ngobrol biasa (bukan minta jalankan), jawab biasa TANPA AUTO_ACTION.
 
@@ -335,7 +335,7 @@ try:
         if not l:
             continue
         # Skip lines that look like internal reasoning
-        if re.match(r"^(Okay|Wait|Hmm|So|Now|Let|Looking|The user|I need|I will|I should|First|Alright|Here)", l, re.IGNORECASE):
+        if re.match(r"^(Okay|Wait|Hmm|So|Now|Let|Looking|The user|I need|I will|I should|First|Alright|Here|We need|We should|As an AI)", l, re.IGNORECASE):
             continue
         clean.append(line)
     txt = "\n".join(clean).strip()
@@ -346,7 +346,7 @@ except:
 '
 
                 for tier_models in "${or_tiers[@]}"; do
-                    local payload="{\"models\": $tier_models, \"messages\": $messages, \"max_tokens\": 200}"
+                    local payload="{\"models\": $tier_models, \"messages\": $messages, \"max_tokens\": 500}"
                     
                     # Run curl in background with spinner
                     curl -s --max-time 20 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
@@ -369,7 +369,7 @@ except:
                     fi
                     gemini_contents="$gemini_contents{\"role\": \"$msg_role\", \"parts\": [{\"text\": \"$msg_content\"}]}"
                 done
-                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [$gemini_contents], \"generationConfig\": {\"maxOutputTokens\": 200}}"
+                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [$gemini_contents], \"generationConfig\": {\"maxOutputTokens\": 500}}"
                 
                 curl -s --max-time 20 -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null > "$ai_tmpfile" &
                 local curl_pid=$!
