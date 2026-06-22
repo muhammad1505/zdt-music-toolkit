@@ -393,11 +393,11 @@ except:
                 _zaki_add_history "assistant" "$resp_escaped"
                 
                 # Tampilkan reply AI terlebih dahulu (bersihkan tag action, case-insensitive)
-                local clean_reply=$(echo "$reply_text" | sed 's/\[[Aa][Uu][Tt][Oo]_[Aa][Cc][Tt][Ii][Oo][Nn]:[^]]*\]//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                local clean_reply=$(echo "$reply_text" | sed 's/\[[[:space:]]*[Aa][Uu][Tt][Oo]_[Aa][Cc][Tt][Ii][Oo][Nn]:[^]]*\]//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
                 
                 local is_auto_action=false
                 local upper_response="${ai_response^^}"
-                if [[ "$upper_response" == *"[AUTO_ACTION:"* ]]; then
+                if [[ "$upper_response" =~ \[[[:space:]]*AUTO_ACTION: ]]; then
                     is_auto_action=true
                 fi
 
@@ -415,7 +415,10 @@ except:
                 # Proses AUTO_ACTION (Case-Insensitive)
                 if [ "$is_auto_action" = true ]; then
                     local action_match
-                    action_match=$(echo "$ai_response" | grep -ioP '\[AUTO_ACTION:\s*\K[^\]]+')
+                    action_match=$(echo "$ai_response" | grep -ioP '\[\s*AUTO_ACTION:\s*\K[^\]]+')
+                    # Trim spaces
+                    action_match="${action_match%"${action_match##*[![:space:]]}"}"
+                    action_match="${action_match#"${action_match%%[![:space:]]*}"}"
                     local action_match_lower="${action_match,,}"
                     
                     case "$action_match_lower" in
