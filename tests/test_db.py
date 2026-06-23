@@ -118,3 +118,12 @@ def test_downloads_table(temp_db):
     res = run_db_sys(temp_db, "check_duplicate", "http://youtube.com/new_url")
     assert res.returncode == 0, res.stderr
     assert res.stdout.strip() == "False"
+
+def test_db_missing_arguments(temp_db):
+    # Test check_duplicate missing argument
+    res = run_db_sys(temp_db, "check_duplicate")
+    assert res.returncode != 0
+    
+    # Test add_download missing arguments
+    res = run_db_sys(temp_db, "add_download", "song1.mp3")
+    assert res.returncode != 0

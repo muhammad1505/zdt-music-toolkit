@@ -485,3 +485,26 @@ _record_downloads() {
         fi
     done < <(find "$scan_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -mmin -10 2>/dev/null)
 }
+
+# ==========================================
+# HELPER: DOWNLOAD WITH AUTO-RETRY
+# ==========================================
+_download_with_retry() {
+    local max_retries=3
+    local retry_count=0
+    local dl_status=1
+    
+    while [ $retry_count -lt $max_retries ] && [ $dl_status -ne 0 ]; do
+        dl_status=0
+        "$@" || dl_status=$?
+
+        if [ $dl_status -ne 0 ]; then
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                echo -e "  ${YELLOW}${ICO_WARN} Unduhan gagal (Exit: $dl_status). Mencoba ulang ($retry_count/$max_retries) dalam 3 detik...${RESET}"
+                sleep 3
+            fi
+        fi
+    done
+    return $dl_status
+}

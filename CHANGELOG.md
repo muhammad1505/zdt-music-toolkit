@@ -2,7 +2,14 @@
 
 Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini.
 
-## v4.1.63 (Latest)
+## v4.1.69 (Latest Enterprise Update)
+- **Feat(Core)**: **Smart Duplicate Detector** - Mencegah unduhan ganda lewat pengecekan SQLite `check_duplicate`.
+- **Feat(Core)**: **Auto-Retry & Resume Queue** - Menangani kegagalan unduhan dengan sistem rehat dan coba ulang cerdas (Max 3 retries).
+- **Feat(Core)**: **Global Archive** - File arsip `yt-dlp` diletakkan di `$TARGET_DIR` agar tersinkronisasi.
+- **Feat(Web)**: **HTTP Basic Auth** - Mengamankan Dashboard dengan layar Login (Default: `admin:admin` atau via `ZDT_WEB_USER` & `ZDT_WEB_PASS`).
+- **Feat(Web)**: **OLED Ultra Dark Mode** - Desain UI yang jauh lebih premium dengan efek *neon glow* dan latar hitam legam.
+- **Feat(Web)**: **Statistik Tab** - Panel Riwayat Unduhan & Metrik Ukuran terintegrasi penuh ke SQLite.
+- **Feat(DB)**: **Unit Test & DevEx** - Tabel `downloads`, command `add_download`, `get_stats` & standardisasi dependensi `requirements.txt`.
 - **Feat(AI)**: Zaki-Bot AI kini lebih pintar menjabarkan fitur berkat pembaruan prompt (bypassing batasan kalimat singkat saat diminta informasi bantuan).
 - **Feat(Core)**: Mekanisme **Graceful Fallback** untuk AI. Jika Gemini gagal/limit, Zaki-Bot otomatis beralih menggunakan OpenRouter API.
 - **Feat(Web)**: Global Error Handler (`@app.errorhandler`) di Flask untuk menangkap Error 500 menjadi JSON agar Web UI (Dashboard) tidak menampilkan layar putih.
