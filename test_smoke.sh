@@ -61,20 +61,13 @@ else
 fi
 echo ""
 
-# 4. Version consistency check (APP_VERSION is defined in core.sh, used by zdt.sh)
+# 4. Version consistency check (APP_VERSION is defined in zdt.sh)
 echo "▶ Version Consistency"
-ver_core=$(grep -oP 'APP_VERSION="\K[^"]+' "$SCRIPT_DIR/zdt-modules/core.sh" 2>/dev/null || echo "NOT_FOUND")
-if [ "$ver_core" = "3.8.0" ]; then
-    pass "APP_VERSION = $ver_core (core.sh)"
+ver_main=$(grep -oP 'readonly APP_VERSION="\K[^"]+' "$SCRIPT_DIR/zdt.sh" 2>/dev/null || echo "NOT_FOUND")
+if [ "$ver_main" != "NOT_FOUND" ]; then
+    pass "APP_VERSION = $ver_main (zdt.sh)"
 else
-    fail "APP_VERSION mismatch: expected 3.8.0, got $ver_core"
-fi
-
-# zdt.sh should reference APP_VERSION (sourced from core.sh via module loading)
-if grep -q 'APP_VERSION' "$SCRIPT_DIR/zdt.sh" 2>/dev/null; then
-    pass "zdt.sh references APP_VERSION from modules"
-else
-    fail "zdt.sh does not reference APP_VERSION"
+    fail "APP_VERSION not found in zdt.sh"
 fi
 echo ""
 

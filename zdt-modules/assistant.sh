@@ -6,25 +6,31 @@
 # structured intent recognition
 # ==========================================
 
-# Conversation history (kept in memory)
-declare -a ZDT_CHAT_HISTORY=()
+# Conversation history (Database)
+readonly ZDT_DB_FILE="$HOME/.config/zdt/zdt_history.db"
+readonly ZDT_DB_HELPER="$_MODULES_DIR/zdt_db.py"
 
 _zaki_add_history() {
     local role="$1" content="$2"
-    ZDT_CHAT_HISTORY+=("{\"role\": \"$role\", \"content\": \"$content\"}")
-    # Keep only last 10 entries (5 user + 5 assistant)
-    if [ ${#ZDT_CHAT_HISTORY[@]} -gt 10 ]; then
-        ZDT_CHAT_HISTORY=("${ZDT_CHAT_HISTORY[@]:2}")
+    if command -v python3 >/dev/null 2>&1; then
+        python3 "$ZDT_DB_HELPER" "$ZDT_DB_FILE" "add" "$role" "$content" 2>/dev/null || true
     fi
 }
 
 _zaki_build_messages() {
     local system_prompt="$1"
-    local result="{\"role\": \"system\", \"content\": \"$system_prompt\"}"
-    for msg in "${ZDT_CHAT_HISTORY[@]}"; do
-        result="$result, $msg"
-    done
-    echo "[$result]"
+    local system_json="{\"role\": \"system\", \"content\": \"$system_prompt\"}"
+    local history_json=""
+    
+    if command -v python3 >/dev/null 2>&1; then
+        history_json=$(python3 "$ZDT_DB_HELPER" "$ZDT_DB_FILE" "get_openai_json" 2>/dev/null)
+    fi
+    
+    if [ -n "$history_json" ]; then
+        echo "[$system_json, $history_json]"
+    else
+        echo "[$system_json]"
+    fi
 }
 
 _zaki_spinner() {
@@ -84,13 +90,18 @@ zaki_assistant() {
             fi
         fi
 
+        local db_count=0
+        if command -v python3 >/dev/null 2>&1; then
+            db_count=$(python3 "$ZDT_DB_HELPER" "$ZDT_DB_FILE" "get_count" 2>/dev/null || echo "0")
+        fi
+
         local ai_opts=(
             " ${MAGENTA}${BOLD}■ ZAKI AI ASSISTANT v${ZDT_VERSION:-4.0}${RESET}"
             " ${WHITE}${salam} Bos! Aku siap bantu automasi tugasmu.${RESET}"
             "DIVIDER"
             " ${CYAN}Storage :${RESET} ${sisa} free of ${total_kapasitas}"
             " ${CYAN}AI API  :${RESET} $ai_status"
-            " ${CYAN}Memori  :${RESET} ${#ZDT_CHAT_HISTORY[@]} pesan tersimpan"
+            " ${CYAN}Memori  :${RESET} $db_count pesan tersimpan di SQLite"
             "DIVIDER"
             " ${GREEN}Ketik apa saja dengan bahasa sehari-hari, atau:${RESET}"
             "  ${YELLOW}[?]${RESET} Bantuan Cepat       ${YELLOW}[!]${RESET} Reset Memori"
@@ -184,6 +195,7 @@ zaki_assistant() {
         local input="${bot_prompt,,}"
         input="${input//\"/}"
         input="${input//\'/}"
+        local input_lower="$input"
 
         [ -z "$input" ] && continue
 
@@ -195,10 +207,11 @@ zaki_assistant() {
         fi
 
         # Reset memory
-        if [ "$input" = "!" ] || [ "$input" = "reset" ] || [ "$input" = "clear" ]; then
-            ZDT_CHAT_HISTORY=()
-            echo -e "  ${GREEN}${ICO_OK} Memori percakapan direset!${RESET}"
-            sleep 1
+        if [ "$input" = "!" ] || [ "$input_lower" = "reset" ] || [ "$input_lower" = "clear" ] || [ "$input_lower" = "/clear" ]; then
+            if command -v python3 >/dev/null 2>&1; then
+                python3 "$ZDT_DB_HELPER" "$ZDT_DB_FILE" "clear" 2>/dev/null || true
+            fi
+            echo -e "  ${YELLOW}${ICO_ARROW} Zaki-Bot:${RESET} Memori percakapan telah dikosongkan! Aku siap memulai dari nol."
             continue
         fi
 
@@ -363,14 +376,10 @@ except:
                 # Gemini
                 local gemini_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$gemini_key"
                 local gemini_contents=""
-                for msg in "${ZDT_CHAT_HISTORY[@]}"; do
-                    local msg_role=$(echo "$msg" | python3 -c "import sys,json; m=json.loads(sys.stdin.read()); r=m['role']; print('user' if r=='user' else 'model')" 2>/dev/null)
-                    local msg_content=$(echo "$msg" | python3 -c "import sys,json; m=json.loads(sys.stdin.read()); print(m['content'])" 2>/dev/null)
-                    if [ -n "$gemini_contents" ]; then
-                        gemini_contents="$gemini_contents, "
-                    fi
-                    gemini_contents="$gemini_contents{\"role\": \"$msg_role\", \"parts\": [{\"text\": \"$msg_content\"}]}"
-                done
+                
+                if command -v python3 >/dev/null 2>&1; then
+                    gemini_contents=$(python3 "$ZDT_DB_HELPER" "$ZDT_DB_FILE" "get_gemini_json" 2>/dev/null)
+                fi
                 local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [$gemini_contents], \"generationConfig\": {\"maxOutputTokens\": 500}}"
                 
                 curl -s --max-time 20 -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null > "$ai_tmpfile" &
