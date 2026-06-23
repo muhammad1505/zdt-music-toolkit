@@ -247,6 +247,46 @@ HTML_TEMPLATE = """
         .status-box.error { display: block; background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
         .status-box.info { display: block; background: rgba(59, 130, 246, 0.1); color: var(--primary); border: 1px solid rgba(59, 130, 246, 0.2); }
 
+        /* Toast Notifications */
+        #toastContainer {
+            position: fixed; top: 20px; right: 20px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            background: var(--bg-surface); backdrop-filter: blur(12px);
+            border: 1px solid var(--border-light); border-radius: 8px;
+            padding: 16px 20px; color: var(--text-main); font-size: 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex; align-items: center; gap: 12px;
+            animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            min-width: 250px;
+        }
+        .toast.success { border-left: 4px solid var(--accent); }
+        .toast.error { border-left: 4px solid var(--danger); }
+        .toast.info { border-left: 4px solid var(--primary); }
+        .toast-icon { font-size: 18px; }
+        .toast.success .toast-icon { color: var(--accent); }
+        .toast.error .toast-icon { color: var(--danger); }
+        .toast.info .toast-icon { color: var(--primary); }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+
+        /* Live Progress Bar */
+        .progress-wrapper {
+            width: 100%; height: 12px; background: rgba(0,0,0,0.5);
+            border-radius: 6px; overflow: hidden; margin-top: 10px;
+            display: none; border: 1px solid var(--border-light);
+        }
+        .progress-fill {
+            height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 6px; transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        .progress-text {
+            font-size: 12px; color: var(--text-muted); margin-top: 5px;
+            display: flex; justify-content: space-between;
+        }
+
         .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
         .tool-card {
             background: var(--bg-card); border: 1px solid var(--border-light);
@@ -395,6 +435,7 @@ HTML_TEMPLATE = """
     </style>
 </head>
 <body>
+    <div id="toastContainer"></div>
     <div class="mobile-header">
         <div class="logo"><i class="fa-solid fa-layer-group"></i> ZDT</div>
         <span id="mobileVersion" style="font-size:12px; color:var(--primary);"></span>
@@ -649,6 +690,13 @@ HTML_TEMPLATE = """
                 <button class="btn btn-outline" style="width:auto; padding: 5px 15px; font-size: 12px;" onclick="closeLogs()"><i class="fa-solid fa-xmark"></i> Tutup Log</button>
             </div>
             <div class="log-container" id="terminalLog">System ready. Waiting for task execution...</div>
+            <div class="progress-wrapper" id="liveProgressWrapper">
+                <div class="progress-fill" id="liveProgressFill"></div>
+                <div class="progress-text">
+                    <span id="liveProgressTask">Processing...</span>
+                    <span id="liveProgressPct">0%</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -746,6 +794,25 @@ HTML_TEMPLATE = """
         setInterval(loadStatus, 3000);
         loadStatus();
 
+        // TOAST NOTIFICATION LOGIC
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let iconClass = 'fa-solid fa-circle-info';
+            if (type === 'success') iconClass = 'fa-solid fa-circle-check';
+            if (type === 'error') iconClass = 'fa-solid fa-circle-exclamation';
+            
+            toast.innerHTML = `<div class="toast-icon"><i class="${iconClass}"></i></div><div>${message}</div>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
         async function loadFiles() {
             try {
                 const res = await fetch('/api/files');
@@ -774,11 +841,10 @@ HTML_TEMPLATE = """
                         body: JSON.stringify(payloadBuilder())
                     });
                     const data = await res.json();
-                    status.className = 'status-box ' + (data.success ? 'success' : 'error');
-                    status.innerText = (data.success ? '✅ ' : '❌ ') + data.message;
+                    showToast(data.message, data.success ? 'success' : 'error');
                     if(data.success && formId !== 'formSettings' && formId !== 'formMeta') e.target.reset();
                     if(formId === 'formSettings') { document.getElementById('dashTargetDir').innerText = 'Loading...'; loadStatus(); }
-                } catch(err) { status.className = 'status-box error'; status.innerText = '❌ Connection Error!'; }
+                } catch(err) { showToast('Connection Error!', 'error'); }
                 btn.disabled = false; btn.innerHTML = originalHtml;
             });
         }
@@ -805,9 +871,7 @@ HTML_TEMPLATE = """
         }), 'SAVING...');
 
         async function runTool(toolType) {
-            const status = document.getElementById('toolsStatus');
-            status.className = 'status-box info';
-            status.innerText = '⏳ Dispatching command to server...';
+            showToast('Dispatching command to server...', 'info');
             
             let payload = { action: toolType };
             if (toolType === 'demucs') {
@@ -825,29 +889,25 @@ HTML_TEMPLATE = """
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                status.className = 'status-box ' + (data.success ? 'success' : 'error');
-                status.innerText = (data.success ? '✅ ' : '❌ ') + data.message;
+                showToast(data.message, data.success ? 'success' : 'error');
                 if(data.success) { loadFiles(); loadStatus(); }
             } catch(err) {
-                status.className = 'status-box error'; status.innerText = '❌ Connection Error!';
+                showToast('Connection Error!', 'error');
             }
         }
 
         async function toggleDaemon(service, action) {
-            const status = document.getElementById('daemonStatus');
-            status.className = 'status-box info';
-            status.innerText = `⏳ Sending ${action} command to ${service}...`;
+            showToast(`Sending ${action} command to ${service}...`, 'info');
             try {
                 const res = await fetch('/api/daemon', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ service, action })
                 });
                 const data = await res.json();
-                status.className = 'status-box ' + (data.success ? 'success' : 'error');
-                status.innerText = (data.success ? '✅ ' : '❌ ') + data.message;
+                showToast(data.message, data.success ? 'success' : 'error');
                 loadStatus();
             } catch(err) {
-                status.className = 'status-box error'; status.innerText = '❌ Connection Error!';
+                showToast('Connection Error!', 'error');
             }
         }
 
@@ -897,12 +957,42 @@ HTML_TEMPLATE = """
                 if(data.log && data.log.trim().length > 0 && data.log !== "No active tasks.") {
                     document.getElementById("logSection").style.display = "block";
                     const term = document.getElementById("terminalLog");
+                    
                     if (term.textContent !== data.log) {
                         term.textContent = data.log;
                         term.scrollTop = term.scrollHeight;
+                        
+                        // Regex Parser for Progress Bar
+                        const logLines = data.log.split('\\n');
+                        let lastProgressLine = "";
+                        for (let i = logLines.length - 1; i >= 0; i--) {
+                            if (logLines[i].includes('%')) { lastProgressLine = logLines[i]; break; }
+                        }
+                        
+                        const wrapper = document.getElementById("liveProgressWrapper");
+                        const fill = document.getElementById("liveProgressFill");
+                        const pctSpan = document.getElementById("liveProgressPct");
+                        const taskSpan = document.getElementById("liveProgressTask");
+                        
+                        if (lastProgressLine) {
+                            wrapper.style.display = "block";
+                            const match = lastProgressLine.match(/(\\d+\\.?\\d*)%/);
+                            if (match && match[1]) {
+                                fill.style.width = match[1] + '%';
+                                pctSpan.innerText = match[1] + '%';
+                                
+                                if (lastProgressLine.toLowerCase().includes('download')) taskSpan.innerText = "Downloading Media...";
+                                else if (lastProgressLine.toLowerCase().includes('split')) taskSpan.innerText = "Splitting Stems (Demucs)...";
+                                else if (lastProgressLine.toLowerCase().includes('size')) taskSpan.innerText = "Compressing Media (FFmpeg)...";
+                                else taskSpan.innerText = "Processing...";
+                            }
+                        } else {
+                            wrapper.style.display = "none";
+                        }
                     }
                 } else {
                     document.getElementById("logSection").style.display = "none";
+                    document.getElementById("liveProgressWrapper").style.display = "none";
                 }
             } catch(e) {}
         }, 1500);
