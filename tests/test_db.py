@@ -83,3 +83,29 @@ def test_max_20_messages(temp_db):
     assert len(data) == 20
     assert data[0]["content"] == "Message 5"
     assert data[-1]["content"] == "Message 24"
+
+def test_downloads_table(temp_db):
+    # Test adding downloads
+    run_db_sys(temp_db, "add_download", "song1.mp3", "http://youtube.com/1", "youtube", "5000000")
+    run_db_sys(temp_db, "add_download", "song2.m4a", "http://spotify.com/2", "spotify", "3000000")
+    
+    # Test getting stats
+    res = run_db_sys(temp_db, "get_stats")
+    assert res.returncode == 0, res.stderr
+    data = json.loads(res.stdout.strip())
+    
+    assert data["total_count"] == 2
+    assert data["total_size_bytes"] == 8000000
+    assert data["sources"].get("youtube") == 1
+    assert data["sources"].get("spotify") == 1
+    
+    # Check recent downloads
+    assert len(data["recent"]) == 2
+    # recent is ordered by id DESC
+    assert data["recent"][0]["filename"] == "song2.m4a"
+    assert data["recent"][0]["source"] == "spotify"
+    assert data["recent"][0]["size_bytes"] == 3000000
+    
+    assert data["recent"][1]["filename"] == "song1.mp3"
+    assert data["recent"][1]["source"] == "youtube"
+    assert data["recent"][1]["size_bytes"] == 5000000
