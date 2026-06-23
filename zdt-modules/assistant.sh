@@ -272,43 +272,58 @@ zaki_assistant() {
             fi
 
             local ai_prompt="IDENTITAS: Kamu Zaki-Bot, asisten cerdas untuk ZDT (Zaki Downloader Tools) v${APP_VERSION}.
-ATURAN WAJIB:
-1. HARUS 100% Bahasa Indonesia santai/gaul. DILARANG bahasa Inggris.
-2. DILARANG KERAS menampilkan proses berpikir (reasoning), rencana, atau analisis internal. JAWAB LANGSUNG!
-3. Jawab singkat, jelas. Maksimal 3 kalimat. Boleh pakai emoji. (KECUALI jika user bertanya tentang daftar fitur/kemampuanmu, kamu WAJIB menjabarkannya dengan lengkap dan boleh lebih dari 3 kalimat).
-4. Jika user minta JALANKAN fitur, WAJIB sertakan tag [AUTO_ACTION: <aksi>] di akhir jawaban.
-5. Jika user tanya/ngobrol biasa (bukan minta jalankan), jawab biasa TANPA AUTO_ACTION.
-6. PROAKTIF! Jika user minta dicarikan 1 lagu, jalankan [AUTO_ACTION: gas download audio ytsearch1:<kata kunci>]. Jika minta PLAYLIST/MIX tanpa link, JANGAN gunakan AUTO_ACTION! Beritahu user untuk mengirimkan LINK PLAYLIST agar bot bisa mengunduh ratusan lagu dengan akurat.
-7. LINK MENTAH! Jika user HANYA mengirimkan link tanpa perintah apa-apa (YouTube/TikTok/dll), langsung jalankan [AUTO_ACTION: gas download smart <url>]. Jika link Spotify, jalankan [AUTO_ACTION: gas spotify <url>].
+ATURAN WAJIB (JSON OUTPUT ONLY):
+1. HARUS 100% Bahasa Indonesia santai/gaul.
+2. Jawab singkat, maksimal 3 kalimat. Boleh pakai emoji.
+3. OUTPUT HARUS BERUPA JSON VALID TANPA MARKDOWN BACKTICKS!
+Format JSON:
+{
+  \"reply\": \"Respon ramah untuk user\",
+  \"intent\": \"nama_aksi\",
+  \"query\": \"parameter_pencarian_atau_url\"
+}
 
-DAFTAR LENGKAP 18 FITUR ZDT:
-[1] Setup — Instal dependensi (ffmpeg, yt-dlp, spotdl, demucs) → aksi: gas setup
-[2] Spotify DL — Download lagu/album/playlist dari Spotify → aksi: gas spotify <url>
-[3] YT Audio — Download audio dari YouTube/TikTok/SoundCloud → aksi: gas download audio ytsearch1:<judul> (hanya untuk 1 lagu) atau gas download audio <url> (untuk link tunggal atau playlist)
-[4] Video DL — Download video dari YouTube/TikTok → aksi: gas download video ytsearch1:<judul> atau gas download video <url>
-[5] Kompres Audio — Perkecil ukuran file audio → aksi: kompres media
-[5b] Kompres Video — Perkecil ukuran file video → aksi: kompres video
-[6] Hapus Vokal — Pisahkan vokal dan instrumen pakai AI Demucs → aksi: hapus vokal
-[7] Sync Lirik — Cari dan download file .lrc otomatis → aksi: sync lirik
-[8] Playlist Sync — Sinkronisasi playlist Spotify (hanya download yang belum ada) → aksi: gas playlist sync <url>
-[9] Info Sistem — Cek spesifikasi dan status dependensi → aksi: gas info sistem
-[S] Storage — Ubah folder target download → aksi: gas storage
-[W] Watch Daemon — Jalankan daemon otomatis bersih nama file → aksi: gas daemon
-[P] Playlist M3U — Buat file playlist .m3u dari semua lagu → aksi: bikin playlist
-[M] Metadata — Edit tag ID3 (judul/artis) file audio → aksi: gas metadata
-[O] Bersih Nama — Hapus karakter aneh dari nama file → aksi: bersih nama
-[T] Telegram Bot — Kendali ZDT jarak jauh via Telegram → aksi: gas telegram
-[V] Web UI — Buka dashboard ZDT di browser → aksi: gas web ui
-[U] Update — Update ZDT ke versi terbaru via OTA → aksi: gas update
-[X] Hapus Semua — Hapus semua file media di folder target → aksi: gas hapus semua
+Jika tidak ada aksi, biarkan intent dan query kosong (\"\").
+
+ATURAN INTENT:
+- User minta 1 lagu: intent=\"download audio\", query=\"ytsearch1:<judul>\"
+- User minta playlist/mix tanpa link: intent=\"download audio\", query=\"ytsearch1:<artis> mix full album\"
+- User kirim link mentah: intent=\"download smart\", query=\"<url>\" (atau \"spotify\" jika link Spotify)
+- User minta cari 5 lagu/video (pilih manual): intent=\"cari lagu\", query=\"<judul>\"
+- Aksi lain: intent=\"<nama_aksi>\" (misal: \"kompres media\", \"bersih nama\")
+
+DAFTAR LENGKAP FITUR ZDT:
+[1] Setup → intent: setup
+[2] Spotify DL → intent: spotify
+[3] YT Audio → intent: download audio
+[4] Video DL → intent: download video
+[5] Kompres Audio → intent: kompres media
+[5b] Kompres Video → intent: kompres video
+[6] Hapus Vokal → intent: hapus vokal
+[7] Sync Lirik → intent: sync lirik
+[8] Playlist Sync → intent: playlist sync
+[9] Info Sistem → intent: info sistem
+[S] Storage → intent: storage
+[W] Watch Daemon → intent: daemon
+[P] Playlist M3U → intent: bikin playlist
+[M] Metadata → intent: metadata
+[O] Bersih Nama → intent: bersih nama
+[T] Telegram Bot → intent: telegram
+[V] Web UI → intent: web ui
+[U] Update → intent: update
+[X] Hapus Semua → intent: hapus semua
 
 CONTOH PENGGUNAAN:
-- User: 'download lagu Tulus Hati-Hati' → 'Siap Bos, langsung gas download! 🎵 [AUTO_ACTION: gas download audio ytsearch1:Tulus Hati-Hati]'
-- User: 'download spotify https://open.spotify.com/track/abc' → 'Oke gas download dari Spotify! 🎧 [AUTO_ACTION: gas spotify https://open.spotify.com/track/abc]'
-- User: 'bersihin nama file dong' → 'Gas, aku rapihin nama filenya ya! ✨ [AUTO_ACTION: bersih nama]'
-- User: 'apa itu demucs?' → 'Demucs itu AI dari Meta buat misahin vokal dan instrumen dari lagu. Keren banget buat bikin karaoke! 🎤' (TANPA AUTO_ACTION karena cuma tanya)
-- User: 'hapus semua file' → 'Oke Bos, aku hapus semua file media di folder target ya! ⚠️ [AUTO_ACTION: gas hapus semua]'
-- User: 'bisa apa aja kamu?' / 'fitur kamu apa aja?' → '(jabarkan daftar fitur ZDT secara ringkas & terstruktur, TANPA AUTO_ACTION)'
+- User: 'download lagu Tulus Hati-Hati'
+  JSON: {\"reply\": \"Siap Bos, langsung gas download! 🎵\", \"intent\": \"download audio\", \"query\": \"ytsearch1:Tulus Hati-Hati\"}
+- User: 'cariin mix sasya arkhisna'
+  JSON: {\"reply\": \"Siap Bos, ini kompilasi mix Sasya Arkhisna! 🎧\", \"intent\": \"download audio\", \"query\": \"ytsearch1:sasya arkhisna mix full album\"}
+- User: 'cari lagu peterpan'
+  JSON: {\"reply\": \"Ini 5 hasil pencarian lagu Peterpan. Pilih nomor berapa Bos? 🎶\", \"intent\": \"cari lagu\", \"query\": \"peterpan\"}
+- User: 'bersihin nama file dong'
+  JSON: {\"reply\": \"Gas, aku rapihin nama filenya ya! ✨\", \"intent\": \"bersih nama\", \"query\": \"\"}
+- User: 'apa itu demucs?'
+  JSON: {\"reply\": \"Demucs itu AI dari Meta buat misahin vokal dan instrumen dari lagu...\", \"intent\": \"\", \"query\": \"\"}
 
 KONTEKS SAAT INI: Storage=$abs_path ($file_count file media). Isi folder: $dir_contents"
 
@@ -326,10 +341,10 @@ KONTEKS SAAT INI: Storage=$abs_path ($file_count file media). Isi folder: $dir_c
                 # OpenRouter — Multi-tier fallback (max 3 models per request)
                 local or_url="https://openrouter.ai/api/v1/chat/completions"
                 local or_tiers=(
-                    '["nvidia/nemotron-3-ultra-550b-a55b:free","openai/gpt-oss-120b:free","nousresearch/hermes-3-llama-3.1-405b:free"]'
-                    '["nvidia/nemotron-3-super-120b-a12b:free","qwen/qwen3-next-80b-a3b-instruct:free","qwen/qwen3-coder:free"]'
-                    '["meta-llama/llama-3.3-70b-instruct:free","google/gemma-4-31b-it:free","poolside/laguna-m.1:free"]'
-                    '["nex-agi/nex-n2-pro:free","openai/gpt-oss-20b:free","nvidia/nemotron-nano-9b-v2:free"]'
+                    '["google/gemini-2.0-flash-lite-preview-02-05:free","meta-llama/llama-3.3-70b-instruct:free"]'
+                    '["nvidia/nemotron-3-super-120b-a12b:free","qwen/qwen3-next-80b-a3b-instruct:free"]'
+                    '["google/gemma-4-31b-it:free","nousresearch/hermes-3-llama-3.1-405b:free"]'
+                    '["nex-agi/nex-n2-pro:free","openai/gpt-oss-120b:free"]'
                 )
 
                 local or_parse='
@@ -339,14 +354,14 @@ try:
     if "error" in d:
         sys.exit(1)
     txt = d.get("choices",[{}])[0].get("message",{}).get("content","")
-    txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL)
-    txt = re.sub(r"<reasoning>.*?</reasoning>", "", txt, flags=re.DOTALL)
-    txt = re.sub(r"\*\*(?:Thinking|Reasoning|Analysis|Internal|Step)[:\*].*?(?=\n[A-Z]|\n\n|$)", "", txt, flags=re.DOTALL|re.IGNORECASE)
-    # Batasi parser: jangan hapus baris daftar fitur, hanya hapus reasoning awal yang sangat kentara.
-    txt = re.sub(r"^(?:Let me think|I need to analyze|I will calculate|The user wants|Okay, let).*?\n", "", txt, flags=re.MULTILINE|re.IGNORECASE)
-    if txt:
-        print(txt)
-except:
+    
+    match = re.search(r"\{.*\}", txt, re.DOTALL)
+    if match:
+        parsed = json.loads(match.group(0))
+        print(json.dumps(parsed))
+    else:
+        print(json.dumps({"reply": txt.strip(), "intent": "", "query": ""}))
+except Exception:
     pass
 '
 
@@ -377,7 +392,21 @@ except:
                 _zaki_spinner $curl_pid
                 wait $curl_pid 2>/dev/null
 
-                ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('candidates',[{}])[0].get('content',{}).get('parts',[{}])[0].get('text',''))" 2>/dev/null)
+                local gemini_parse='
+import sys, json, re
+try:
+    d = json.load(sys.stdin)
+    txt = d.get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
+    match = re.search(r"\{.*\}", txt, re.DOTALL)
+    if match:
+        parsed = json.loads(match.group(0))
+        print(json.dumps(parsed))
+    else:
+        print(json.dumps({"reply": txt.strip(), "intent": "", "query": ""}))
+except Exception:
+    pass
+'
+                ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$gemini_parse" 2>/dev/null)
                 
                 # Graceful Fallback to OpenRouter if Gemini fails or hits quota
                 if [ -z "$ai_response" ] || [[ "$ai_response" == *"error"* ]]; then
@@ -400,20 +429,34 @@ except:
 
             if [ -n "$ai_response" ]; then
                 ai_used=true
-                reply_text="$ai_response"
                 
-                # Save AI response to history
+                # Save raw AI response to history
                 local resp_escaped
                 resp_escaped=$(echo "$ai_response" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
                 _zaki_add_history "assistant" "$resp_escaped"
                 
-                # Tampilkan reply AI terlebih dahulu (bersihkan tag action, case-insensitive)
-                local clean_reply=$(echo "$reply_text" | sed 's/\[[[:space:]]*[Aa][Uu][Tt][Oo]_[Aa][Cc][Tt][Ii][Oo][Nn]:[^]]*\]//g' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+                local clean_reply=""
+                local action_intent=""
+                local action_query=""
+                
+                if command -v python3 >/dev/null 2>&1; then
+                    # We expect ai_response to be a valid JSON string
+                    clean_reply=$(echo "$ai_response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('reply',''))" 2>/dev/null)
+                    action_intent=$(echo "$ai_response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('intent',''))" 2>/dev/null)
+                    action_query=$(echo "$ai_response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('query',''))" 2>/dev/null)
+                else
+                    clean_reply="$ai_response"
+                fi
                 
                 local is_auto_action=false
-                local upper_response="${ai_response^^}"
-                if [[ "$upper_response" =~ \[[[:space:]]*AUTO_ACTION: ]]; then
+                if [ -n "$action_intent" ]; then
                     is_auto_action=true
+                fi
+
+                # Anti-empty response fallback
+                if [ ${#clean_reply} -lt 15 ] && [ "$is_auto_action" = false ]; then
+                    echo -e "  ${YELLOW}${ICO_WARN} Zaki-Bot belum mengerti maksud Bos. Ketik '?' untuk menu bantuan.${RESET}"
+                    continue
                 fi
 
                 if [ -n "$clean_reply" ]; then
@@ -427,18 +470,13 @@ except:
                     fi
                 fi
                 
-                # Proses AUTO_ACTION (Case-Insensitive)
+                # Proses Intent JSON (Case-Insensitive)
                 if [ "$is_auto_action" = true ]; then
-                    local action_match
-                    action_match=$(echo "$ai_response" | grep -ioP '\[\s*AUTO_ACTION:\s*\K[^\]]+')
-                    # Trim spaces
-                    action_match="${action_match%"${action_match##*[![:space:]]}"}"
-                    action_match="${action_match#"${action_match%%[![:space:]]*}"}"
-                    local action_match_lower="${action_match,,}"
+                    local intent_lower="${action_intent,,}"
                     
-                    case "$action_match_lower" in
-                        "gas download smart"*)
-                            local smart_url=$(echo "$action_match" | sed 's/^gas download smart //I')
+                    case "$intent_lower" in
+                        "download smart")
+                            local smart_url="$action_query"
                             echo -e "  ${CYAN}${ICO_ARROW} Link terdeteksi: $smart_url${RESET}"
                             if [[ "$smart_url" =~ spotify ]]; then
                                 AUTO_DOWNLOAD_URL="$smart_url"
@@ -463,8 +501,8 @@ except:
                                 fi
                             fi
                             ;;
-                        "gas download audio"*)
-                            local dl_url=$(echo "$action_match" | sed 's/^gas download audio //I')
+                        "download audio")
+                            local dl_url="$action_query"
                             AUTO_DOWNLOAD_URL="$dl_url"
                             echo -e "  ${CYAN}${ICO_ARROW} Mendownload audio: $dl_url${RESET}"
                             if [[ "$dl_url" =~ spotify ]]; then
@@ -473,20 +511,64 @@ except:
                                 download_ytdlp
                             fi
                             ;;
-                        "gas download video"*)
-                            local dl_url=$(echo "$action_match" | sed 's/^gas download video //I')
+                        "download video")
+                            local dl_url="$action_query"
                             AUTO_DOWNLOAD_URL="$dl_url"
                             echo -e "  ${CYAN}${ICO_ARROW} Mendownload video: $dl_url${RESET}"
                             download_video
                             ;;
-                        "gas spotify"*)
-                            local sp_url=$(echo "$action_match" | sed 's/^gas spotify //I')
+                        "spotify")
+                            local sp_url="$action_query"
                             AUTO_DOWNLOAD_URL="$sp_url"
                             echo -e "  ${CYAN}${ICO_ARROW} Download Spotify: $sp_url${RESET}"
                             download_spotdl
                             ;;
-                        "gas playlist sync"*)
-                            local ps_url=$(echo "$action_match" | sed 's/^gas playlist sync //I')
+                        "cari lagu")
+                            local search_q="$action_query"
+                            echo -e "  ${CYAN}${ICO_ARROW} Mencari '$search_q' di YouTube...${RESET}"
+                            echo -e "  ${YELLOW}Sedang mengambil 5 hasil teratas, mohon tunggu...${RESET}"
+                            
+                            local search_output=""
+                            search_output=$(yt-dlp --print "%(title)s (ID: %(id)s)" "ytsearch5:$search_q" 2>/dev/null)
+                            
+                            if [ -z "$search_output" ]; then
+                                echo -e "  ${RED}${ICO_CROSS} Pencarian gagal atau tidak ditemukan.${RESET}"
+                            else
+                                local options=()
+                                local ids=()
+                                local i=1
+                                while IFS= read -r line; do
+                                    if [ -n "$line" ]; then
+                                        # Parse title and ID safely
+                                        local title="${line% (ID:*}"
+                                        local vid_id="${line##* (ID: }"
+                                        vid_id="${vid_id%)}"
+                                        options+=(" ${GREEN}[$i]${RESET} $title")
+                                        ids+=("$vid_id")
+                                        ((i++))
+                                    fi
+                                done <<< "$search_output"
+                                
+                                options+=("DIVIDER")
+                                options+=(" ${RED}[0]${RESET} Batal")
+                                _print_menu_box "HASIL PENCARIAN" "${options[@]}"
+                                
+                                echo -e -n "  ${BOLD}[?] Pilih lagu yang ingin didownload [0-$((i-1))]: ${RESET}"
+                                read -r choice
+                                echo ""
+                                
+                                if [[ "$choice" =~ ^[1-5]$ ]] && [ "$choice" -lt "$i" ]; then
+                                    local selected_id="${ids[$((choice-1))]}"
+                                    echo -e "  ${CYAN}${ICO_ARROW} Memproses ID: $selected_id${RESET}"
+                                    AUTO_DOWNLOAD_URL="https://youtube.com/watch?v=$selected_id"
+                                    download_ytdlp
+                                else
+                                    echo -e "  ${YELLOW}${ICO_WARN} Dibatalkan.${RESET}"
+                                fi
+                            fi
+                            ;;
+                        "playlist sync")
+                            local ps_url="$action_query"
                             echo -e "  ${CYAN}${ICO_ARROW} Sinkronisasi playlist Spotify: $ps_url${RESET}"
                             sync_spotify_playlist
                             ;;
@@ -515,46 +597,43 @@ except:
                             echo -e "  ${CYAN}${ICO_ARROW} Membuat playlist M3U...${RESET}"
                             bikin_playlist
                             ;;
-                        "gas web ui")
+                        "web ui")
                             echo -e "  ${CYAN}${ICO_ARROW} Meluncurkan Web UI...${RESET}"
                             start_web_dashboard
                             ;;
-                        "gas info sistem")
+                        "info sistem")
                             echo -e "  ${CYAN}${ICO_ARROW} Menampilkan Info Sistem...${RESET}"
                             system_info
                             ;;
-                        "gas update")
+                        "update")
                             echo -e "  ${CYAN}${ICO_ARROW} Melakukan OTA Update...${RESET}"
                             update_zdt_script
                             ;;
-                        "gas setup")
+                        "setup")
                             echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Setup...${RESET}"
                             install_missing_tools
                             ;;
-                        "gas daemon")
+                        "daemon")
                             echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Watch Daemon...${RESET}"
                             start_watch_daemon
                             ;;
-                        "gas telegram")
+                        "telegram")
                             echo -e "  ${CYAN}${ICO_ARROW} Menjalankan Telegram Bot...${RESET}"
                             start_telegram_bot
                             ;;
-                        "gas metadata")
+                        "metadata")
                             echo -e "  ${CYAN}${ICO_ARROW} Membuka Metadata Editor...${RESET}"
                             edit_metadata_manual
                             ;;
-                        "gas storage")
+                        "storage")
                             echo -e "  ${CYAN}${ICO_ARROW} Mengubah folder Storage...${RESET}"
                             setup_storage_dir
                             ;;
-                        "gas hapus semua")
+                        "hapus semua")
                             echo -e "  ${YELLOW}${ICO_WARN} Menghapus semua file media...${RESET}"
                             hapus_semua
                             ;;
                     esac
-                    
-                    # Bersihkan AUTO_ACTION dari reply
-                    reply_text=$(echo "$reply_text" | sed 's/\[AUTO_ACTION:[^\]]*\]//g')
                     
                     # Tambahkan _pause agar layar tidak langsung bersih setelah action berjalan
                     _pause
