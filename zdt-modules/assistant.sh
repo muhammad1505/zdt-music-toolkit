@@ -19,17 +19,32 @@ _zaki_add_history() {
 
 _zaki_build_messages() {
     local system_prompt="$1"
-    local system_json="{\"role\": \"system\", \"content\": \"$system_prompt\"}"
     local history_json=""
     
     if command -v python3 >/dev/null 2>&1; then
         history_json=$(python3 "$ZDT_DB_HELPER" "$ZDT_DB_FILE" "get_openai_json" 2>/dev/null)
     fi
     
+    # Build JSON safely using Python to avoid broken JSON from special chars in prompt
     if [ -n "$history_json" ]; then
-        echo "[$system_json, $history_json]"
+        python3 -c "
+import sys, json
+try:
+    sys_prompt = sys.argv[1]
+    sys_msg = {'role': 'system', 'content': sys_prompt}
+    history = json.loads(sys.argv[2])
+    result = [sys_msg] + (history if isinstance(history, list) else [history])
+    print(json.dumps(result))
+except Exception:
+    # Fallback: minimal valid JSON
+    import html
+    print(json.dumps([{'role': 'system', 'content': 'Assistant ZDT. Balas singkat dalam Bahasa Indonesia.'}]))
+" "$system_prompt" "$history_json" 2>/dev/null || echo "[{\"role\": \"system\", \"content\": \"Assistant ZDT. Balas singkat dalam Bahasa Indonesia.\"}]"
     else
-        echo "[$system_json]"
+        python3 -c "
+import sys, json
+print(json.dumps([{'role': 'system', 'content': sys.argv[1]}]))
+" "$system_prompt" 2>/dev/null || echo "[{\"role\": \"system\", \"content\": \"Assistant ZDT. Balas singkat dalam Bahasa Indonesia.\"}]"
     fi
 }
 
@@ -59,6 +74,16 @@ zaki_assistant() {
 
     local _zaki_first_run=true
     while true; do
+        # Reset state variables setiap iterasi (local di bash punya function-wide scope)
+        local ai_used=false
+        local reply_text=""
+        local clean_reply=""
+        local action_intent=""
+        local action_query=""
+        local input=""
+        local input_lower=""
+        local is_auto_action=false
+        
         if [ "$_zaki_first_run" = true ]; then
         if [ -z "${NO_COLOR:-}" ]; then
             echo -ne "\033[?25h"
@@ -255,8 +280,6 @@ zaki_assistant() {
         # ==========================================
         # PROSES INPUT MENGGUNAKAN AI ATAU MANUAL
         # ==========================================
-        local ai_used=false
-        local reply_text=""
 
         # Escape for JSON safety
         local input_escaped
@@ -371,12 +394,21 @@ try:
 except Exception:
     pass
 '
-
                 for tier_models in "${or_tiers[@]}"; do
-                    local payload="{\"models\": $tier_models, \"messages\": $messages, \"max_tokens\": 1000}"
+                    # Build payload safely via Python to avoid JSON injection from messages content
+                    local tmp_payload
+                    tmp_payload=$(python3 -c "
+import sys, json
+try:
+    models = json.loads(sys.argv[1])
+    msgs = json.loads(sys.argv[2])
+    payload = {'models': models, 'messages': msgs, 'max_tokens': 1000}
+    print(json.dumps(payload))
+except:
+    print(json.dumps({'models': [], 'messages': [], 'max_tokens': 1000}))
+" "$tier_models" "$messages" 2>/dev/null)
                     
-                    # Run curl in background with spinner
-                    curl -s --max-time 20 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
+                    curl -s --max-time 20 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$tmp_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
                     local curl_pid=$!
                     _zaki_spinner $curl_pid
                     wait $curl_pid 2>/dev/null
@@ -392,7 +424,23 @@ except Exception:
                 if command -v python3 >/dev/null 2>&1; then
                     gemini_contents=$(python3 "$ZDT_DB_HELPER" "$ZDT_DB_FILE" "get_gemini_json" 2>/dev/null)
                 fi
-                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [$gemini_contents], \"generationConfig\": {\"maxOutputTokens\": 1000}}"
+                # Build payload safely via Python to avoid JSON injection from prompt content
+                local payload
+                payload=$(python3 -c "
+import sys, json
+try:
+    contents_json = sys.argv[1]
+    contents = json.loads(contents_json) if contents_json.strip() else []
+    if not isinstance(contents, list): contents = [contents]
+    payload = {
+        'system_instruction': {'parts': [{'text': sys.argv[2]}]},
+        'contents': contents,
+        'generationConfig': {'maxOutputTokens': 1000}
+    }
+    print(json.dumps(payload))
+except:
+    print(json.dumps({'system_instruction': {'parts': [{'text': sys.argv[2]}]}, 'contents': [], 'generationConfig': {'maxOutputTokens': 1000}}))
+" "$gemini_contents" "$ai_prompt" 2>/dev/null)
                 
                 curl -s --max-time 20 -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null > "$ai_tmpfile" &
                 local curl_pid=$!
@@ -416,14 +464,28 @@ except Exception:
                 ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$gemini_parse" 2>/dev/null)
                 
                 # Graceful Fallback to OpenRouter if Gemini fails or hits quota
+                # Reuse gemini_key since it's already the user's configured API key
                 if [ -z "$ai_response" ] || [[ "$ai_response" == *"error"* ]]; then
-                    local fallback_key="${OPENROUTER_KEY:-}"
-                    if [ -n "$fallback_key" ]; then
+                    if [ -n "$gemini_key" ] && [[ "$gemini_key" != sk-or-* ]]; then
+                        # Only attempt OpenRouter fallback if the primary key is a Google Gemini key (not already OpenRouter)
                         echo -e "\n  ${YELLOW}${ICO_WARN} Gemini API sibuk (429). Mengalihkan ke OpenRouter (Graceful Fallback)...${RESET}"
                         local or_url="https://openrouter.ai/api/v1/chat/completions"
                         local or_parse="import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))"
-                        local or_payload="{\"models\": [\"google/gemini-2.0-flash-lite-preview-02-05:free\", \"meta-llama/llama-3.3-70b-instruct:free\"], \"messages\": [{\"role\":\"system\",\"content\":\"$ai_prompt\"},{\"role\":\"user\",\"content\":\"$bot_prompt\"}], \"max_tokens\": 1000}"
-                        curl -s --max-time 20 -H "Authorization: Bearer $fallback_key" -H "Content-Type: application/json" -d "$or_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
+                        # Build payload safely via Python
+                        local fallback_payload
+                        fallback_payload=$(python3 -c "
+import sys, json
+try:
+    payload = {
+        'models': ['google/gemini-2.0-flash-lite-preview-02-05:free', 'meta-llama/llama-3.3-70b-instruct:free'],
+        'messages': [{'role': 'system', 'content': sys.argv[1]}, {'role': 'user', 'content': sys.argv[2]}],
+        'max_tokens': 1000
+    }
+    print(json.dumps(payload))
+except:
+    print('{}')
+" "$ai_prompt" "$bot_prompt" 2>/dev/null)
+                        curl -s --max-time 20 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$fallback_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
                         local or_pid=$!
                         _zaki_spinner $or_pid
                         wait $or_pid 2>/dev/null
@@ -442,10 +504,6 @@ except Exception:
                 resp_escaped=$(echo "$ai_response" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
                 _zaki_add_history "assistant" "$resp_escaped"
                 
-                local clean_reply=""
-                local action_intent=""
-                local action_query=""
-                
                 if command -v python3 >/dev/null 2>&1; then
                     # We expect ai_response to be a valid JSON string
                     clean_reply=$(echo "$ai_response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('reply',''))" 2>/dev/null)
@@ -455,7 +513,6 @@ except Exception:
                     clean_reply="$ai_response"
                 fi
                 
-                local is_auto_action=false
                 if [ -n "$action_intent" ]; then
                     is_auto_action=true
                 fi
