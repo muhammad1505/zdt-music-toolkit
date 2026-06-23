@@ -40,10 +40,3 @@ uninstall:
 	rm -rf $(DESTDIR)$(SHAREDIR)
 	rm -rf $(DESTDIR)$(DOCDIR)
 	@echo "Uninstallation complete."
-
-uninstall:
-	@echo "Uninstalling ZDT..."
-	rm -f $(DESTDIR)$(BINDIR)/zdt
-	rm -rf $(DESTDIR)$(SHAREDIR)
-	rm -rf $(DESTDIR)$(DOCDIR)
-	@echo "Uninstallation complete."

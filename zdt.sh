@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.75
+# Version : 4.1.76
 set -uo pipefail
-readonly APP_VERSION="4.1.75"
+readonly APP_VERSION="4.1.76"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -25,13 +25,13 @@ if [ ! -d "$_MODULES_DIR" ]; then
     echo "Migration: Downloading core modules from GitHub..."
     _MODULES_DIR="$HOME/.local/share/zdt/zdt-modules"
     mkdir -p "$_MODULES_DIR" 2>/dev/null
-    for _mod in core helpers download media playlist daemon setup assistant; do
+    for _mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
         curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt-modules/${_mod}.sh?t=$(date +%s)" -o "$_MODULES_DIR/${_mod}.sh" 2>/dev/null
     done
 fi
 
 if [ -d "$_MODULES_DIR" ]; then
-    for _mod in core helpers download media playlist daemon setup assistant; do
+    for _mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
         if [ -f "$_MODULES_DIR/${_mod}.sh" ]; then
             source "$_MODULES_DIR/${_mod}.sh"
         fi

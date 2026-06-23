@@ -4,6 +4,9 @@ import sys
 import subprocess
 import shutil
 import glob
+import secrets
+import time
+from collections import defaultdict
 from flask import Flask, request, render_template_string, jsonify, Response
 from functools import wraps
 try:
@@ -23,16 +26,57 @@ if os.path.exists("/tmp/zdt_web_task.log"):
 
 app = Flask(__name__)
 
+# Rate limiting: max 30 requests per minute per IP
+_rate_limit_store = defaultdict(list)
+
+def _rate_limit(ip, max_requests=30, window=60):
+    """Return True if rate limited."""
+    now = time.time()
+    _rate_limit_store[ip] = [t for t in _rate_limit_store[ip] if now - t < window]
+    if len(_rate_limit_store[ip]) >= max_requests:
+        return True
+    _rate_limit_store[ip].append(now)
+    return False
+
+@app.before_request
+def check_rate_limit():
+    ip = request.remote_addr
+    if _rate_limit(ip):
+        return jsonify({"error": "Too many requests. Slow down!"}), 429
+
+def _ensure_password():
+    """Generate random password on first run, save to config."""
+    config_file = os.path.expanduser("~/.config/zdt/config.conf")
+    os.makedirs(os.path.dirname(config_file), exist_ok=True)
+    
+    if not os.path.exists(config_file):
+        random_pass = secrets.token_urlsafe(12)
+        with open(config_file, 'w') as f:
+            f.write(f'ZDT_WEB_USER=admin\n')
+            f.write(f'ZDT_WEB_PASS={random_pass}\n')
+        try:
+            os.chmod(config_file, 0o600)
+        except: pass
+        print(f"\n{'='*60}")
+        print(f"  🔐 FIRST RUN: Web Dashboard credentials generated!")
+        print(f"  Username: admin")
+        print(f"  Password: {random_pass}")
+        print(f"  Saved to: {config_file}")
+        print(f"{'='*60}\n")
+
 def check_auth(username, password):
     config_file = os.path.expanduser("~/.config/zdt/config.conf")
-    conf_user, conf_pass = "admin", "admin"
+    conf_user, conf_pass = "", ""
     if os.path.exists(config_file):
         with open(config_file, 'r') as f:
             for line in f:
+                line = line.strip()
                 if line.startswith("ZDT_WEB_USER="):
-                    conf_user = line.strip().split("=", 1)[1].strip('"\'')
+                    conf_user = line.split("=", 1)[1].strip('"\'')
                 elif line.startswith("ZDT_WEB_PASS="):
-                    conf_pass = line.strip().split("=", 1)[1].strip('"\'')
+                    conf_pass = line.split("=", 1)[1].strip('"\'')
+    if conf_user == "admin" and conf_pass == "admin":
+        return False
     return username == conf_user and password == conf_pass
 
 def authenticate():
@@ -1511,6 +1555,7 @@ def clear_logs():
     return jsonify({"success": True})
 
 if __name__ == '__main__':
+    _ensure_password()
     import argparse
     parser = argparse.ArgumentParser(description='ZDT Enterprise Dashboard')
     parser.add_argument('--bind', default='127.0.0.1', help='Bind address (default: 127.0.0.1)')

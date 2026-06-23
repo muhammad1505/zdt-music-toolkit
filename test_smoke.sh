@@ -11,7 +11,7 @@ pass() { echo -e "  ✅ $1"; PASS=$((PASS + 1)); }
 fail() { echo -e "  ❌ $1"; FAIL=$((FAIL + 1)); }
 
 echo "╔══════════════════════════════════════════╗"
-echo "║   ZDT Smoke Test — v3.8.0 (Modular)    ║"
+echo "║   ZDT Smoke Test — v4.1.74 (Modular)    ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
@@ -86,7 +86,7 @@ echo ""
 
 # 6. Module integrity check
 echo "▶ Module Integrity Check"
-for mod in core helpers download media playlist daemon setup assistant; do
+for mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
     if [ -f "$SCRIPT_DIR/zdt-modules/${mod}.sh" ]; then
         pass "zdt-modules/${mod}.sh — exists"
     else
@@ -98,7 +98,7 @@ echo ""
 # 7. Loader source check - verify zdt.sh loads modules
 echo "▶ Loader Source Check"
 # zdt.sh uses a for loop with _mod variable to source modules
-if grep -q 'for _mod in core helpers download media' "$SCRIPT_DIR/zdt.sh" 2>/dev/null; then
+if grep -q 'for _mod in core helpers download-spotify' "$SCRIPT_DIR/zdt.sh" 2>/dev/null; then
     pass "zdt.sh loads all modules via for-loop"
     # Count how many modules are in the loop list
     mod_count=$(grep -oP 'for _mod in \K[^;]+' "$SCRIPT_DIR/zdt.sh" | head -1 | wc -w)
