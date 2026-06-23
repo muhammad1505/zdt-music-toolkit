@@ -215,8 +215,8 @@ zaki_assistant() {
             continue
         fi
 
-        # Help
-        if [ "$input" = "?" ] || [ "$input" = "help" ] || [ "$input" = "bantuan" ]; then
+        # Help / Capability Intercept
+        if [ "$input" = "?" ] || [ "$input" = "help" ] || [ "$input" = "bantuan" ] || [[ "$input_lower" =~ (bisa apa|apa aja kamu|kemampuan|fitur (kamu|apa|nya)|kamu bisa apa|menu fitur|daftar fitur|fungsi kamu|kegunaan) ]]; then
             echo ""
             local help_opts=(
                 " ${WHITE}${BOLD}BANTUAN PINTAR ZAKI-BOT${RESET}"
@@ -308,6 +308,7 @@ CONTOH PENGGUNAAN:
 - User: 'bersihin nama file dong' → 'Gas, aku rapihin nama filenya ya! ✨ [AUTO_ACTION: bersih nama]'
 - User: 'apa itu demucs?' → 'Demucs itu AI dari Meta buat misahin vokal dan instrumen dari lagu. Keren banget buat bikin karaoke! 🎤' (TANPA AUTO_ACTION karena cuma tanya)
 - User: 'hapus semua file' → 'Oke Bos, aku hapus semua file media di folder target ya! ⚠️ [AUTO_ACTION: gas hapus semua]'
+- User: 'bisa apa aja kamu?' / 'fitur kamu apa aja?' → '(jabarkan daftar fitur ZDT secara ringkas & terstruktur, TANPA AUTO_ACTION)'
 
 KONTEKS SAAT INI: Storage=$abs_path ($file_count file media). Isi folder: $dir_contents"
 
@@ -341,19 +342,8 @@ try:
     txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL)
     txt = re.sub(r"<reasoning>.*?</reasoning>", "", txt, flags=re.DOTALL)
     txt = re.sub(r"\*\*(?:Thinking|Reasoning|Analysis|Internal|Step)[:\*].*?(?=\n[A-Z]|\n\n|$)", "", txt, flags=re.DOTALL|re.IGNORECASE)
-    txt = re.sub(r"^(?:Let me|I need to|I will|I should|The user|User wants|User is|Okay,? the user|Looking at|Wait,|So,? the|First,? I|Now,? I|Alright|Here,? the).*?\n", "", txt, flags=re.MULTILINE|re.IGNORECASE)
-    # Strip any remaining full-English sentences (no Indonesian chars)
-    lines = txt.strip().split("\n")
-    clean = []
-    for line in lines:
-        l = line.strip()
-        if not l:
-            continue
-        # Skip lines that look like internal reasoning
-        if re.match(r"^(Okay|Wait|Hmm|So|Now|Let|Looking|The user|I need|I will|I should|First|Alright|Here|We need|We should|As an AI|According|But|However|Because|Since|In YouTube|The link|If the user)", l, re.IGNORECASE):
-            continue
-        clean.append(line)
-    txt = "\n".join(clean).strip()
+    # Batasi parser: jangan hapus baris daftar fitur, hanya hapus reasoning awal yang sangat kentara.
+    txt = re.sub(r"^(?:Let me think|I need to analyze|I will calculate|The user wants|Okay, let).*?\n", "", txt, flags=re.MULTILINE|re.IGNORECASE)
     if txt:
         print(txt)
 except:
@@ -361,7 +351,7 @@ except:
 '
 
                 for tier_models in "${or_tiers[@]}"; do
-                    local payload="{\"models\": $tier_models, \"messages\": $messages, \"max_tokens\": 500}"
+                    local payload="{\"models\": $tier_models, \"messages\": $messages, \"max_tokens\": 1000}"
                     
                     # Run curl in background with spinner
                     curl -s --max-time 20 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
@@ -380,7 +370,7 @@ except:
                 if command -v python3 >/dev/null 2>&1; then
                     gemini_contents=$(python3 "$ZDT_DB_HELPER" "$ZDT_DB_FILE" "get_gemini_json" 2>/dev/null)
                 fi
-                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [$gemini_contents], \"generationConfig\": {\"maxOutputTokens\": 500}}"
+                local payload="{\"system_instruction\": {\"parts\": [{\"text\": \"$ai_prompt\"}]}, \"contents\": [$gemini_contents], \"generationConfig\": {\"maxOutputTokens\": 1000}}"
                 
                 curl -s --max-time 20 -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null > "$ai_tmpfile" &
                 local curl_pid=$!
@@ -396,7 +386,7 @@ except:
                         echo -e "\n  ${YELLOW}${ICO_WARN} Gemini API sibuk (429). Mengalihkan ke OpenRouter (Graceful Fallback)...${RESET}"
                         local or_url="https://openrouter.ai/api/v1/chat/completions"
                         local or_parse="import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))"
-                        local or_payload="{\"models\": [\"google/gemini-2.0-flash-lite-preview-02-05:free\", \"meta-llama/llama-3.3-70b-instruct:free\"], \"messages\": [{\"role\":\"system\",\"content\":\"$ai_prompt\"},{\"role\":\"user\",\"content\":\"$user_input\"}], \"max_tokens\": 500}"
+                        local or_payload="{\"models\": [\"google/gemini-2.0-flash-lite-preview-02-05:free\", \"meta-llama/llama-3.3-70b-instruct:free\"], \"messages\": [{\"role\":\"system\",\"content\":\"$ai_prompt\"},{\"role\":\"user\",\"content\":\"$user_input\"}], \"max_tokens\": 1000}"
                         curl -s --max-time 20 -H "Authorization: Bearer $fallback_key" -H "Content-Type: application/json" -d "$or_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
                         local or_pid=$!
                         _zaki_spinner $or_pid
