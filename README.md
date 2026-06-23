@@ -22,29 +22,8 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 
 ## Changelog
 
-### v3.8.0 (Latest)
-- **Feat: Modular Refactor!** `zdt.sh` dipecah dari monolitik 4.786 baris menjadi arsitektur modular dengan 8 modul di `zdt-modules/` (core, helpers, download, media, playlist, daemon, setup, assistant)
-- **Feat: Pytest Unit Tests** untuk komponen Python (`zdt-web.py`, `zdt-telegram.py`, `zdt-watch.py`)
-- **Fix:** `_find_media_files()` sekarang menggunakan array bash yang benar untuk argumen `find` (perbaiki bug ekstensi filter)
-- **Enhance:** Thin loader `zdt.sh` — hanya 143 baris, lebih cepat di-load
-- **Enhance:** OTA updater sekarang juga mendownload modul dari GitHub
-- **Chore:** Smoke test ditingkatkan untuk mendeteksi duplikasi fungsi antar modul
-
-### v3.7.1
-- Fix: Hapus positional argument `$ROOT_DIR` dari pemanggilan `zdt-web.py` yang menyebabkan error `unrecognized arguments`
-- Bump versi untuk deteksi auto-updater
-
-### v3.7.0
-- Feat: Smoke test (`test_smoke.sh`) untuk validasi syntax, duplicate functions, dan integrity checks
-- Feat: Konfirmasi hapus file di Telegram bot dengan inline keyboard (mencegah hapus tidak sengaja)
-- Feat: Keamanan token Telegram (`chmod 600`)
-- Feat: Atomic config write dengan file locking (`flock`)
-- Feat: DRY refactor helper `_find_media_files()` untuk scan media files
-- Feat: `--bind` dan `--port` argument untuk Web Dashboard
-- Feat: `WEB_BIND` config variable
-- Fix: Playlist M3U newline escape di Web Dashboard
-- Fix: Simplifikasi batch worker pool (audio & video compression)
-- Fix: Perbaikan exit code handling di video re-encode
+Riwayat versi dan pembaruan ZDT sekarang tersedia di file terpisah. 
+Silakan lihat: [**CHANGELOG.md**](CHANGELOG.md) untuk detail rilis **v4.1.63** dan versi-versi sebelumnya.
 
 ## Instalasi 🚀
 

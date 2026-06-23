@@ -145,6 +145,11 @@ def web_app():
                 return f
             return decorator
 
+        def errorhandler(self, code_or_exception):
+            def decorator(f):
+                return f
+            return decorator
+
         def test_client(self):
             return MockTestClient(self)
 

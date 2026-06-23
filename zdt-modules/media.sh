@@ -386,10 +386,10 @@ hapus_vokal() {
             selected_folder="${folders[$((pilih_folder-1))]}"
             
             if [ "$mode_proses" = "2" ]; then
-                local find_exts="\( -iname *.mp3 -o -iname *.m4a -o -iname *.flac -o -iname *.wav -o -iname *.ogg -o -iname *.opus \)"
+                local find_args=( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" )
                 while IFS= read -r f; do
                     files_to_process+=("$f")
-                done < <(eval "find \"\$selected_folder\" -maxdepth 1 -type f $find_exts ! -name \"*_karaoke.*\" 2>/dev/null")
+                done < <(find "$selected_folder" -maxdepth 1 -type f \( "${find_args[@]}" \) ! -name "*_karaoke.*" 2>/dev/null)
                 step=4
             else
                 step=3
@@ -401,7 +401,7 @@ hapus_vokal() {
             echo -e "  ${CYAN}${ICO_ARROW} Menampilkan daftar lagu di: ${YELLOW}$folder_display${RESET}"
             local lcount=0
             local lagus=()
-            local find_exts="\( -iname *.mp3 -o -iname *.m4a -o -iname *.flac -o -iname *.wav -o -iname *.ogg -o -iname *.opus \)"
+            local find_args=( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" )
             
             while IFS= read -r f; do
                 if [ -n "$f" ]; then
@@ -409,7 +409,7 @@ hapus_vokal() {
                     lagus+=("$f")
                     printf "    ${GREEN}[%d]${RESET} %s\n" "$lcount" "$(basename "$f")"
                 fi
-            done < <(eval "find \"\$selected_folder\" -maxdepth 1 -type f $find_exts ! -name \"*_karaoke.*\" 2>/dev/null | sort")
+            done < <(find "$selected_folder" -maxdepth 1 -type f \( "${find_args[@]}" \) ! -name "*_karaoke.*" 2>/dev/null | sort)
             
             if [ "$lcount" -eq 0 ]; then
                 echo -e "  ${RED}${ICO_FAIL} Tidak ada file media di folder ini!${RESET}"
