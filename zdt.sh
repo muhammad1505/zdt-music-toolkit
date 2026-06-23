@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.76
+# Version : 4.1.77
 set -uo pipefail
-readonly APP_VERSION="4.1.76"
+readonly APP_VERSION="4.1.77"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -81,7 +81,7 @@ main() {
         trap '_trap_err $LINENO $?' ERR
         DEBUG_TRAP_SET=true
     fi
-    NET_TMP=$(mktemp 2>/dev/null || echo "/tmp/.zdt_net_$$")
+    NET_TMP=$(mktemp "${TMPDIR:-/tmp}/zdt_net_XXXXXX" 2>/dev/null || echo "/tmp/.zdt_net_$$")
     ( while true; do if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then echo "1" > "$NET_TMP"; else echo "0" > "$NET_TMP"; fi; sleep 3; done 2>/dev/null ) &
     NET_PID=$!
     disown "$NET_PID" 2>/dev/null

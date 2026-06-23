@@ -4,6 +4,7 @@ import sys
 import subprocess
 import shutil
 import glob
+import tempfile
 import secrets
 import time
 from collections import defaultdict
@@ -17,10 +18,12 @@ try:
 except ImportError:
     pass
 
+WEB_TASK_LOG_PATH = os.environ.get("ZDT_WEB_LOG", os.path.join(tempfile.gettempdir(), "zdt_web_task.log"))
+
 # Clear old task logs on startup
-if os.path.exists("/tmp/zdt_web_task.log"):
+if os.path.exists(WEB_TASK_LOG_PATH):
     try:
-        os.remove("/tmp/zdt_web_task.log")
+        os.remove(WEB_TASK_LOG_PATH)
     except:
         pass
 
@@ -1398,7 +1401,7 @@ def trigger_download():
         cmd = [zdt_bin, "--download-video", url]
         if spec: cmd.extend(["--format-spec", str(spec)])
         
-    with open("/tmp/zdt_web_task.log", "w") as log_file:
+    with open(WEB_TASK_LOG_PATH, "w") as log_file:
         subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True)
         
     return jsonify({"success": True, "message": "Proses download sedang berjalan di background!"})
@@ -1415,7 +1418,7 @@ def trigger_spotify_sync():
             if os.path.exists(path): zdt_bin = path; break
     if not zdt_bin: zdt_bin = "zdt"
     
-    with open("/tmp/zdt_web_task.log", "w") as log_file:
+    with open(WEB_TASK_LOG_PATH, "w") as log_file:
         subprocess.Popen([zdt_bin, "--spotify-sync", url], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True)
         
     return jsonify({"success": True, "message": "Sinkronisasi Spotify berjalan di background!"})
@@ -1474,7 +1477,7 @@ def server_tools():
     try:
         if action == 'clean':
             if not os.path.exists(target): return jsonify({"success": False, "message": "Direktori kosong."})
-            with open("/tmp/zdt_web_task.log", "w") as log_file:
+            with open(WEB_TASK_LOG_PATH, "w") as log_file:
                 subprocess.Popen([zdt_bin, "--bersih-nama-all"], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
             return jsonify({"success": True, "message": "Proses pembersihan berjalan di background!"})
 
@@ -1490,7 +1493,7 @@ def server_tools():
             
         elif action == 'sync_lyrics':
             if not os.path.exists(target): return jsonify({"success": False, "message": "Direktori kosong."})
-            with open("/tmp/zdt_web_task.log", "w") as log_file:
+            with open(WEB_TASK_LOG_PATH, "w") as log_file:
                 subprocess.Popen([zdt_bin, "--sync-lirik-all"], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
             return jsonify({"success": True, "message": "Sinkronisasi lirik berjalan di background!"})
             
@@ -1514,7 +1517,7 @@ def server_tools():
             if not os.path.exists(demucs_bin): demucs_bin = shutil.which("demucs")
             if not demucs_bin: return jsonify({"success": False, "message": "Demucs AI belum terinstal."})
             
-            with open("/tmp/zdt_web_task.log", "w") as log_file:
+            with open(WEB_TASK_LOG_PATH, "w") as log_file:
                 subprocess.Popen([demucs_bin, "--two-stems=vocals", "-o", target, filepath], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target)
             return jsonify({"success": True, "message": "Demucs AI mulai memisahkan vokal!"})
 
@@ -1529,7 +1532,7 @@ def server_tools():
                 cmd = ["ffmpeg", "-y", "-i", filepath, "-b:a", "128k", outpath]
                 
             env = os.environ.copy()
-            with open("/tmp/zdt_web_task.log", "w") as log_file:
+            with open(WEB_TASK_LOG_PATH, "w") as log_file:
                 subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, cwd=target, env=env)
             return jsonify({"success": True, "message": "Proses kompresi FFmpeg berjalan!"})
 
@@ -1540,7 +1543,7 @@ def server_tools():
 @app.route("/api/logs", methods=["GET"])
 @requires_auth
 def get_logs():
-    log_file = "/tmp/zdt_web_task.log"
+    log_file = WEB_TASK_LOG_PATH
     if os.path.exists(log_file):
         with open(log_file, "r") as f:
             lines = f.readlines()
@@ -1550,7 +1553,7 @@ def get_logs():
 @app.route("/api/logs/clear", methods=["POST"])
 @requires_auth
 def clear_logs():
-    try: os.remove("/tmp/zdt_web_task.log")
+    try: os.remove(WEB_TASK_LOG_PATH)
     except: pass
     return jsonify({"success": True})
 

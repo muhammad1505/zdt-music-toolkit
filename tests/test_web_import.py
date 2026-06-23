@@ -82,9 +82,10 @@ def web_app():
 
     # 6) Mock Flask
     class MockTestResponse:
-        def __init__(self, data, status_code=200):
+        def __init__(self, data, status_code=200, headers=None):
             self.data = data.encode() if isinstance(data, str) else data
             self.status_code = status_code
+            self.headers = headers or {}
 
         def get_json(self):
             try:
@@ -109,9 +110,14 @@ def web_app():
                 return MockTestResponse("Not Found", 404)
             try:
                 result = handler()
+                status = 200
+                if isinstance(result, tuple):
+                    result, status = result[0], result[1]
+                if isinstance(result, MockTestResponse):
+                    return result
                 if isinstance(result, (dict, list)):
-                    return MockTestResponse(json.dumps(result))
-                return MockTestResponse(result or "OK")
+                    return MockTestResponse(json.dumps(result), status)
+                return MockTestResponse(result or "OK", status)
             except Exception as e:
                 return MockTestResponse(f"500: {type(e).__name__}: {e}", 500)
 
@@ -124,9 +130,14 @@ def web_app():
                 if hasattr(self.app, '_request'):
                     self.app._request.json = json_data or {}
                 result = handler()
+                status = 200
+                if isinstance(result, tuple):
+                    result, status = result[0], result[1]
+                if isinstance(result, MockTestResponse):
+                    return result
                 if isinstance(result, (dict, list)):
-                    return MockTestResponse(json.dumps(result))
-                return MockTestResponse(result or "OK")
+                    return MockTestResponse(json.dumps(result), status)
+                return MockTestResponse(result or "OK", status)
             except Exception as e:
                 import traceback
                 tb = traceback.format_exc()
@@ -144,6 +155,9 @@ def web_app():
                     self._routes.setdefault(rule, {})[m] = f
                 return f
             return decorator
+
+        def before_request(self, f):
+            return f
 
         def errorhandler(self, code_or_exception):
             def decorator(f):
@@ -163,6 +177,7 @@ def web_app():
     class MockRequest:
         json = {}
         authorization = MockAuth()
+        remote_addr = "127.0.0.1"
 
     flask_mod = types.ModuleType("flask")
     flask_mod.Flask = MockFlask
@@ -181,6 +196,7 @@ def web_app():
     mod = importlib.util.module_from_spec(spec)
     sys.modules["zdt_web_test"] = mod
     spec.loader.exec_module(mod)
+    mod.check_auth = lambda u, p: True
 
     # Store request mock on the app so post() can set json
     mod.app._request = flask_mod.request

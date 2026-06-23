@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  zdt-web:
+    build: .
+    container_name: zdt_web_dashboard
+    ports:
+      - "5000:5000"
+    volumes:
+      - zdt_downloads:/root/Music/ZDT_Downloads
+      - zdt_config:/root/.config/zdt
+    restart: unless-stopped
+    command: ["--web-bind", "0.0.0.0"]
+
+volumes:
+  zdt_downloads:
+  zdt_config:
