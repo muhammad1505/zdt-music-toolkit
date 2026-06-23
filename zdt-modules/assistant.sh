@@ -66,10 +66,25 @@ _zaki_spinner() {
 # ==========================================
 zaki_assistant() {
     local gemini_key=""
+    local openrouter_key=""
     local gemini_key_file="$HOME/.config/zdt/gemini_key"
+    local openrouter_key_file="$HOME/.config/zdt/openrouter_key"
 
     if [ -f "$gemini_key_file" ]; then
         gemini_key=$(cat "$gemini_key_file" | tr -d '[:space:]')
+    fi
+    if [ -f "$openrouter_key_file" ]; then
+        openrouter_key=$(cat "$openrouter_key_file" | tr -d '[:space:]')
+    fi
+    
+    # Dual-key logic:
+    # - Jika gemini_key starts with "sk-or-" → itu sebenarnya OR key (backward compat)
+    # - Jika openrouter_key eksplisit → prioritas untuk OR
+    # - Jika keduanya ada: gemini_key → Gemini, openrouter_key → OpenRouter
+    if [ -z "$openrouter_key" ] && [[ "$gemini_key" == sk-or-* ]]; then
+        # Backward compat: gemini_key yg sk-or- digunakan sebagai OR key
+        openrouter_key="$gemini_key"
+        gemini_key=""
     fi
 
     local _zaki_first_run=true
@@ -109,12 +124,12 @@ zaki_assistant() {
         fi
 
         local ai_status="${RED}Belum Dikonfigurasi${RESET}"
-        if [ -n "$gemini_key" ]; then
-            if [[ "$gemini_key" == sk-or-* ]]; then
-                ai_status="${GREEN}OpenRouter Connected${RESET}"
-            else
-                ai_status="${GREEN}Gemini Connected${RESET}"
-            fi
+        if [ -n "$gemini_key" ] && [ -n "$openrouter_key" ]; then
+            ai_status="${GREEN}Gemini + OpenRouter Connected${RESET}"
+        elif [ -n "$gemini_key" ]; then
+            ai_status="${GREEN}Gemini Connected${RESET}"
+        elif [ -n "$openrouter_key" ]; then
+            ai_status="${GREEN}OpenRouter Connected${RESET}"
         fi
 
         local db_count=0
@@ -285,8 +300,8 @@ zaki_assistant() {
         local input_escaped
         input_escaped=$(echo "$bot_prompt" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ')
 
-        # Coba pakai AI jika ada key
-        if [ -n "$gemini_key" ]; then
+        # Coba pakai AI jika ada key (Gemini atau OpenRouter)
+        if [ -n "$gemini_key" ] || [ -n "$openrouter_key" ]; then
             local abs_path="${STORAGE_DIR:-$HOME/Music/ZDT}"
             local dir_contents=""
             if [ -d "$abs_path" ]; then
@@ -367,7 +382,13 @@ KONTEKS SAAT INI: Storage=$abs_path ($file_count file media). Isi folder: $dir_c
             local ai_tmpfile
             ai_tmpfile=$(mktemp "${TMPDIR:-/tmp}/zdt_ai_resp_XXXXXX" 2>/dev/null || echo "/tmp/.zdt_ai_resp_$$")
 
-            if [[ "$gemini_key" == sk-or-* ]]; then
+            # Use openrouter_key if available, otherwise check if gemini_key is an OR key
+            local effective_or_key="${openrouter_key:-}"
+            if [ -z "$effective_or_key" ] && [[ "$gemini_key" == sk-or-* ]]; then
+                effective_or_key="$gemini_key"
+            fi
+            
+            if [ -n "$effective_or_key" ]; then
                 # OpenRouter — Multi-tier fallback (max 3 models per request)
                 local or_url="https://openrouter.ai/api/v1/chat/completions"
                 local or_tiers=(
@@ -408,7 +429,7 @@ except:
     print(json.dumps({'models': [], 'messages': [], 'max_tokens': 1000}))
 " "$tier_models" "$messages" 2>/dev/null)
                     
-                    curl -s --max-time 20 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$tmp_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
+                    curl -s --max-time 20 -H "Authorization: Bearer $effective_or_key" -H "Content-Type: application/json" -d "$tmp_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
                     local curl_pid=$!
                     _zaki_spinner $curl_pid
                     wait $curl_pid 2>/dev/null
@@ -416,8 +437,10 @@ except:
                     ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$or_parse" 2>/dev/null)
                     [ -n "$ai_response" ] && break
                 done
-            else
-                # Gemini
+            fi
+            
+            if [ -z "$ai_response" ] && [ -n "$gemini_key" ] && [[ "$gemini_key" != sk-or-* ]]; then
+                # Gemini (only if OR didn't produce an answer AND we have a real Gemini key)
                 local gemini_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$gemini_key"
                 local gemini_contents=""
                 
@@ -464,10 +487,10 @@ except Exception:
                 ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$gemini_parse" 2>/dev/null)
                 
                 # Graceful Fallback to OpenRouter if Gemini fails or hits quota
-                # Reuse gemini_key since it's already the user's configured API key
+                # Use openrouter_key if available, otherwise fall back to gemini_key for OR
+                local or_fallback_key="${openrouter_key:-$gemini_key}"
                 if [ -z "$ai_response" ] || [[ "$ai_response" == *"error"* ]]; then
-                    if [ -n "$gemini_key" ] && [[ "$gemini_key" != sk-or-* ]]; then
-                        # Only attempt OpenRouter fallback if the primary key is a Google Gemini key (not already OpenRouter)
+                    if [ -n "$or_fallback_key" ]; then
                         echo -e "\n  ${YELLOW}${ICO_WARN} Gemini API sibuk (429). Mengalihkan ke OpenRouter (Graceful Fallback)...${RESET}"
                         local or_url="https://openrouter.ai/api/v1/chat/completions"
                         local or_parse="import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))"
@@ -485,7 +508,7 @@ try:
 except:
     print('{}')
 " "$ai_prompt" "$bot_prompt" 2>/dev/null)
-                        curl -s --max-time 20 -H "Authorization: Bearer $gemini_key" -H "Content-Type: application/json" -d "$fallback_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
+                        curl -s --max-time 20 -H "Authorization: Bearer $or_fallback_key" -H "Content-Type: application/json" -d "$fallback_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
                         local or_pid=$!
                         _zaki_spinner $or_pid
                         wait $or_pid 2>/dev/null
@@ -810,11 +833,11 @@ except:
                 echo ""
                 if [ -n "$gemini_key" ]; then
                     echo -e "  ${RED}${ICO_FAIL} Zaki-Bot: Maaf bos, API AI sedang gangguan atau limit kuota habis (HTTP 429).${RESET}"
-                    echo -e "  ${GRAY}  Silakan coba lagi nanti, atau pastikan gemini_key / openrouter_key terisi di ~/.config/zdt/gemini_key!${RESET}"
+                    echo -e "  ${GRAY}  Silakan coba lagi nanti, atau pastikan API key terisi di ~/.config/zdt/gemini_key (Gemini) atau ~/.config/zdt/openrouter_key (OpenRouter)!${RESET}"
                 else
                     echo -e "  ${YELLOW}${ICO_WARN} Hmm, aku belum bisa jawab itu. Ketik '?' buat lihat daftar perintah!${RESET}"
-                    echo -e "  ${GRAY}  Tips: Isi file ~/.config/zdt/gemini_key dengan API Key untuk${RESET}"
-                    echo -e "  ${GRAY}  mengaktifkan AI (Google Gemini atau OpenRouter).${RESET}"
+                    echo -e "  ${GRAY}  Tips: Isi file ~/.config/zdt/gemini_key (Gemini API Key) atau${RESET}"
+                    echo -e "  ${GRAY}  ~/.config/zdt/openrouter_key (OpenRouter API Key) untuk mengaktifkan AI!${RESET}"
                 fi
                 echo ""
             fi

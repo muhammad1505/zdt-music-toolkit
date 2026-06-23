@@ -480,14 +480,14 @@ _record_downloads() {
     local find_args=( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" -o -iname "*.mp4" -o -iname "*.mkv" )
     
     while IFS= read -r f; do
-        if [ -n "$f" ]; then
+        if [ -n "$f" ] && [ -f "$f" ] && [ -s "$f" ]; then
             local fname size db_path
             fname=$(basename "$f")
             size=$(stat -c%s "$f" 2>/dev/null || echo 0)
             db_path="$HOME/.config/zdt/zdt.db"
             python3 "$_MODULES_DIR/zdt_db.py" "$db_path" add_download "$fname" "$url" "$source" "$size" 2>/dev/null || true
         fi
-    done < <(find "$scan_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -mmin -10 2>/dev/null)
+    done < <(find "$scan_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -mmin -2 2>/dev/null)
 }
 
 # ==========================================

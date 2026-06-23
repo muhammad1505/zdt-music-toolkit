@@ -230,11 +230,29 @@ def auto_download_audio(message):
     text = message.text
     if "http" not in text:
         gemini_key_file = os.path.expanduser("~/.config/zdt/gemini_key")
+        openrouter_key_file = os.path.expanduser("~/.config/zdt/openrouter_key")
+        gemini_key = ""
+        openrouter_key = ""
         if os.path.exists(gemini_key_file):
             try:
                 with open(gemini_key_file, "r") as f:
                     gemini_key = f.read().strip()
-                if gemini_key:
+            except:
+                pass
+        if os.path.exists(openrouter_key_file):
+            try:
+                with open(openrouter_key_file, "r") as f:
+                    openrouter_key = f.read().strip()
+            except:
+                pass
+        
+        # Dual-key logic: jika gemini_key starts with sk-or- -> backward compat sbg OR key
+        if not openrouter_key and gemini_key and gemini_key.startswith("sk-or-"):
+            openrouter_key = gemini_key
+            gemini_key = ""
+        
+            try:
+                if gemini_key or openrouter_key:
                     bot.send_chat_action(message.chat.id, 'typing')
                     import urllib.request, json
                     
@@ -446,9 +464,10 @@ def auto_download_audio(message):
                                 return
                         bot.reply_to(message, reply_text)
                     
-                    if gemini_key.startswith("sk-or-"):
+                    # Dual-key routing: prefer OpenRouter if openrouter_key exists
+                    if openrouter_key:
                         url = "https://openrouter.ai/api/v1/chat/completions"
-                        headers = {"Authorization": f"Bearer {gemini_key}", "Content-Type": "application/json"}
+                        headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
                         messages = [{"role": "system", "content": prompt}, {"role": "user", "content": text}]
                         
                         fallback_arrays = [
@@ -480,7 +499,8 @@ def auto_download_audio(message):
                                 continue
                         process_reply(reply_text)
                         return
-                    else:
+                    
+                    if gemini_key:
                         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
                         headers = {"Content-Type": "application/json"}
                         payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 400}}
