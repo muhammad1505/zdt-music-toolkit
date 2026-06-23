@@ -130,6 +130,54 @@ def ping_bot(message):
     ms = int((end - start) * 1000)
     bot.edit_message_text(f"🏓 Pong! `{ms}ms`", chat_id=message.chat.id, message_id=msg.message_id, parse_mode="Markdown")
 
+def get_target_dir():
+    target_dir = os.path.expanduser("~/Music/ZDT_Downloads")
+    conf_file = os.path.expanduser("~/.config/zdt/config.env")
+    old_conf = os.path.expanduser("~/.config/zdt/config")
+    for cf in [conf_file, old_conf]:
+        if os.path.exists(cf):
+            with open(cf, 'r') as f:
+                for line in f:
+                    if line.startswith("TARGET_DIR=") or line.startswith("storage_dir="):
+                        val = line.strip().split('=', 1)[1].strip('"').strip("'")
+                        if val and val != ".":
+                            return os.path.expanduser(val)
+    return target_dir
+
+def get_recent_media_files(limit=5):
+    import glob
+    target = get_target_dir()
+    files = []
+    if os.path.exists(target):
+        for ext in ['*.mp3','*.m4a','*.flac','*.wav','*.ogg','*.opus','*.mp4','*.mkv']:
+            files.extend(glob.glob(os.path.join(target, ext)))
+    files.sort(key=os.path.getmtime, reverse=True)
+    return files[:limit]
+
+@bot.message_handler(commands=['demucs'])
+def demucs_cmd(message):
+    files = get_recent_media_files(5)
+    if not files:
+        bot.reply_to(message, "❌ Tidak ada file media ditemukan di Storage.")
+        return
+    markup = InlineKeyboardMarkup()
+    for f in files:
+        basename = os.path.basename(f)
+        markup.add(InlineKeyboardButton(f"🎤 {basename[:40]}", callback_data=f"do_demucs|{f}"))
+    bot.reply_to(message, "🎶 *Pilih file yang ingin dipisah vokalnya:*", parse_mode="Markdown", reply_markup=markup)
+
+@bot.message_handler(commands=['kompres'])
+def kompres_cmd(message):
+    files = get_recent_media_files(5)
+    if not files:
+        bot.reply_to(message, "❌ Tidak ada file media ditemukan di Storage.")
+        return
+    markup = InlineKeyboardMarkup()
+    for f in files:
+        basename = os.path.basename(f)
+        markup.add(InlineKeyboardButton(f"🗜️ {basename[:40]}", callback_data=f"do_kompres|{f}"))
+    bot.reply_to(message, "🗜️ *Pilih file yang ingin dikompres:*", parse_mode="Markdown", reply_markup=markup)
+
 @bot.message_handler(commands=['video'])
 def download_video(message):
     text = message.text.replace('/video', '').strip()
@@ -351,11 +399,11 @@ def auto_download_audio(message):
                                             bot.reply_to(message, f"❌ Error pencarian playlist: {e}")
                                     threading.Thread(target=_search_playlist_task).start()
                                 elif action == "hapus vokal":
-                                    sent_msg = bot.reply_to(message, "⏳ <b>Memisahkan vokal di background...</b>", parse_mode="HTML")
-                                    run_bg_task(["--extract-vocal-all"], "Vokal berhasil dipisah!", sent_msg)
+                                    bot.reply_to(message, "⚙️ Mengakses panel Demucs AI...")
+                                    demucs_cmd(message)
                                 elif action == "kompres media":
-                                    sent_msg = bot.reply_to(message, "⏳ <b>Mengompres media di background...</b>", parse_mode="HTML")
-                                    run_bg_task(["--compress-all"], "Media berhasil dikompresi!", sent_msg)
+                                    bot.reply_to(message, "⚙️ Mengakses panel Kompresi Media...")
+                                    kompres_cmd(message)
                                 elif action == "sync lirik":
                                     sent_msg = bot.reply_to(message, "⏳ <b>Menyelaraskan lirik di background...</b>", parse_mode="HTML")
                                     run_bg_task(["--sync-lyrics-all"], "Lirik berhasil di-sync!", sent_msg)
@@ -464,11 +512,11 @@ def callback_query(call):
     bash_flag = ""
     
     if cmd == "cmd_kompres":
-        action = "🗜️ Kompres Media"
-        bash_flag = "--kompres-media-all"
+        kompres_cmd(call.message)
+        return
     elif cmd == "cmd_vokal":
-        action = "🎤 Ekstrak Vokal (Demucs AI)"
-        bash_flag = "--extract-vocal-all"
+        demucs_cmd(call.message)
+        return
     elif cmd == "cmd_bersih":
         action = "🧹 Pembersih Nama File"
         bash_flag = "--bersih-nama-all"
@@ -487,6 +535,81 @@ def callback_query(call):
             subprocess.Popen([zdt_bin, bash_flag], stdout=devnull, stderr=devnull, start_new_session=True)
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ Terjadi kesalahan: {str(e)}")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('do_demucs|') or call.data.startswith('do_kompres|'))
+def process_specific_file(call):
+    cmd_type, filepath = call.data.split('|', 1)
+    if not os.path.exists(filepath):
+        bot.answer_callback_query(call.id, "File sudah tidak ada di server!")
+        return
+    
+    bot.answer_callback_query(call.id, "Memulai proses background...")
+    msg = bot.send_message(call.message.chat.id, f"⏳ *Mempersiapkan tugas...*\n📍 `{os.path.basename(filepath)}`", parse_mode="Markdown")
+    
+    import threading, subprocess, time, re, shutil
+    
+    def _task():
+        try:
+            cmd_args = []
+            target_dir = os.path.dirname(filepath)
+            
+            if cmd_type == "do_demucs":
+                demucs_bin = os.path.expanduser("~/.local/share/zdt/demucs_venv/bin/demucs")
+                if not os.path.exists(demucs_bin): demucs_bin = shutil.which("demucs")
+                if not demucs_bin:
+                    bot.edit_message_text("❌ Demucs AI belum terinstal.", chat_id=msg.chat.id, message_id=msg.message_id)
+                    return
+                cmd_args = [demucs_bin, "--two-stems=vocals", "-o", target_dir, filepath]
+                task_name = "Memisahkan Vokal"
+                
+            elif cmd_type == "do_kompres":
+                base, ext = os.path.splitext(filepath)
+                out_path = f"{base}_compressed{ext}"
+                if ext.lower() in ['.mp4', '.mkv']:
+                    cmd_args = ["ffmpeg", "-y", "-i", filepath, "-vcodec", "libx264", "-crf", "28", "-preset", "fast", out_path]
+                else:
+                    cmd_args = ["ffmpeg", "-y", "-i", filepath, "-b:a", "128k", out_path]
+                task_name = "Kompresi Media"
+
+            process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+            last_update = time.time()
+            log_buffer = []
+            last_pct = "0%"
+            
+            for line in iter(process.stdout.readline, ''):
+                if not line: break
+                clean_line = line.strip()
+                if not clean_line: continue
+                
+                log_buffer.append(clean_line)
+                log_buffer = log_buffer[-5:]
+                
+                if cmd_type == "do_demucs":
+                    match = re.search(r'(\d+\.?\d*)%', clean_line)
+                    if match: last_pct = match.group(1) + "%"
+                elif cmd_type == "do_kompres":
+                    if "time=" in clean_line:
+                        match = re.search(r'time=(\S+)', clean_line)
+                        if match: last_pct = match.group(1)
+
+                if time.time() - last_update > 3.0:
+                    import html
+                    context = "\\n".join(log_buffer)
+                    text = f"⏳ <b>{task_name}</b> [{last_pct}]\\n<pre>{html.escape(context)}</pre>"
+                    try: bot.edit_message_text(text, chat_id=msg.chat.id, message_id=msg.message_id, parse_mode="HTML")
+                    except: pass
+                    last_update = time.time()
+            
+            process.wait()
+            if process.returncode == 0:
+                bot.edit_message_text(f"✅ *{task_name} Selesai!*\n📍 `{os.path.basename(filepath)}`", chat_id=msg.chat.id, message_id=msg.message_id, parse_mode="Markdown")
+            else:
+                bot.edit_message_text(f"❌ *{task_name} Gagal!*", chat_id=msg.chat.id, message_id=msg.message_id, parse_mode="Markdown")
+                
+        except Exception as e:
+            bot.edit_message_text(f"❌ Error: {str(e)}", chat_id=msg.chat.id, message_id=msg.message_id)
+
+    threading.Thread(target=_task, daemon=True).start()
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('CONFIRM_DELETE:'))
 def confirm_delete_callback(call):
