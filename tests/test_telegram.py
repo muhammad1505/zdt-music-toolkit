@@ -68,6 +68,65 @@ def test_telegram_status():
         assert "Disk Free" in args[1] or "CPU" in args[1]
 
 
+def test_telegram_gemini_only():
+    """Test that when only Gemini key exists (no OR key), Gemini is used directly."""
+    import json
+    from unittest.mock import patch, MagicMock
+
+    mock_msg = MagicMock()
+    mock_msg.chat.id = 99902
+    mock_msg.text = "lagu Tulus"
+
+    gemini_response = {
+        "candidates": [{
+            "content": {"parts": [{"text": "Download Tulus yuk! 🎵"}]}
+        }]
+    }
+
+    def _mock_urlopen(req, timeout=20):
+        url = req.full_url if hasattr(req, 'full_url') else str(req)
+        if 'openrouter.ai' not in url:
+            # Gemini call succeeds
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps(gemini_response).encode()
+            mock_resp.__enter__.return_value = mock_resp
+            mock_resp.__exit__.return_value = None
+            return mock_resp
+        # OR call (should not happen in this test)
+        from urllib.error import HTTPError
+        raise HTTPError(url, 429, "Mocked", {}, None)
+
+    # Mock only gemini_key to exist — no openrouter_key
+    gemini_path = os.path.expanduser("~/.config/zdt/gemini_key")
+    or_path = os.path.expanduser("~/.config/zdt/openrouter_key")
+
+    def _mock_open(path, *args, **kwargs):
+        if path == gemini_path:
+            m = MagicMock()
+            m.__enter__.return_value.read.return_value = "AIzaSyTestGeminiKey123"
+            return m
+        m = MagicMock()
+        m.__enter__.return_value.read.return_value = ""
+        return m
+
+    def _mock_exists(path):
+        return path == gemini_path  # Only gemini_key exists
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open):
+
+        zdt_telegram.auto_download_audio(mock_msg)
+
+        assert mock_reply.called, "bot.reply_to should have been called"
+        args = mock_reply.call_args[0]
+        reply_text = args[1]
+        assert "Tulus" in reply_text, f"Gemini response should contain 'Tulus', got: {reply_text}"
+        assert "Aduh otak" not in reply_text, f"Should NOT be error, got: {reply_text}"
+
+
 def test_telegram_or_fallback_to_gemini():
     """Test that when all OR tiers fail (HTTP 429), Gemini is used as fallback."""
     import json
