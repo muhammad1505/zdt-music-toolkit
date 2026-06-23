@@ -57,7 +57,9 @@ zaki_assistant() {
         gemini_key=$(cat "$gemini_key_file" | tr -d '[:space:]')
     fi
 
+    local _zaki_first_run=true
     while true; do
+        if [ "$_zaki_first_run" = true ]; then
         if [ -z "${NO_COLOR:-}" ]; then
             echo -ne "\033[?25h"
             clear 2>/dev/null || printf "\033c"
@@ -109,6 +111,8 @@ zaki_assistant() {
         )
         _print_menu_box "ZAKI AI" "${ai_opts[@]}"
         echo ""
+        _zaki_first_run=false
+        fi
 
         # Handle auto-actions dari bot
         if [ -n "$ZDT_AUTO_KOMPRES" ]; then
@@ -215,8 +219,9 @@ zaki_assistant() {
             continue
         fi
 
-        # Help / Capability Intercept
-        if [ "$input" = "?" ] || [ "$input" = "help" ] || [ "$input" = "bantuan" ] || [[ "$input_lower" =~ (bisa apa|apa aja kamu|kemampuan|fitur (kamu|apa|nya)|kamu bisa apa|menu fitur|daftar fitur|fungsi kamu|kegunaan) ]]; then
+        # Help / Capability Intercept (HANYA trigger literal — pertanyaan
+        # kapabilitas natural seperti "bisa apa aja" sengaja dibiarkan ke AI)
+        if [ "$input" = "?" ] || [ "$input" = "help" ] || [ "$input" = "bantuan" ]; then
             echo ""
             local help_opts=(
                 " ${WHITE}${BOLD}BANTUAN PINTAR ZAKI-BOT${RESET}"
@@ -243,7 +248,7 @@ zaki_assistant() {
                 "   ${RED}[0]${RESET} Kembali ke menu utama"
             )
             _print_menu_box "BANTUAN" "${help_opts[@]}"
-            _pause
+            echo ""
             continue
         fi
 
@@ -465,7 +470,7 @@ except Exception:
                     echo ""
                     echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}$clean_reply${RESET}"
                     if [ "$is_auto_action" = false ]; then
-                        _pause
+                        echo ""
                     else
                         echo ""
                         sleep 1
@@ -637,8 +642,8 @@ except Exception:
                             ;;
                     esac
                     
-                    # Tambahkan _pause agar layar tidak langsung bersih setelah action berjalan
-                    _pause
+                    # Layar tidak di-clear lagi tiap turn, cukup beri spasi
+                    echo ""
                 fi
             fi
         fi
@@ -735,13 +740,13 @@ except Exception:
             elif [[ "$input" =~ (halo|hai|hi|hey|selamat|pagi|siang|sore|malam|bro|boss|bang|kak|woi) ]]; then
                 echo ""
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Halo juga Bos! Ada yang bisa saya bantu hari ini? 😎${RESET}"
-                _pause
+                echo ""
 
             # Thanks
             elif [[ "$input" =~ (makasih|terima\ kasih|thanks|thank\ you|thx|tq|mantap|keren|gokil) ]]; then
                 echo ""
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Sama-sama Bos! Senang bisa bantu! 🙏${RESET}"
-                _pause
+                echo ""
 
             # Sisanya
             else
@@ -754,11 +759,11 @@ except Exception:
                     echo -e "  ${GRAY}  Tips: Isi file ~/.config/zdt/gemini_key dengan API Key untuk${RESET}"
                     echo -e "  ${GRAY}  mengaktifkan AI (Google Gemini atau OpenRouter).${RESET}"
                 fi
-                _pause
+                echo ""
             fi
         else
-            # Jika AI tidak dipanggil (fallback mode)
-            # Bagian ini hanya untuk _pause jika fallback dijalankan
+            # Jika AI tidak dipanggil (fallback mode): cukup beri spasi,
+            # alur chat berlanjut tanpa memutus ke menu.
             if [ -z "${input:-}" ]; then
                 echo ""
             fi
