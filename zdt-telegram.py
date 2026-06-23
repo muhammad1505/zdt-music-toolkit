@@ -11,23 +11,24 @@ except ImportError:
     print("Modul pyTelegramBotAPI (telebot) belum terinstall!")
     sys.exit(1)
 
-TOKEN_FILE = os.path.expanduser("~/.config/zdt/telegram_token.txt")
-if not os.path.exists(TOKEN_FILE):
-    print("Token Telegram tidak ditemukan di konfigurasi.")
-    sys.exit(1)
-
-# Pastikan token file aman (hanya bisa dibaca owner)
-try:
-    os.chmod(TOKEN_FILE, 0o600)
-except OSError:
-    pass
-
-with open(TOKEN_FILE, 'r') as f:
-    TOKEN = f.read().strip()
+TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+if not TOKEN:
+    TOKEN_FILE = os.path.expanduser("~/.config/zdt/telegram_token.txt")
+    if os.path.exists(TOKEN_FILE):
+        # Pastikan token file aman (hanya bisa dibaca owner)
+        try:
+            os.chmod(TOKEN_FILE, 0o600)
+        except OSError:
+            pass
+        with open(TOKEN_FILE, 'r') as f:
+            TOKEN = f.read().strip()
 
 if not TOKEN:
-    print("Token Telegram kosong!")
-    sys.exit(1)
+    print("Token Telegram tidak ditemukan di konfigurasi atau env var!")
+    if __name__ == "__main__":
+        sys.exit(1)
+    else:
+        TOKEN = "dummy_token_for_import"
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -647,6 +648,6 @@ def cancel_delete_callback(call):
     bot.edit_message_text("❌ Pembatalan hapus semua. Tidak ada file yang dihapus.", chat_id=call.message.chat.id, message_id=call.message.message_id)
     bot.answer_callback_query(call.id, "Dibatalkan.")
 
-
-print("Telegram Bot ZDT berjalan. Menunggu pesan masuk...")
-bot.infinity_polling()
+if __name__ == "__main__":
+    print("Telegram Bot ZDT berjalan. Menunggu pesan masuk...")
+    bot.infinity_polling()
