@@ -109,6 +109,7 @@ start_web_dashboard() {
     fi
 
     echo -e "  ${YELLOW}${ICO_ARROW} Menyalakan Web Dashboard...${RESET}"
+    echo -e "  ${CYAN}${ICO_WARN} INFO AUTH: Default Username & Password = ${BOLD}admin${RESET}"
     echo ""
     
     local port="${WEB_PORT:-5000}"

@@ -4,7 +4,8 @@ import sys
 import subprocess
 import shutil
 import glob
-from flask import Flask, request, render_template_string, jsonify
+from flask import Flask, request, render_template_string, jsonify, Response
+from functools import wraps
 try:
     import mutagen
     from mutagen.easyid3 import EasyID3
@@ -21,6 +22,32 @@ if os.path.exists("/tmp/zdt_web_task.log"):
         pass
 
 app = Flask(__name__)
+
+def check_auth(username, password):
+    config_file = os.path.expanduser("~/.config/zdt/config.conf")
+    conf_user, conf_pass = "admin", "admin"
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            for line in f:
+                if line.startswith("ZDT_WEB_USER="):
+                    conf_user = line.strip().split("=", 1)[1].strip('"\'')
+                elif line.startswith("ZDT_WEB_PASS="):
+                    conf_pass = line.strip().split("=", 1)[1].strip('"\'')
+    return username == conf_user and password == conf_pass
+
+def authenticate():
+    return Response(
+        'Akses Web Dashboard Ditolak!\\nSilakan login menggunakan username dan password Anda.\\nDefault: admin / admin', 401,
+        {'WWW-Authenticate': 'Basic realm="ZDT Enterprise Server"'})
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
 APP_VERSION = os.environ.get("ZDT_VERSION", "4.1.7")
 
 CONFIG_FILE = os.path.expanduser("~/.config/zdt/config.env")
@@ -54,18 +81,18 @@ HTML_TEMPLATE = """
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #0b0f19;
-            --bg-surface: rgba(17, 24, 39, 0.7);
-            --bg-card: rgba(31, 41, 55, 0.5);
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
+            --bg-base: #050505;
+            --bg-surface: rgba(10, 10, 12, 0.85);
+            --bg-card: rgba(15, 15, 20, 0.6);
+            --primary: #6366f1;
+            --primary-hover: #8b5cf6;
             --accent: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --text-main: #f9fafb;
-            --text-muted: #9ca3af;
-            --border-light: rgba(255, 255, 255, 0.08);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            --danger: #f43f5e;
+            --warning: #fbbf24;
+            --text-main: #ffffff;
+            --text-muted: #a1a1aa;
+            --border-light: rgba(255, 255, 255, 0.05);
+            --glass-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
         }
         
         * { box-sizing: border-box; }
@@ -78,8 +105,8 @@ HTML_TEMPLATE = """
             min-height: 100vh;
             display: flex;
             background-image: 
-                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.12), transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.08), transparent 25%);
+                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08), transparent 30%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.08), transparent 30%);
             background-attachment: fixed;
             -webkit-font-smoothing: antialiased;
         }
@@ -222,14 +249,15 @@ HTML_TEMPLATE = """
         }
 
         .btn {
-            background: var(--primary); color: white;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: white;
             border: none; padding: 14px 24px;
             border-radius: 8px; font-family: inherit; font-size: 14px;
-            font-weight: 500; cursor: pointer; width: 100%;
-            transition: all 0.2s ease;
+            font-weight: 600; cursor: pointer; width: 100%;
+            transition: all 0.3s ease;
             display: flex; justify-content: center; align-items: center; gap: 8px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
         }
-        .btn:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4); }
         .btn:active { transform: translateY(0); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         
@@ -1105,10 +1133,12 @@ def handle_exception(e):
     }), 500
 
 @app.route('/')
+@requires_auth
 def index():
     return render_template_string(HTML_TEMPLATE)
 
 @app.route('/api/stats', methods=['GET'])
+@requires_auth
 def get_stats():
     import json
     try:
@@ -1134,6 +1164,7 @@ def is_process_running(script_name):
         return False
 
 @app.route('/api/status', methods=['GET'])
+@requires_auth
 def get_status():
     target = get_target_dir()
     storage_free = "Unknown"
@@ -1159,6 +1190,7 @@ def get_status():
     })
 
 @app.route('/api/files', methods=['GET'])
+@requires_auth
 def get_files():
     target = get_target_dir()
     if not os.path.exists(target): return jsonify({"files": []})
@@ -1171,6 +1203,7 @@ def get_files():
     return jsonify({"files": files})
 
 @app.route('/api/daemon', methods=['POST'])
+@requires_auth
 def manage_daemon():
     data = request.json
     service = data.get('service')
@@ -1218,6 +1251,7 @@ def manage_daemon():
             return jsonify({"success": False, "message": f"Failed to stop: {str(e)}"})
 
 @app.route('/api/settings/storage', methods=['POST'])
+@requires_auth
 def update_storage():
     new_path = request.json.get('path')
     if not new_path: return jsonify({"success": False, "message": "Path cannot be empty."})
@@ -1258,6 +1292,7 @@ def update_storage():
     return jsonify({"success": True, "message": "Storage directory updated successfully."})
 
 @app.route('/api/download', methods=['POST'])
+@requires_auth
 def trigger_download():
     data = request.json
     url = data.get('url')
@@ -1289,6 +1324,7 @@ def trigger_download():
     return jsonify({"success": True, "message": "Proses download sedang berjalan di background!"})
 
 @app.route('/api/spotify-sync', methods=['POST'])
+@requires_auth
 def trigger_spotify_sync():
     url = request.json.get('url')
     if not url: return jsonify({"success": False, "message": "URL tidak boleh kosong!"})
@@ -1305,6 +1341,7 @@ def trigger_spotify_sync():
     return jsonify({"success": True, "message": "Sinkronisasi Spotify berjalan di background!"})
 
 @app.route('/api/metadata', methods=['POST'])
+@requires_auth
 def update_metadata():
     if 'mutagen' not in sys.modules:
         return jsonify({"success": False, "message": "Mutagen belum terinstall."})
@@ -1341,6 +1378,7 @@ def update_metadata():
         return jsonify({"success": False, "message": f"Gagal memproses file: {str(e)}"})
 
 @app.route('/api/tools', methods=['POST'])
+@requires_auth
 def server_tools():
     data = request.json
     action = data.get('action')
@@ -1420,6 +1458,7 @@ def server_tools():
         return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/logs", methods=["GET"])
+@requires_auth
 def get_logs():
     log_file = "/tmp/zdt_web_task.log"
     if os.path.exists(log_file):
@@ -1429,6 +1468,7 @@ def get_logs():
     return jsonify({"log": "No active tasks."})
 
 @app.route("/api/logs/clear", methods=["POST"])
+@requires_auth
 def clear_logs():
     try: os.remove("/tmp/zdt_web_task.log")
     except: pass

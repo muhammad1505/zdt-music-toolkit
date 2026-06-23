@@ -156,14 +156,20 @@ def web_app():
         def run(self, **kwargs):
             pass
 
+    class MockAuth:
+        username = "admin"
+        password = "admin"
+
     class MockRequest:
         json = {}
+        authorization = MockAuth()
 
     flask_mod = types.ModuleType("flask")
     flask_mod.Flask = MockFlask
     flask_mod.request = MockRequest()
     flask_mod.render_template_string = lambda s, **kw: s
     flask_mod.jsonify = lambda *args, **kw: args[0] if args else kw
+    flask_mod.Response = MockTestResponse
     sys.modules["flask"] = flask_mod
 
     # ── Import zdt-web.py ──
