@@ -497,8 +497,13 @@ def auto_download_audio(message):
                             except Exception as e:
                                 reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {str(e)}'
                                 continue
-                        process_reply(reply_text)
-                        return
+                        
+                        # OR succeeded? Process reply and return.
+                        # If all OR tiers failed ("Aduh otak" = conn/auth error), fall through to Gemini
+                        if not reply_text.startswith("Aduh otak"):
+                            process_reply(reply_text)
+                            return
+                        # OR failed silently — try Gemini below
                     
                     if gemini_key:
                         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
@@ -514,6 +519,11 @@ def auto_download_audio(message):
                             content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
                             reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
                         process_reply(reply_text)
+                        return
+                    
+                    # OR failed and no Gemini fallback — show the actual error
+                    if openrouter_key and reply_text:
+                        bot.reply_to(message, reply_text)
                         return
             except Exception as e:
                 import urllib.error
