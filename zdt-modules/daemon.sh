@@ -154,7 +154,9 @@ update_zdt_script() {
     
     echo -e "  ${CYAN}${ICO_ARROW} Mendownload versi terbaru dari GitHub...${RESET}"
     
-    local tmp_file="/tmp/zdt_update_$$.sh"
+    # mktemp: nama file acak untuk cegah symlink attack saat OTA update
+    local tmp_file
+    tmp_file=$(mktemp "${TMPDIR:-/tmp}/zdt_update_XXXXXX.sh" 2>/dev/null || echo "/tmp/zdt_update_$$.sh")
     # Get latest commit SHA to bypass GitHub CDN cache
     local latest_sha
     latest_sha=$(curl -sL "https://api.github.com/repos/muhammad1505/zdt-music-toolkit/commits/main" 2>/dev/null | grep -oP '"sha":\s*"\K[^"]+' | head -1)
@@ -322,9 +324,10 @@ hapus_semua() {
     fi
 
     # Hapus semua isi direktori (termasuk folder, thumbnail, json, dll)
-    rm -rf "$target"/* 2>/dev/null || true
+    # ${target:?} sebagai pengaman terakhir: cegah ekspansi ke /* jika target kosong
+    rm -rf "${target:?}"/* 2>/dev/null || true
     # Hapus file hidden (jika ada, selain . dan ..)
-    rm -rf "$target"/.[!.]* 2>/dev/null || true
+    rm -rf "${target:?}"/.[!.]* 2>/dev/null || true
     
     echo -e "  ${GREEN}${ICO_OK} Berhasil mengosongkan direktori ($count item dihapus)!${RESET}"
     _log "INFO" "Cleared storage directory $target ($count items)"

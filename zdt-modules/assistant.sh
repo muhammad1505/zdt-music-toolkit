@@ -335,7 +335,9 @@ KONTEKS SAAT INI: Storage=$abs_path ($file_count file media). Isi folder: $dir_c
             messages=$(_zaki_build_messages "$ai_prompt")
 
             local ai_response=""
-            local ai_tmpfile="/tmp/.zdt_ai_resp_$$"
+            # mktemp: nama file acak untuk cegah symlink attack pada /tmp
+            local ai_tmpfile
+            ai_tmpfile=$(mktemp "${TMPDIR:-/tmp}/zdt_ai_resp_XXXXXX" 2>/dev/null || echo "/tmp/.zdt_ai_resp_$$")
 
             if [[ "$gemini_key" == sk-or-* ]]; then
                 # OpenRouter — Multi-tier fallback (max 3 models per request)
