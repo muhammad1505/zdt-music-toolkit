@@ -503,6 +503,13 @@ download_ytdlp() {
             scan_dir="./$folder_manual_name"
         fi
 
+        # Record successful downloads to database
+        local source_name="youtube"
+        if [[ "$link" == *"tiktok.com"* ]]; then source_name="tiktok"; fi
+        if [[ "$link" == *"soundcloud.com"* ]]; then source_name="soundcloud"; fi
+        if [[ "$link" == *"spotify.com"* ]]; then source_name="spotify"; fi
+        _record_downloads "$scan_dir" "$source_name" "$link"
+
         if [[ "$pilih_lirik" =~ ^[Yy]$ && "$yt_ext" != "mp4" ]]; then
             echo -e "  ${CYAN}${ICO_ARROW} MENCARI LIRIK${RESET}"
             if _check_dependency "syncedlyrics"; then

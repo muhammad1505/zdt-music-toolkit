@@ -464,3 +464,24 @@ _playlist_selector() {
         fi
     done
 }
+
+# ==========================================
+# HELPER: RECORD DOWNLOADS TO DB
+# ==========================================
+_record_downloads() {
+    local scan_dir="$1"
+    local source="$2"
+    local url="$3"
+    
+    local find_args=( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" -o -iname "*.mp4" -o -iname "*.mkv" )
+    
+    while IFS= read -r f; do
+        if [ -n "$f" ]; then
+            local fname size db_path
+            fname=$(basename "$f")
+            size=$(stat -c%s "$f" 2>/dev/null || echo 0)
+            db_path="$HOME/.config/zdt/zdt.db"
+            python3 "$ROOT_DIR/zdt-modules/zdt_db.py" "$db_path" add_download "$fname" "$url" "$source" "$size" 2>/dev/null || true
+        fi
+    done < <(find "$scan_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -mmin -10 2>/dev/null)
+}

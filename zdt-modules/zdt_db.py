@@ -21,6 +21,8 @@ try:
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS chat_history
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, content TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS downloads
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, url TEXT, source TEXT, size_bytes INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
 except Exception as e:
     print(f"Error initializing DB: {e}", file=sys.stderr)
@@ -74,5 +76,34 @@ elif CMD == "get_count":
 elif CMD == "clear":
     c.execute("DELETE FROM chat_history")
     conn.commit()
+
+elif CMD == "add_download":
+    if len(sys.argv) < 7:
+        sys.exit(1)
+    filename = sys.argv[3]
+    url = sys.argv[4]
+    source = sys.argv[5]
+    size_bytes = int(sys.argv[6])
+    c.execute("INSERT INTO downloads (filename, url, source, size_bytes) VALUES (?, ?, ?, ?)", (filename, url, source, size_bytes))
+    conn.commit()
+
+elif CMD == "get_stats":
+    c.execute("SELECT COUNT(*), SUM(size_bytes) FROM downloads")
+    row = c.fetchone()
+    total_count = row[0] or 0
+    total_size = row[1] or 0
+    
+    c.execute("SELECT source, COUNT(*) FROM downloads GROUP BY source")
+    sources = dict(c.fetchall())
+    
+    c.execute("SELECT filename, source, size_bytes, timestamp FROM downloads ORDER BY id DESC LIMIT 10")
+    recent = [{"filename": r[0], "source": r[1], "size_bytes": r[2], "timestamp": r[3]} for r in c.fetchall()]
+    
+    print(json.dumps({
+        "total_count": total_count,
+        "total_size_bytes": total_size,
+        "sources": sources,
+        "recent": recent
+    }))
 
 conn.close()

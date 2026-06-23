@@ -167,6 +167,9 @@ sync_spotify_playlist() {
     
     spotdl download "$playlist_url" --m3u "sync_playlist.m3u" --save-errors "sync_errors.txt" --format m4a --bitrate 128k
     
+    # Record to database
+    _record_downloads "$target_dir" "spotify" "$playlist_url"
+    
     echo -e "  ${GREEN}${ICO_OK} Sinkronisasi Selesai!${RESET}"
     _log "INFO" "Spotify Sync Completed: $playlist_url"
 }

@@ -444,6 +444,7 @@ HTML_TEMPLATE = """
     <div class="sidebar">
         <div class="logo"><i class="fa-solid fa-layer-group"></i> ZDT Enterprise</div>
         <div class="nav-item active" onclick="switchTab('dashboard', this)"><i class="fa-solid fa-chart-pie"></i> Dashboard</div>
+        <div class="nav-item" onclick="switchTab('statistik', this)"><i class="fa-solid fa-chart-line"></i> Statistik</div>
         <div class="nav-item" onclick="switchTab('downloader', this)"><i class="fa-solid fa-cloud-arrow-down"></i> Download</div>
         <div class="nav-item" onclick="switchTab('spotify', this)"><i class="fa-brands fa-spotify"></i> Spotify</div>
         <div class="nav-item nav-hide-mobile" onclick="switchTab('metadata', this)"><i class="fa-solid fa-tags"></i> Metadata</div>
@@ -510,6 +511,60 @@ HTML_TEMPLATE = """
                 <h4 style="margin:0 0 10px 0;">Current Configuration</h4>
                 <div style="display:flex; gap: 20px; color: var(--text-muted); font-size:13px;">
                     <div><i class="fa-solid fa-folder"></i> Target Dir: <span id="dashTargetDir" style="color:var(--text-main);">Loading...</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistik Panel -->
+        <div id="statistik" class="panel">
+            <h3><i class="fa-solid fa-chart-line"></i> Download History & Statistik</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="color:var(--primary); background:rgba(139,92,246,0.1);"><i class="fa-solid fa-music"></i></div>
+                    <div class="stat-info">
+                        <h4>Total Unduhan</h4>
+                        <h3 id="statTotalDl">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color:var(--success); background:rgba(16,185,129,0.1);"><i class="fa-solid fa-hard-drive"></i></div>
+                    <div class="stat-info">
+                        <h4>Total Ukuran</h4>
+                        <h3 id="statTotalSize">0 MB</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color:#1DB954; background:rgba(29,185,84,0.1);"><i class="fa-brands fa-spotify"></i></div>
+                    <div class="stat-info">
+                        <h4>Spotify</h4>
+                        <h3 id="statSpotify">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="color:#FF0000; background:rgba(255,0,0,0.1);"><i class="fa-brands fa-youtube"></i></div>
+                    <div class="stat-info">
+                        <h4>YouTube</h4>
+                        <h3 id="statYoutube">0</h3>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px; background:var(--card-bg); border-radius:8px; border:1px solid var(--border-light); overflow:hidden;">
+                <h4 style="padding:15px; margin:0; border-bottom:1px solid var(--border-light);">10 Unduhan Terakhir</h4>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; text-align:left; font-size:14px;">
+                        <thead>
+                            <tr style="background:rgba(255,255,255,0.05);">
+                                <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">File</th>
+                                <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Sumber</th>
+                                <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Ukuran</th>
+                                <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Waktu</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentDownloadsTbody">
+                            <tr><td colspan="4" style="padding:15px; text-align:center; color:var(--text-muted);">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -737,6 +792,7 @@ HTML_TEMPLATE = """
             
             const titles = {
                 'dashboard': ['Dashboard Overview', 'Monitor your storage and system resources'],
+                'statistik': ['Statistik & Riwayat', 'Pantau aktivitas unduhan dan histori'],
                 'downloader': ['Media Downloader', 'Download audio and video from various platforms'],
                 'spotify': ['Spotify Synchronization', 'Keep your local library synced with Spotify'],
                 'metadata': ['Metadata Editor', 'Fix missing album art and ID3 tags'],
@@ -748,6 +804,43 @@ HTML_TEMPLATE = """
             document.getElementById('pageSubtitle').innerText = titles[tabId][1];
             
             if(['metadata', 'servertools'].includes(tabId)) loadFiles();
+            if(tabId === 'statistik') loadDbStats();
+        }
+
+        async function loadDbStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                if(data.success === false) return;
+                
+                document.getElementById('statTotalDl').innerText = data.total_count || 0;
+                document.getElementById('statTotalSize').innerText = ((data.total_size_bytes || 0) / (1024*1024)).toFixed(2) + ' MB';
+                document.getElementById('statSpotify').innerText = data.sources['spotify'] || 0;
+                document.getElementById('statYoutube').innerText = data.sources['youtube'] || 0;
+                
+                const tbody = document.getElementById('recentDownloadsTbody');
+                tbody.innerHTML = '';
+                if(!data.recent || data.recent.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="padding:15px; text-align:center; color:var(--text-muted);">Belum ada riwayat unduhan.</td></tr>';
+                } else {
+                    data.recent.forEach(item => {
+                        const tr = document.createElement('tr');
+                        const sizeMB = (item.size_bytes / (1024*1024)).toFixed(2) + ' MB';
+                        let sourceIcon = '';
+                        if(item.source === 'spotify') sourceIcon = '<i class="fa-brands fa-spotify" style="color:#1DB954"></i> Spotify';
+                        else if(item.source === 'youtube') sourceIcon = '<i class="fa-brands fa-youtube" style="color:#FF0000"></i> YouTube';
+                        else sourceIcon = item.source;
+                        
+                        tr.innerHTML = `
+                            <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.05); max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.filename}">${item.filename}</td>
+                            <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.05);">${sourceIcon}</td>
+                            <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.05);">${sizeMB}</td>
+                            <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.05); color:var(--text-muted); font-size:12px;">${item.timestamp}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch(e) { console.error(e); }
         }
 
         async function loadStatus() {
@@ -1014,6 +1107,21 @@ def handle_exception(e):
 @app.route('/')
 def index():
     return render_template_string(HTML_TEMPLATE)
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    import json
+    try:
+        db_path = os.path.join(os.path.expanduser("~"), ".config", "zdt", "zdt.db")
+        db_script = os.path.join(PROJECT_DIR, "zdt-modules", "zdt_db.py")
+        res = subprocess.run([sys.executable, db_script, db_path, "get_stats"], capture_output=True, text=True)
+        if res.returncode == 0:
+            return jsonify(json.loads(res.stdout.strip()))
+        return jsonify({"success": False, "message": res.stderr}), 500
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
 
 def is_process_running(script_name):
     try:
