@@ -84,7 +84,7 @@ def check_auth(username, password):
 
 def authenticate():
     return Response(
-        'Akses Web Dashboard Ditolak!\\nSilakan login menggunakan username dan password Anda.\\nDefault: admin / admin', 401,
+        'Akses Web Dashboard Ditolak!\\nSilakan login menggunakan username dan password Anda.\\nPassword dibuat otomatis saat pertama dijalankan (cek output terminal / ~/.config/zdt/config.conf).', 401,
         {'WWW-Authenticate': 'Basic realm="ZDT Enterprise Server"'})
 
 def requires_auth(f):
