@@ -174,10 +174,16 @@ def web_app():
         username = "admin"
         password = "admin"
 
+    class MockHeaders(dict):
+        """Mock request.headers object that supports .get() like Flask."""
+        def get(self, key, default=None):
+            return super().get(key, default)
+
     class MockRequest:
         json = {}
         authorization = MockAuth()
         remote_addr = "127.0.0.1"
+        headers = MockHeaders({"X-CSRF-Token": "test-csrf-token-123"})
 
     flask_mod = types.ModuleType("flask")
     flask_mod.Flask = MockFlask
@@ -197,6 +203,9 @@ def web_app():
     sys.modules["zdt_web_test"] = mod
     spec.loader.exec_module(mod)
     mod.check_auth = lambda u, p: True
+
+    # Patch CSRF validation for testing (business logic tests, not CSRF mechanism tests)
+    mod._validate_csrf_token = lambda token: True
 
     # Store request mock on the app so post() can set json
     mod.app._request = flask_mod.request

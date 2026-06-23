@@ -397,7 +397,8 @@ _get_config_dir() {
 }
 
 _get_config_file() {
-    echo "$(_get_config_dir)/config"
+    # Consolidated: semua komponen (Bash, web, Telegram) pakai satu file config.env
+    echo "$(_get_config_dir)/config.env"
 }
 
 # Baca value dari config file
@@ -475,6 +476,17 @@ _config_unset() {
 _load_storage_dir() {
     local saved_dir
     saved_dir=$(_config_get "storage_dir" "")
+
+    # Fallback: coba baca dari old config file untuk backward compatibility
+    if [ -z "$saved_dir" ]; then
+        local old_config="$(_get_config_dir)/config"
+        if [ -f "$old_config" ]; then
+            saved_dir=$(grep "^storage_dir=" "$old_config" 2>/dev/null | head -1 | cut -d'=' -f2-)
+            # Strip quotes
+            saved_dir="${saved_dir%\"}" && saved_dir="${saved_dir#\"}"
+            saved_dir="${saved_dir%\'}" && saved_dir="${saved_dir#\'}"
+        fi
+    fi
 
     if [ -n "$saved_dir" ] && [ -d "$saved_dir" ]; then
         STORAGE_DIR="$saved_dir"

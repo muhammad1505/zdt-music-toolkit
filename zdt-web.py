@@ -30,6 +30,37 @@ if os.path.exists(WEB_TASK_LOG_PATH):
         pass
 
 app = Flask(__name__)
+app.secret_key = secrets.token_hex(32)
+
+# CSRF token store
+_csrf_tokens = set()
+
+def _generate_csrf_token():
+    """Generate and store a CSRF token."""
+    token = secrets.token_urlsafe(32)
+    _csrf_tokens.add(token)
+    # Keep only last 100 tokens to prevent memory leak
+    if len(_csrf_tokens) > 100:
+        _csrf_tokens.clear()
+        _csrf_tokens.add(token)
+    return token
+
+def _validate_csrf_token(token):
+    """Validate and consume a CSRF token."""
+    if token in _csrf_tokens:
+        _csrf_tokens.discard(token)
+        return True
+    return False
+
+def requires_csrf(f):
+    """Decorator for POST endpoints requiring CSRF token."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get("X-CSRF-Token") or (request.json or {}).get("csrf_token", "")
+        if not _validate_csrf_token(token):
+            return jsonify({"success": False, "message": "CSRF token invalid. Refresh halaman dan coba lagi."}), 403
+        return f(*args, **kwargs)
+    return decorated
 
 # Rate limiting: max 30 requests per minute per IP
 _rate_limit_store = defaultdict(list)
@@ -103,20 +134,22 @@ CONFIG_FILE = os.path.expanduser("~/.config/zdt/config.env")
 
 def get_target_dir():
     target_dir = os.path.expanduser("~/Music/ZDT_Downloads")
+    # Baca dari config.env (single source of truth)
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            for line in f:
+                if line.startswith("storage_dir=") or line.startswith("TARGET_DIR="):
+                    val = line.strip().split("=", 1)[1].strip("\"").strip("'")
+                    if val and val != ".":
+                        target_dir = os.path.expanduser(val)
+    # Fallback: old config file for backward compatibility
     old_conf = os.path.expanduser("~/.config/zdt/config")
-    if os.path.exists(old_conf):
+    if target_dir == os.path.expanduser("~/Music/ZDT_Downloads") and os.path.exists(old_conf):
         with open(old_conf, "r") as f:
             for line in f:
                 if line.startswith("storage_dir="):
                     val = line.strip().split("=", 1)[1].strip("\"").strip("'")
                     if val: target_dir = os.path.expanduser(val)
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            for line in f:
-                if line.startswith("TARGET_DIR="):
-                    val = line.strip().split("=", 1)[1].strip("\"").strip("'")
-                    if val and val != ".":
-                        target_dir = os.path.expanduser(val)
     return target_dir
 
 HTML_TEMPLATE = """
@@ -1019,6 +1052,33 @@ HTML_TEMPLATE = """
             }, 4000);
         }
 
+        // CSRF Token management
+        let csrfToken = '';
+        
+        async function refreshCsrfToken() {
+            try {
+                const res = await fetch('/api/csrf-token');
+                const data = await res.json();
+                if (data.csrf_token) csrfToken = data.csrf_token;
+            } catch(e) {}
+        }
+        
+        function csrfFetch(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            options.headers['X-CSRF-Token'] = csrfToken;
+            if (!options.headers['Content-Type']) options.headers['Content-Type'] = 'application/json';
+            return fetch(url, options).then(async res => {
+                // Refresh CSRF token after each request
+                if (res.status !== 403) refreshCsrfToken();
+                return res;
+            });
+        }
+        
+        // Initial CSRF token fetch
+        refreshCsrfToken();
+        // Refresh token periodically
+        setInterval(refreshCsrfToken, 300000); // every 5 minutes
+
         async function loadFiles() {
             try {
                 const res = await fetch('/api/files');
@@ -1042,7 +1102,7 @@ HTML_TEMPLATE = """
                 const originalHtml = btn.innerHTML;
                 btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${loadingText}`;
                 try {
-                    const res = await fetch(apiEndpoint, {
+                    const res = await csrfFetch(apiEndpoint, {
                         method: 'POST', headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(payloadBuilder())
                     });
@@ -1079,7 +1139,7 @@ HTML_TEMPLATE = """
         async function runTool(toolType) {
             showToast('Dispatching command to server...', 'info');
             
-            let payload = { action: toolType };
+            let payload = { action: toolType, csrf_token: csrfToken };
             if (toolType === 'demucs') {
                 payload.filename = document.getElementById('toolFileDemucs').value;
                 if (!payload.filename) return alert("Please select a file first!");
@@ -1090,7 +1150,7 @@ HTML_TEMPLATE = """
             }
 
             try {
-                const res = await fetch('/api/tools', {
+                const res = await csrfFetch('/api/tools', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
@@ -1105,9 +1165,9 @@ HTML_TEMPLATE = """
         async function toggleDaemon(service, action) {
             showToast(`Sending ${action} command to ${service}...`, 'info');
             try {
-                const res = await fetch('/api/daemon', {
+                const res = await csrfFetch('/api/daemon', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ service, action })
+                    body: JSON.stringify({ service, action, csrf_token: csrfToken })
                 });
                 const data = await res.json();
                 showToast(data.message, data.success ? 'success' : 'error');
@@ -1151,9 +1211,9 @@ HTML_TEMPLATE = """
             if(tabId === 'metadata') loadFiles();
         }
 
-        function closeLogs() {
+        async function closeLogs() {
             document.getElementById("logSection").style.display = "none";
-            fetch('/api/logs/clear', {method: 'POST'});
+            await csrfFetch('/api/logs/clear', {method: 'POST'});
         }
 
         setInterval(async () => {
@@ -1289,6 +1349,7 @@ def get_files():
 
 @app.route('/api/daemon', methods=['POST'])
 @requires_auth
+@requires_csrf
 def manage_daemon():
     data = request.json
     service = data.get('service')
@@ -1339,8 +1400,14 @@ def manage_daemon():
         except Exception as e:
             return jsonify({"success": False, "message": f"Failed to stop: {str(e)}"})
 
+@app.route('/api/csrf-token', methods=['GET'])
+@requires_auth
+def get_csrf_token():
+    return jsonify({"csrf_token": _generate_csrf_token()})
+
 @app.route('/api/settings/storage', methods=['POST'])
 @requires_auth
+@requires_csrf
 def update_storage():
     new_path = request.json.get('path')
     if not new_path: return jsonify({"success": False, "message": "Path cannot be empty."})
@@ -1368,20 +1435,26 @@ def update_storage():
     
     with open(CONFIG_FILE, "w") as f: f.writelines(lines)
     
-    # Update old config as fallback
+    # Sync to old config format (backward compatibility)
     old_conf = os.path.expanduser("~/.config/zdt/config")
     if os.path.exists(old_conf):
         olines = []
         with open(old_conf, "r") as f: olines = f.readlines()
+        found_old = False
         for i, line in enumerate(olines):
             if line.startswith("storage_dir="):
                 olines[i] = f'storage_dir="{new_path}"\n'
+                found_old = True
+                break
+        if not found_old:
+            olines.append(f'storage_dir="{new_path}"\n')
         with open(old_conf, "w") as f: f.writelines(olines)
         
     return jsonify({"success": True, "message": "Storage directory updated successfully."})
 
 @app.route('/api/download', methods=['POST'])
 @requires_auth
+@requires_csrf
 def trigger_download():
     data = request.json
     url = data.get('url')
@@ -1414,6 +1487,7 @@ def trigger_download():
 
 @app.route('/api/spotify-sync', methods=['POST'])
 @requires_auth
+@requires_csrf
 def trigger_spotify_sync():
     url = request.json.get('url')
     if not url: return jsonify({"success": False, "message": "URL tidak boleh kosong!"})
@@ -1431,6 +1505,7 @@ def trigger_spotify_sync():
 
 @app.route('/api/metadata', methods=['POST'])
 @requires_auth
+@requires_csrf
 def update_metadata():
     if 'mutagen' not in sys.modules:
         return jsonify({"success": False, "message": "Mutagen belum terinstall."})
@@ -1472,6 +1547,7 @@ def update_metadata():
 
 @app.route('/api/tools', methods=['POST'])
 @requires_auth
+@requires_csrf
 def server_tools():
     data = request.json
     action = data.get('action')
@@ -1578,6 +1654,7 @@ def get_logs():
 
 @app.route("/api/logs/clear", methods=["POST"])
 @requires_auth
+@requires_csrf
 def clear_logs():
     try: os.remove(WEB_TASK_LOG_PATH)
     except: pass

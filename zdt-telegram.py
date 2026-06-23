@@ -145,6 +145,20 @@ def get_target_dir():
                             return os.path.expanduser(val)
     return target_dir
 
+def get_config_value(key, default=""):
+    """Baca satu value dari config.env (single source of truth)."""
+    conf_file = os.path.expanduser("~/.config/zdt/config.env")
+    old_conf = os.path.expanduser("~/.config/zdt/config")
+    for cf in [conf_file, old_conf]:
+        if os.path.exists(cf):
+            with open(cf, 'r') as f:
+                for line in f:
+                    if line.startswith(f"{key}="):
+                        val = line.strip().split('=', 1)[1].strip('"').strip("'")
+                        if val:
+                            return val
+    return default
+
 def get_recent_media_files(limit=5):
     import glob
     target = get_target_dir()
