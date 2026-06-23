@@ -251,281 +251,281 @@ def auto_download_audio(message):
             openrouter_key = gemini_key
             gemini_key = ""
         
-            try:
-                if gemini_key or openrouter_key:
-                    bot.send_chat_action(message.chat.id, 'typing')
-                    import urllib.request, json
+        try:
+            if gemini_key or openrouter_key:
+                bot.send_chat_action(message.chat.id, 'typing')
+                import urllib.request, json
                     
-                    abs_path = os.path.expanduser("~/Music/ZDT")
-                    conf_file = os.path.expanduser("~/.config/zdt/config")
-                    if os.path.exists(conf_file):
-                        with open(conf_file, 'r') as cf:
-                            for line in cf:
-                                if line.startswith("storage_dir="):
-                                    val = line.strip().split('=', 1)[1].strip('"').strip("'")
-                                    abs_path = os.path.expanduser(val)
-                                    break
-                    try:
-                        if os.path.exists(abs_path):
-                            dir_contents = ", ".join(os.listdir(abs_path)[:50])
-                        else:
-                            dir_contents = "Direktori kosong/tidak ada."
-                    except Exception:
-                        dir_contents = "Gagal membaca direktori."
+                abs_path = os.path.expanduser("~/Music/ZDT")
+                conf_file = os.path.expanduser("~/.config/zdt/config")
+                if os.path.exists(conf_file):
+                    with open(conf_file, 'r') as cf:
+                        for line in cf:
+                            if line.startswith("storage_dir="):
+                                val = line.strip().split('=', 1)[1].strip('"').strip("'")
+                                abs_path = os.path.expanduser(val)
+                                break
+                try:
+                    if os.path.exists(abs_path):
+                        dir_contents = ", ".join(os.listdir(abs_path)[:50])
+                    else:
+                        dir_contents = "Direktori kosong/tidak ada."
+                except Exception:
+                    dir_contents = "Gagal membaca direktori."
 
-                    chat_data = chat_history.get(message.chat.id, {"messages": [], "search_results": []})
-                    history_context = "\\n".join(chat_data["messages"])
-                    search_context = "\\n".join(chat_data["search_results"])
+                chat_data = chat_history.get(message.chat.id, {"messages": [], "search_results": []})
+                history_context = "\\n".join(chat_data["messages"])
+                search_context = "\\n".join(chat_data["search_results"])
                     
-                    if search_context:
-                        search_context = f"\\n\\nInfo Hasil Pencarian Terakhir (Ganti nomor dengan URL yang sesuai jika user memilih):\\n{search_context}"
+                if search_context:
+                    search_context = f"\\n\\nInfo Hasil Pencarian Terakhir (Ganti nomor dengan URL yang sesuai jika user memilih):\\n{search_context}"
                         
-                    prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}. ATURAN SUPER PENTING: JIKA DAN HANYA JIKA user SECARA EKSPLISIT menyuruh mengeksekusi suatu aksi, WAJIB sertakan tag berikut di jawabanmu:\n1) Perintah DOWNLOAD AUDIO/LAGU: [AUTO_ACTION: gas download audio ytsearch1:judul_lagu_yang_dicari atau URL]\n2) Perintah DOWNLOAD VIDEO: [AUTO_ACTION: gas download video ytsearch1:judul_video_yang_dicari atau URL]\n3) Perintah CARI/SEARCH lagu/video biasa di YouTube: [AUTO_ACTION: cari youtube judul_yang_dicari]\n4) Perintah CARI/SEARCH PLAYLIST/ALBUM di YouTube: [AUTO_ACTION: cari playlist judul_yang_dicari]\n5) Perintah pisah vokal: [AUTO_ACTION: hapus vokal]\n6) Perintah kompres media: [AUTO_ACTION: kompres media]\n7) Perintah cari lirik: [AUTO_ACTION: sync lirik]\n8) Perintah rapikan nama file: [AUTO_ACTION: bersih nama]\n9) Perintah buat playlist: [AUTO_ACTION: bikin playlist]\n10) Perintah hapus semua file: [AUTO_ACTION: hapus semua]\n\nJIKA user hanya tanya-tanya, curhat, minta penjelasan, JANGAN GUNAKAN TAG AUTO_ACTION SAMA SEKALI! Jawab saja seperti biasa.{search_context}\n\nRiwayat Chat Terbaru:\n{history_context}'
+                prompt = f'Peranmu Zaki-Bot, asisten gaul pada ZDT Music Toolkit Telegram Bot. Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}. ATURAN SUPER PENTING: JIKA DAN HANYA JIKA user SECARA EKSPLISIT menyuruh mengeksekusi suatu aksi, WAJIB sertakan tag berikut di jawabanmu:\n1) Perintah DOWNLOAD AUDIO/LAGU: [AUTO_ACTION: gas download audio ytsearch1:judul_lagu_yang_dicari atau URL]\n2) Perintah DOWNLOAD VIDEO: [AUTO_ACTION: gas download video ytsearch1:judul_video_yang_dicari atau URL]\n3) Perintah CARI/SEARCH lagu/video biasa di YouTube: [AUTO_ACTION: cari youtube judul_yang_dicari]\n4) Perintah CARI/SEARCH PLAYLIST/ALBUM di YouTube: [AUTO_ACTION: cari playlist judul_yang_dicari]\n5) Perintah pisah vokal: [AUTO_ACTION: hapus vokal]\n6) Perintah kompres media: [AUTO_ACTION: kompres media]\n7) Perintah cari lirik: [AUTO_ACTION: sync lirik]\n8) Perintah rapikan nama file: [AUTO_ACTION: bersih nama]\n9) Perintah buat playlist: [AUTO_ACTION: bikin playlist]\n10) Perintah hapus semua file: [AUTO_ACTION: hapus semua]\n\nJIKA user hanya tanya-tanya, curhat, minta penjelasan, JANGAN GUNAKAN TAG AUTO_ACTION SAMA SEKALI! Jawab saja seperti biasa.{search_context}\n\nRiwayat Chat Terbaru:\n{history_context}'
 
-                    def process_reply(reply_text):
-                        if "[AUTO_ACTION:" in reply_text:
-                            import re
-                            match = re.search(r"\[AUTO_ACTION:\s*(.+?)\]", reply_text)
-                            if match:
-                                action = match.group(1).strip()
+                def process_reply(reply_text):
+                    if "[AUTO_ACTION:" in reply_text:
+                        import re
+                        match = re.search(r"\[AUTO_ACTION:\s*(.+?)\]", reply_text)
+                        if match:
+                            action = match.group(1).strip()
                                 
-                                def run_bg_task(cmd_args, success_msg, progress_msg=None):
-                                    import threading
-                                    import subprocess
-                                    import time
-                                    import re
-                                    def _task():
-                                        try:
-                                            # Using unbuffered output trick via stdbuf or directly reading
-                                            process = subprocess.Popen([zdt_bin] + cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+                            def run_bg_task(cmd_args, success_msg, progress_msg=None):
+                                import threading
+                                import subprocess
+                                import time
+                                import re
+                                def _task():
+                                    try:
+                                        # Using unbuffered output trick via stdbuf or directly reading
+                                        process = subprocess.Popen([zdt_bin] + cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
                                             
-                                            last_update = time.time()
-                                            log_buffer = []
-                                            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+                                        last_update = time.time()
+                                        log_buffer = []
+                                        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
                                             
-                                            for line in iter(process.stdout.readline, ''):
-                                                if not line:
-                                                    break
-                                                clean_line = ansi_escape.sub('', line).strip()
+                                        for line in iter(process.stdout.readline, ''):
+                                            if not line:
+                                                break
+                                            clean_line = ansi_escape.sub('', line).strip()
                                                 
-                                                if clean_line:
-                                                    # yt-dlp outputs progress on lines starting with [download], update it without creating new array items if it's progress
-                                                    if log_buffer and clean_line.startswith("[download]") and log_buffer[-1].startswith("[download]"):
-                                                        log_buffer[-1] = clean_line
-                                                    else:
-                                                        log_buffer.append(clean_line)
-                                                    
-                                                    log_buffer = log_buffer[-6:] # keep last 6 lines
-                                                
-                                                # Update telegram message every 3 seconds
-                                                if progress_msg and time.time() - last_update > 3.0:
-                                                    context = "\n".join(log_buffer)
-                                                    import html
-                                                    try:
-                                                        bot.edit_message_text(f"⏳ <b>Proses Berjalan...</b>\n<pre>{html.escape(context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
-                                                    except Exception:
-                                                        pass # ignore rate limits or unchanged errors
-                                                    last_update = time.time()
-                                            
-                                            process.wait()
-                                            final_context = "\n".join(log_buffer)
-                                            import html
-                                            
-                                            if process.returncode == 0:
-                                                if progress_msg:
-                                                    try:
-                                                        bot.edit_message_text(f"✅ <b>{success_msg}</b>\n\n📄 <b>Log Terakhir:</b>\n<pre>{html.escape(final_context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
-                                                    except:
-                                                        bot.reply_to(message, f"✅ <b>{success_msg}</b>\n\n📄 <b>Log Terakhir:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
+                                            if clean_line:
+                                                # yt-dlp outputs progress on lines starting with [download], update it without creating new array items if it's progress
+                                                if log_buffer and clean_line.startswith("[download]") and log_buffer[-1].startswith("[download]"):
+                                                    log_buffer[-1] = clean_line
                                                 else:
+                                                    log_buffer.append(clean_line)
+                                                    
+                                                log_buffer = log_buffer[-6:] # keep last 6 lines
+                                                
+                                            # Update telegram message every 3 seconds
+                                            if progress_msg and time.time() - last_update > 3.0:
+                                                context = "\n".join(log_buffer)
+                                                import html
+                                                try:
+                                                    bot.edit_message_text(f"⏳ <b>Proses Berjalan...</b>\n<pre>{html.escape(context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
+                                                except Exception:
+                                                    pass # ignore rate limits or unchanged errors
+                                                last_update = time.time()
+                                            
+                                        process.wait()
+                                        final_context = "\n".join(log_buffer)
+                                        import html
+                                            
+                                        if process.returncode == 0:
+                                            if progress_msg:
+                                                try:
+                                                    bot.edit_message_text(f"✅ <b>{success_msg}</b>\n\n📄 <b>Log Terakhir:</b>\n<pre>{html.escape(final_context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
+                                                except:
                                                     bot.reply_to(message, f"✅ <b>{success_msg}</b>\n\n📄 <b>Log Terakhir:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
                                             else:
-                                                if progress_msg:
-                                                    try:
-                                                        bot.edit_message_text(f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
-                                                    except:
-                                                        bot.reply_to(message, f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
-                                                else:
+                                                bot.reply_to(message, f"✅ <b>{success_msg}</b>\n\n📄 <b>Log Terakhir:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
+                                        else:
+                                            if progress_msg:
+                                                try:
+                                                    bot.edit_message_text(f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
+                                                except:
                                                     bot.reply_to(message, f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
-                                        except Exception as e:
-                                            bot.reply_to(message, f"❌ System Error: {e}")
-                                    threading.Thread(target=_task).start()
+                                            else:
+                                                bot.reply_to(message, f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
+                                    except Exception as e:
+                                        bot.reply_to(message, f"❌ System Error: {e}")
+                                threading.Thread(target=_task).start()
 
-                                if action.startswith("gas download audio"):
-                                    url = action.replace("gas download audio", "").strip()
-                                    sent_msg = bot.reply_to(message, f"⏳ <b>Sedang Mendownload Audio...</b>\n📍 <code>Server</code> memproses link.", parse_mode="HTML")
-                                    run_bg_task(["--download-audio", url], "Audio berhasil di-download!", sent_msg)
-                                elif action.startswith("gas download video"):
-                                    url = action.replace("gas download video", "").strip()
-                                    sent_msg = bot.reply_to(message, f"⏳ <b>Sedang Mendownload Video...</b>\n📍 <code>Server</code> memproses link.", parse_mode="HTML")
-                                    run_bg_task(["--download-video", url], "Video berhasil di-download!", sent_msg)
-                                elif action.startswith("cari youtube"):
-                                    query = action.replace("cari youtube", "").strip()
-                                    import html
-                                    bot.reply_to(message, f"🔍 <b>Mencari di YouTube...</b>\nKata kunci: <code>{html.escape(query)}</code>", parse_mode="HTML")
+                            if action.startswith("gas download audio"):
+                                url = action.replace("gas download audio", "").strip()
+                                sent_msg = bot.reply_to(message, f"⏳ <b>Sedang Mendownload Audio...</b>\n📍 <code>Server</code> memproses link.", parse_mode="HTML")
+                                run_bg_task(["--download-audio", url], "Audio berhasil di-download!", sent_msg)
+                            elif action.startswith("gas download video"):
+                                url = action.replace("gas download video", "").strip()
+                                sent_msg = bot.reply_to(message, f"⏳ <b>Sedang Mendownload Video...</b>\n📍 <code>Server</code> memproses link.", parse_mode="HTML")
+                                run_bg_task(["--download-video", url], "Video berhasil di-download!", sent_msg)
+                            elif action.startswith("cari youtube"):
+                                query = action.replace("cari youtube", "").strip()
+                                import html
+                                bot.reply_to(message, f"🔍 <b>Mencari di YouTube...</b>\nKata kunci: <code>{html.escape(query)}</code>", parse_mode="HTML")
                                     
-                                    def _search_task():
-                                        try:
-                                            res = subprocess.run(["yt-dlp", f"ytsearch5:{query}", "--print", "%(title)s|%(webpage_url)s"], capture_output=True, text=True)
-                                            if res.returncode == 0 and res.stdout.strip():
-                                                import telebot
-                                                import html
+                                def _search_task():
+                                    try:
+                                        res = subprocess.run(["yt-dlp", f"ytsearch5:{query}", "--print", "%(title)s|%(webpage_url)s"], capture_output=True, text=True)
+                                        if res.returncode == 0 and res.stdout.strip():
+                                            import telebot
+                                            import html
                                                 
-                                                lines = res.stdout.strip().split('\n')
-                                                formatted = []
-                                                urls = []
-                                                for idx, line in enumerate(lines, 1):
-                                                    parts = line.split('|', 1)
-                                                    if len(parts) == 2:
-                                                        title = html.escape(parts[0].strip())
-                                                        url = html.escape(parts[1].strip())
-                                                        formatted.append(f"{idx}. <b>{title}</b>\n{url}")
-                                                        urls.append(f"{idx}) {parts[1].strip()}")
+                                            lines = res.stdout.strip().split('\n')
+                                            formatted = []
+                                            urls = []
+                                            for idx, line in enumerate(lines, 1):
+                                                parts = line.split('|', 1)
+                                                if len(parts) == 2:
+                                                    title = html.escape(parts[0].strip())
+                                                    url = html.escape(parts[1].strip())
+                                                    formatted.append(f"{idx}. <b>{title}</b>\n{url}")
+                                                    urls.append(f"{idx}) {parts[1].strip()}")
                                                 
-                                                if chat_history.get(message.chat.id):
-                                                    chat_history[message.chat.id]["search_results"] = urls
+                                            if chat_history.get(message.chat.id):
+                                                chat_history[message.chat.id]["search_results"] = urls
                                                 
-                                                out_text = "\n\n".join(formatted)
-                                                bot.reply_to(message, f"🎯 <b>Hasil Pencarian:</b>\n\n{out_text}\n\n<i>Balas dengan nomor (misal: 'download nomor 1') atau linknya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
-                                            else:
-                                                bot.reply_to(message, "❌ Pencarian tidak menemukan hasil.")
-                                        except Exception as e:
-                                            bot.reply_to(message, f"❌ Error pencarian: {e}")
-                                    threading.Thread(target=_search_task).start()
-                                elif action.startswith("cari playlist"):
-                                    query = action.replace("cari playlist", "").strip()
-                                    import urllib.parse
-                                    import html
-                                    bot.reply_to(message, f"🔍 <b>Mencari Playlist di YouTube...</b>\nKata kunci: <code>{html.escape(query)}</code>", parse_mode="HTML")
+                                            out_text = "\n\n".join(formatted)
+                                            bot.reply_to(message, f"🎯 <b>Hasil Pencarian:</b>\n\n{out_text}\n\n<i>Balas dengan nomor (misal: 'download nomor 1') atau linknya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
+                                        else:
+                                            bot.reply_to(message, "❌ Pencarian tidak menemukan hasil.")
+                                    except Exception as e:
+                                        bot.reply_to(message, f"❌ Error pencarian: {e}")
+                                threading.Thread(target=_search_task).start()
+                            elif action.startswith("cari playlist"):
+                                query = action.replace("cari playlist", "").strip()
+                                import urllib.parse
+                                import html
+                                bot.reply_to(message, f"🔍 <b>Mencari Playlist di YouTube...</b>\nKata kunci: <code>{html.escape(query)}</code>", parse_mode="HTML")
                                     
-                                    def _search_playlist_task():
-                                        try:
-                                            # &sp=EgIQAw%253D%253D is YouTube's filter for Playlists
-                                            search_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}&sp=EgIQAw%253D%253D"
-                                            res = subprocess.run(["yt-dlp", search_url, "--flat-playlist", "--print", "%(title)s|%(webpage_url)s", "--playlist-end", "5"], capture_output=True, text=True)
-                                            if res.returncode == 0 and res.stdout.strip():
-                                                import telebot
-                                                import html
+                                def _search_playlist_task():
+                                    try:
+                                        # &sp=EgIQAw%253D%253D is YouTube's filter for Playlists
+                                        search_url = f"https://www.youtube.com/results?search_query={urllib.parse.quote(query)}&sp=EgIQAw%253D%253D"
+                                        res = subprocess.run(["yt-dlp", search_url, "--flat-playlist", "--print", "%(title)s|%(webpage_url)s", "--playlist-end", "5"], capture_output=True, text=True)
+                                        if res.returncode == 0 and res.stdout.strip():
+                                            import telebot
+                                            import html
                                                 
-                                                lines = res.stdout.strip().split('\n')
-                                                formatted = []
-                                                urls = []
-                                                # Sometimes yt-dlp returns channel links on playlist searches, we should filter or just list them
-                                                idx = 1
-                                                for line in lines:
-                                                    parts = line.split('|', 1)
-                                                    if len(parts) == 2:
-                                                        title = html.escape(parts[0].strip())
-                                                        url = html.escape(parts[1].strip())
-                                                        formatted.append(f"{idx}. <b>{title}</b>\n{url}")
-                                                        urls.append(f"{idx}) {parts[1].strip()}")
-                                                        idx += 1
+                                            lines = res.stdout.strip().split('\n')
+                                            formatted = []
+                                            urls = []
+                                            # Sometimes yt-dlp returns channel links on playlist searches, we should filter or just list them
+                                            idx = 1
+                                            for line in lines:
+                                                parts = line.split('|', 1)
+                                                if len(parts) == 2:
+                                                    title = html.escape(parts[0].strip())
+                                                    url = html.escape(parts[1].strip())
+                                                    formatted.append(f"{idx}. <b>{title}</b>\n{url}")
+                                                    urls.append(f"{idx}) {parts[1].strip()}")
+                                                    idx += 1
                                                 
-                                                if chat_history.get(message.chat.id):
-                                                    chat_history[message.chat.id]["search_results"] = urls
+                                            if chat_history.get(message.chat.id):
+                                                chat_history[message.chat.id]["search_results"] = urls
                                                 
-                                                out_text = "\n\n".join(formatted)
-                                                bot.reply_to(message, f"🎯 <b>Hasil Pencarian Playlist:</b>\n\n{out_text}\n\n<i>Balas dengan nomor (misal: 'download playlist nomor 1') atau linknya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
-                                            else:
-                                                bot.reply_to(message, "❌ Pencarian playlist tidak menemukan hasil.")
-                                        except Exception as e:
-                                            bot.reply_to(message, f"❌ Error pencarian playlist: {e}")
-                                    threading.Thread(target=_search_playlist_task).start()
-                                elif action == "hapus vokal":
-                                    bot.reply_to(message, "⚙️ Mengakses panel Demucs AI...")
-                                    demucs_cmd(message)
-                                elif action == "kompres media":
-                                    bot.reply_to(message, "⚙️ Mengakses panel Kompresi Media...")
-                                    kompres_cmd(message)
-                                elif action == "sync lirik":
-                                    sent_msg = bot.reply_to(message, "⏳ <b>Menyelaraskan lirik di background...</b>", parse_mode="HTML")
-                                    run_bg_task(["--sync-lirik-all"], "Lirik berhasil di-sync!", sent_msg)
-                                elif action == "bersih nama":
-                                    sent_msg = bot.reply_to(message, "⏳ <b>Membersihkan nama file di background...</b>", parse_mode="HTML")
-                                    run_bg_task(["--bersih-nama-all"], "Nama file berhasil dirapikan!", sent_msg)
-                                elif action == "bikin playlist":
-                                    sent_msg = bot.reply_to(message, "⏳ <b>Membuat playlist di background...</b>", parse_mode="HTML")
-                                    run_bg_task(["--bikin-playlist-all"], "Playlist M3U8 berhasil dibuat!", sent_msg)
-                                elif action == "hapus semua":
-                                    # Konfirmasi keamanan sebelum hapus
-                                    markup = InlineKeyboardMarkup()
-                                    markup.row_width = 2
-                                    markup.add(
-                                        InlineKeyboardButton("⚠️ YA, HAPUS SEMUA", callback_data=f"CONFIRM_DELETE:{abs_path}"),
-                                        InlineKeyboardButton("❌ BATAL", callback_data="CANCEL_DELETE")
-                                    )
-                                    bot.reply_to(message, f"⚠️ *PERINGATAN KEAMANAN!*\n\nAnda akan menghapus SEMUA file di:\n`{abs_path}`\n\nTindakan ini TIDAK BISA dibatalkan!\n\nKlik tombol di bawah untuk konfirmasi:", parse_mode="Markdown", reply_markup=markup)
-                                else:
-                                    bot.reply_to(message, f"❌ Aksi {action} belum didukung di Telegram.")
+                                            out_text = "\n\n".join(formatted)
+                                            bot.reply_to(message, f"🎯 <b>Hasil Pencarian Playlist:</b>\n\n{out_text}\n\n<i>Balas dengan nomor (misal: 'download playlist nomor 1') atau linknya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
+                                        else:
+                                            bot.reply_to(message, "❌ Pencarian playlist tidak menemukan hasil.")
+                                    except Exception as e:
+                                        bot.reply_to(message, f"❌ Error pencarian playlist: {e}")
+                                threading.Thread(target=_search_playlist_task).start()
+                            elif action == "hapus vokal":
+                                bot.reply_to(message, "⚙️ Mengakses panel Demucs AI...")
+                                demucs_cmd(message)
+                            elif action == "kompres media":
+                                bot.reply_to(message, "⚙️ Mengakses panel Kompresi Media...")
+                                kompres_cmd(message)
+                            elif action == "sync lirik":
+                                sent_msg = bot.reply_to(message, "⏳ <b>Menyelaraskan lirik di background...</b>", parse_mode="HTML")
+                                run_bg_task(["--sync-lirik-all"], "Lirik berhasil di-sync!", sent_msg)
+                            elif action == "bersih nama":
+                                sent_msg = bot.reply_to(message, "⏳ <b>Membersihkan nama file di background...</b>", parse_mode="HTML")
+                                run_bg_task(["--bersih-nama-all"], "Nama file berhasil dirapikan!", sent_msg)
+                            elif action == "bikin playlist":
+                                sent_msg = bot.reply_to(message, "⏳ <b>Membuat playlist di background...</b>", parse_mode="HTML")
+                                run_bg_task(["--bikin-playlist-all"], "Playlist M3U8 berhasil dibuat!", sent_msg)
+                            elif action == "hapus semua":
+                                # Konfirmasi keamanan sebelum hapus
+                                markup = InlineKeyboardMarkup()
+                                markup.row_width = 2
+                                markup.add(
+                                    InlineKeyboardButton("⚠️ YA, HAPUS SEMUA", callback_data=f"CONFIRM_DELETE:{abs_path}"),
+                                    InlineKeyboardButton("❌ BATAL", callback_data="CANCEL_DELETE")
+                                )
+                                bot.reply_to(message, f"⚠️ *PERINGATAN KEAMANAN!*\n\nAnda akan menghapus SEMUA file di:\n`{abs_path}`\n\nTindakan ini TIDAK BISA dibatalkan!\n\nKlik tombol di bawah untuk konfirmasi:", parse_mode="Markdown", reply_markup=markup)
+                            else:
+                                bot.reply_to(message, f"❌ Aksi {action} belum didukung di Telegram.")
                                 
-                                clean_reply = re.sub(r"\[AUTO_ACTION:.*?\]", "", reply_text).strip()
-                                if clean_reply:
-                                    bot.reply_to(message, clean_reply)
-                                return
-                        bot.reply_to(message, reply_text)
-                    
-                    # Dual-key routing: prefer OpenRouter if openrouter_key exists
-                    if openrouter_key:
-                        url = "https://openrouter.ai/api/v1/chat/completions"
-                        headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
-                        messages = [{"role": "system", "content": prompt}, {"role": "user", "content": text}]
-                        
-                        fallback_arrays = [
-                            ["meta-llama/llama-3.3-70b-instruct:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-4-31b-it:free"],
-                            ["nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.2-3b-instruct:free", "openai/gpt-oss-120b:free"],
-                            ["liquid/lfm-2.5-1.2b-instruct:free", "openrouter/free"]
-                        ]
-                        reply_text = ""
-                        import urllib.error
-                        for models in fallback_arrays:
-                            payload = {"models": models, "messages": messages, "max_tokens": 400}
-                            data = json.dumps(payload).encode("utf-8")
-                            req = urllib.request.Request(url, data=data, headers=headers)
-                            try:
-                                with urllib.request.urlopen(req, timeout=20) as response:
-                                    res = json.loads(response.read().decode())
-                                    if "error" in res:
-                                        reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
-                                    else:
-                                        content = res.get("choices", [{}])[0].get("message", {}).get("content")
-                                        reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
-                                    break
-                            except urllib.error.HTTPError as e:
-                                err_msg = e.read().decode()
-                                reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {err_msg}'
-                                continue
-                            except Exception as e:
-                                reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {str(e)}'
-                                continue
-                        
-                        # OR succeeded? Process reply and return.
-                        # If all OR tiers failed ("Aduh otak" = conn/auth error), fall through to Gemini
-                        if not reply_text.startswith("Aduh otak"):
-                            process_reply(reply_text)
+                            clean_reply = re.sub(r"\[AUTO_ACTION:.*?\]", "", reply_text).strip()
+                            if clean_reply:
+                                bot.reply_to(message, clean_reply)
                             return
-                        # OR failed silently — try Gemini below
+                    bot.reply_to(message, reply_text)
                     
-                    if gemini_key:
-                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-                        headers = {"Content-Type": "application/json"}
-                        payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 400}}
+                # Dual-key routing: prefer OpenRouter if openrouter_key exists
+                if openrouter_key:
+                    url = "https://openrouter.ai/api/v1/chat/completions"
+                    headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
+                    messages = [{"role": "system", "content": prompt}, {"role": "user", "content": text}]
+                        
+                    fallback_arrays = [
+                        ["meta-llama/llama-3.3-70b-instruct:free", "qwen/qwen3-next-80b-a3b-instruct:free", "google/gemma-4-31b-it:free"],
+                        ["nousresearch/hermes-3-llama-3.1-405b:free", "meta-llama/llama-3.2-3b-instruct:free", "openai/gpt-oss-120b:free"],
+                        ["liquid/lfm-2.5-1.2b-instruct:free", "openrouter/free"]
+                    ]
+                    reply_text = ""
+                    import urllib.error
+                    for models in fallback_arrays:
+                        payload = {"models": models, "messages": messages, "max_tokens": 400}
                         data = json.dumps(payload).encode("utf-8")
                         req = urllib.request.Request(url, data=data, headers=headers)
-                        with urllib.request.urlopen(req, timeout=20) as response:
-                            res = json.loads(response.read().decode())
-                        if "error" in res:
-                            reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
-                        else:
-                            content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
-                            reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                        try:
+                            with urllib.request.urlopen(req, timeout=20) as response:
+                                res = json.loads(response.read().decode())
+                                if "error" in res:
+                                    reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
+                                else:
+                                    content = res.get("choices", [{}])[0].get("message", {}).get("content")
+                                    reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                                break
+                        except urllib.error.HTTPError as e:
+                            err_msg = e.read().decode()
+                            reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {err_msg}'
+                            continue
+                        except Exception as e:
+                            reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {str(e)}'
+                            continue
+                        
+                    # OR succeeded? Process reply and return.
+                    # If all OR tiers failed ("Aduh otak" = conn/auth error), fall through to Gemini
+                    if not reply_text.startswith("Aduh otak"):
                         process_reply(reply_text)
                         return
+                    # OR failed silently — try Gemini below
                     
-                    # OR failed and no Gemini fallback — show the actual error
-                    if openrouter_key and reply_text:
-                        bot.reply_to(message, reply_text)
-                        return
-            except Exception as e:
+                if gemini_key:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+                    headers = {"Content-Type": "application/json"}
+                    payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 400}}
+                    data = json.dumps(payload).encode("utf-8")
+                    req = urllib.request.Request(url, data=data, headers=headers)
+                    with urllib.request.urlopen(req, timeout=20) as response:
+                        res = json.loads(response.read().decode())
+                    if "error" in res:
+                        reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
+                    else:
+                        content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
+                        reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                    process_reply(reply_text)
+                    return
+                    
+                # OR failed and no Gemini fallback — show the actual error
+                if openrouter_key and reply_text:
+                    bot.reply_to(message, reply_text)
+                    return
+        except Exception as e:
                 import urllib.error
                 err_msg = e.read().decode() if isinstance(e, urllib.error.HTTPError) else str(e)
                 bot.reply_to(message, f"Aduh otak AI gua lagi pusing bro wkwk. Error: {err_msg}")
