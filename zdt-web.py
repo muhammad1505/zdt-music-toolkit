@@ -1002,6 +1002,15 @@ HTML_TEMPLATE = """
 
 """
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    traceback.print_exc()
+    return jsonify({
+        "success": False,
+        "message": f"Server Error: {str(e)}"
+    }), 500
+
 @app.route('/')
 def index():
     return render_template_string(HTML_TEMPLATE)

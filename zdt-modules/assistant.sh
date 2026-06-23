@@ -388,6 +388,22 @@ except:
                 wait $curl_pid 2>/dev/null
 
                 ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('candidates',[{}])[0].get('content',{}).get('parts',[{}])[0].get('text',''))" 2>/dev/null)
+                
+                # Graceful Fallback to OpenRouter if Gemini fails or hits quota
+                if [ -z "$ai_response" ] || [[ "$ai_response" == *"error"* ]]; then
+                    local fallback_key="${OPENROUTER_KEY:-}"
+                    if [ -n "$fallback_key" ]; then
+                        echo -e "\n  ${YELLOW}${ICO_WARN} Gemini API sibuk (429). Mengalihkan ke OpenRouter (Graceful Fallback)...${RESET}"
+                        local or_url="https://openrouter.ai/api/v1/chat/completions"
+                        local or_parse="import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))"
+                        local or_payload="{\"models\": [\"google/gemini-2.0-flash-lite-preview-02-05:free\", \"meta-llama/llama-3.3-70b-instruct:free\"], \"messages\": [{\"role\":\"system\",\"content\":\"$ai_prompt\"},{\"role\":\"user\",\"content\":\"$user_input\"}], \"max_tokens\": 500}"
+                        curl -s --max-time 20 -H "Authorization: Bearer $fallback_key" -H "Content-Type: application/json" -d "$or_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
+                        local or_pid=$!
+                        _zaki_spinner $or_pid
+                        wait $or_pid 2>/dev/null
+                        ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$or_parse" 2>/dev/null)
+                    fi
+                fi
             fi
 
             rm -f "$ai_tmpfile" 2>/dev/null
@@ -660,8 +676,8 @@ except:
             else
                 echo ""
                 if [ -n "$gemini_key" ]; then
-                    echo -e "  ${YELLOW}${ICO_WARN} Wah, AI lagi sibuk atau koneksi lambat. Coba lagi ya!${RESET}"
-                    echo -e "  ${GRAY}  Ketik ${BOLD}?${RESET}${GRAY} untuk lihat daftar perintah yang bisa langsung dijalankan.${RESET}"
+                    echo -e "  ${RED}${ICO_FAIL} Zaki-Bot: Maaf bos, API AI sedang gangguan atau limit kuota habis (HTTP 429).${RESET}"
+                    echo -e "  ${GRAY}  Silakan coba lagi nanti, atau pastikan OPENROUTER_KEY terisi di config!${RESET}"
                 else
                     echo -e "  ${YELLOW}${ICO_WARN} Hmm, aku belum bisa jawab itu. Ketik '?' buat lihat daftar perintah!${RESET}"
                     echo -e "  ${GRAY}  Tips: Isi file ~/.config/zdt/gemini_key dengan API Key untuk${RESET}"

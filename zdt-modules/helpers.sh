@@ -21,7 +21,8 @@ _check_dependency() {
         sleep 1
         install_missing_tools
         if ! command -v "$tool" >/dev/null 2>&1; then
-            echo -e "  ${RED}${ICO_FAIL} Alat '$tool' masih tidak ditemukan. Batal memproses!${RESET}"
+            echo -e "  ${RED}${ICO_FAIL} Alat '$tool' gagal diinstal secara otomatis. Batal memproses!${RESET}"
+            echo -e "  ${GRAY}Recovery: Coba jalankan 'sudo apt install $tool' atau periksa koneksi internet Anda.${RESET}"
             return 1
         fi
         return 0
