@@ -142,7 +142,11 @@ sync_spotify_playlist() {
     target_dir="$TARGET_DIR"
 
     local playlist_url=""
-    if [ -f "$HOME/.config/zdt/spotify_playlist.txt" ]; then
+    if [ -n "$AUTO_DOWNLOAD_URL" ]; then
+        playlist_url="$AUTO_DOWNLOAD_URL"
+        AUTO_DOWNLOAD_URL=""
+        echo -e "  ${CYAN}${ICO_ARROW} Sync playlist: ${YELLOW}$playlist_url${RESET}"
+    elif [ -f "$HOME/.config/zdt/spotify_playlist.txt" ]; then
         playlist_url=$(cat "$HOME/.config/zdt/spotify_playlist.txt")
         echo -e "  ${CYAN}${ICO_ARROW} Playlist tersimpan: ${YELLOW}$playlist_url${RESET}"
         echo -e -n "  ${BOLD}[?] Gunakan playlist ini? (Y/n/0=Kembali): ${RESET}"

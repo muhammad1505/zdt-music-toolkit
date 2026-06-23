@@ -450,6 +450,10 @@ _playlist_selector() {
                         if [ "$num_idx" -eq "$sel_idx" ]; then
                             local rest="${item#*|}"
                             local item_url="${rest%%|*}"
+                            # Ensure full URL (yt-dlp may return just video ID with some flags)
+                            if [[ "$item_url" != http* ]]; then
+                                item_url="https://www.youtube.com/watch?v=$item_url"
+                            fi
                             SELECTED_PLAYLIST_URLS+=("$item_url")
                             break
                         fi

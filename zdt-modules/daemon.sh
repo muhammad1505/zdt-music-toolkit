@@ -6,6 +6,26 @@
 # ==========================================
 
 # ==========================================
+# HELPER: SMART PYTHON LAUNCHER
+# Coba python global, lalu venv python, lalu fail gracefully
+# ==========================================
+_run_python_script() {
+    local script="$1"
+    shift
+    # Try VENV python first (has all required modules installed)
+    if [ -f "$ZDT_VENV_DIR/bin/python" ]; then
+        "$ZDT_VENV_DIR/bin/python" "$script" "$@"
+        return $?
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 "$script" "$@"
+        return $?
+    else
+        echo "Python tidak ditemukan! Jalankan menu Setup & Install Tools."
+        return 1
+    fi
+}
+
+# ==========================================
 # FUNGSI UTAMA: UPDATE TOOLS
 # ==========================================
 start_watch_daemon() {
@@ -37,11 +57,19 @@ start_watch_daemon() {
     echo ""
     
     cd "$watch_dir" || return 1
-    "$ZDT_VENV_DIR/bin/python" "$watch_script" "$watch_dir"
+    _run_python_script "$watch_script" "$watch_dir"
 }
 
 start_telegram_bot() {
     print_header "TELEGRAM REMOTE BOT"
+    
+    if ! _ensure_python_tool "telebot" "pyTelegramBotAPI" 0; then
+        echo -e "  ${YELLOW}${ICO_WARN} Modul telebot belum terinstal. Menginstal otomatis...${RESET}"
+        if ! _ensure_python_tool "telebot" "pyTelegramBotAPI" 1; then
+            echo -e "  ${RED}${ICO_FAIL} Gagal menginstal telebot! Jalankan menu [1] Setup & Install Tools.${RESET}"
+            return 1
+        fi
+    fi
     
     local tele_script=""
     for dir in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
@@ -70,7 +98,7 @@ start_telegram_bot() {
     echo -e "  ${GRAY}  (Tekan Ctrl+C untuk mematikan bot)${RESET}"
     echo ""
     
-    "$ZDT_VENV_DIR/bin/python" "$tele_script"
+    _run_python_script "$tele_script"
 }
 
 setup_telegram_bot() {
@@ -143,7 +171,7 @@ start_web_dashboard() {
     echo -e "  ${GREEN}${ICO_OK} Dashboard: ${CYAN}${url}${RESET}"
     echo ""
     
-    "$ZDT_VENV_DIR/bin/python" "$web_script" --bind "$WEB_BIND" --port "$port"
+    _run_python_script "$web_script" --bind "$WEB_BIND" --port "$port"
 }
 
 # ==========================================
@@ -293,9 +321,14 @@ hapus_semua() {
     local target="${STORAGE_DIR:-${TARGET_DIR:-${ROOT_DIR:-.}}}"
     
     # Safety: refuse to operate on dangerous paths
-    if [ "$target" = "." ] || [ "$target" = "/" ] || [ "$target" = "$HOME" ]; then
+    if [ "$target" = "." ] || [ "$target" = "/" ] || [ "$target" = "$HOME" ] || [ "$target" = "/root" ] || [ "$target" = "/home" ]; then
         echo -e "  ${RED}${ICO_DANGER} DITOLAK! Target direktori tidak aman: $target${RESET}"
         echo -e "  ${YELLOW}Silakan atur direktori penyimpanan terlebih dahulu via menu [S] Storage.${RESET}"
+        return 1
+    fi
+    # Additional safety: min path length 6 chars (e.g. /a/b/c is still too short)
+    if [ ${#target} -lt 6 ]; then
+        echo -e "  ${RED}${ICO_DANGER} DITOLAK! Path terlalu pendek: $target${RESET}"
         return 1
     fi
     

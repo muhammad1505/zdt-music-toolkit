@@ -25,13 +25,36 @@ download_spotdl() {
     local folder_mode="" folder_manual_name="" format_pilih="" spotdl_ext=""
     local pilih_archive="" pilih_lirik="" lirik_args=() pilih_kompres="n"
 
-    if [ -n "$AUTO_DOWNLOAD_URL" ]; then
+    if [ -n "$AUTO_DOWNLOAD_URL" ] || [ -n "$AUTO_MODE" ]; then
         links=("$AUTO_DOWNLOAD_URL")
         AUTO_DOWNLOAD_URL=""
-        step=2
+        # Auto mode: skip semua interactive prompts, pakai default
+        folder_mode="3"
+        format_pilih="${AUTO_FORMAT_SPEC:-1}"
+        case $format_pilih in
+            2) spotdl_ext="mp3" ;;
+            3) spotdl_ext="flac" ;;
+            4) spotdl_ext="wav" ;;
+            5) spotdl_ext="opus" ;;
+            6) spotdl_ext="ogg" ;;
+            *) spotdl_ext="m4a" ;;
+        esac
+        pilih_archive="n"
+        pilih_lirik="n"
+        lirik_args=()
+        pilih_kompres="n"
+        if [ -z "$links" ] || [ -z "${links[*]}" ]; then
+            echo -e "  ${RED}${ICO_FAIL} URL kosong! Batal.${RESET}"
+            return 0
+        fi
+    else
+        links=()
     fi
 
     while true; do
+        if [ -n "$AUTO_MODE" ]; then
+            break
+        fi
         if [ "$step" -eq 1 ]; then
                 links=()
                 for i in {1..10}; do

@@ -810,7 +810,7 @@ except:
                 echo ""
                 if [ -n "$gemini_key" ]; then
                     echo -e "  ${RED}${ICO_FAIL} Zaki-Bot: Maaf bos, API AI sedang gangguan atau limit kuota habis (HTTP 429).${RESET}"
-                    echo -e "  ${GRAY}  Silakan coba lagi nanti, atau pastikan OPENROUTER_KEY terisi di config!${RESET}"
+                    echo -e "  ${GRAY}  Silakan coba lagi nanti, atau pastikan gemini_key / openrouter_key terisi di ~/.config/zdt/gemini_key!${RESET}"
                 else
                     echo -e "  ${YELLOW}${ICO_WARN} Hmm, aku belum bisa jawab itu. Ketik '?' buat lihat daftar perintah!${RESET}"
                     echo -e "  ${GRAY}  Tips: Isi file ~/.config/zdt/gemini_key dengan API Key untuk${RESET}"

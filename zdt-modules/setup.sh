@@ -469,16 +469,19 @@ _parse_args() {
                 ;;
             --download-audio)
                 AUTO_DOWNLOAD_URL="$2"
+                AUTO_MODE=1
                 shift 2
                 MAIN_MODE="download_audio"
                 ;;
             --download-video)
                 AUTO_DOWNLOAD_URL="$2"
+                AUTO_MODE=1
                 shift 2
                 MAIN_MODE="download_video"
                 ;;
             --spotify-sync)
                 AUTO_DOWNLOAD_URL="$2"
+                AUTO_MODE=1
                 shift 2
                 MAIN_MODE="spotify_sync"
                 ;;
@@ -489,22 +492,28 @@ _parse_args() {
                 ;;
             --kompres-media-all)
                 MAIN_MODE="kompres_media"
+                AUTO_MODE=1
                 shift
                 ;;
             --extract-vocal-all)
                 MAIN_MODE="extract_vocal"
+                AUTO_MODE=1
                 shift
                 ;;
             --sync-lirik-all)
                 MAIN_MODE="sync_lirik"
+                AUTO_SYNC_LIRIK="1"
+                AUTO_MODE=1
                 shift
                 ;;
             --bersih-nama-all)
                 MAIN_MODE="bersih_nama"
+                AUTO_MODE=1
                 shift
                 ;;
             --bikin-playlist-all)
                 MAIN_MODE="bikin_playlist"
+                AUTO_MODE=1
                 shift
                 ;;
             --version|-v)

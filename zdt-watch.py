@@ -10,17 +10,36 @@ class ZDTFileHandler(PatternMatchingEventHandler):
     def __init__(self):
         super().__init__(patterns=["*.mp3", "*.m4a", "*.mp4", "*.mkv", "*.webm", "*.flac"],
                          ignore_directories=True, case_sensitive=False)
+        # LRU-like bounded set: prevent memory leak from unbounded growth
         self.processed_files = set()
+        self._max_processed = 1000
 
     def process(self, filepath):
         if filepath in self.processed_files:
             return
         self.processed_files.add(filepath)
+        # LRU eviction: keep from growing unbounded
+        if len(self.processed_files) > self._max_processed:
+            # Remove oldest 200 entries
+            self.processed_files = set(list(self.processed_files)[-800:])
         
         print(f"[{time.strftime('%H:%M:%S')}] File baru terdeteksi: {os.path.basename(filepath)}")
         
-        # Tunggu sebentar untuk memastikan file selesai di-copy
-        time.sleep(2)
+        # Wait for file to be fully written: check size stability
+        try:
+            prev_size = -1
+            stable_count = 0
+            while stable_count < 3:
+                time.sleep(1)
+                curr_size = os.path.getsize(filepath)
+                if curr_size == prev_size and curr_size > 0:
+                    stable_count += 1
+                else:
+                    stable_count = 0
+                prev_size = curr_size
+        except OSError:
+            # File disappeared or can't be read
+            time.sleep(2)
         
         import shutil
         zdt_bin = shutil.which("zdt")

@@ -21,13 +21,37 @@ download_ytdlp() {
 
     local folder_mode="" folder_manual_name="" format_pilih="" yt_ext=""
     local pilih_archive="" pilih_chapter="" pilih_lirik="" pilih_kompres="n"
-    if [ -n "$AUTO_DOWNLOAD_URL" ]; then
+    if [ -n "$AUTO_DOWNLOAD_URL" ] || [ -n "$AUTO_MODE" ]; then
         links=("$AUTO_DOWNLOAD_URL")
         AUTO_DOWNLOAD_URL=""
-        step=2
+        # Auto mode: skip semua interactive prompts, pakai default
+        folder_mode="3"
+        format_pilih="${AUTO_FORMAT_SPEC:-1}"
+        case $format_pilih in
+            2) yt_ext="mp3" ;;
+            3) yt_ext="flac" ;;
+            4) yt_ext="wav" ;;
+            5) yt_ext="opus" ;;
+            6) yt_ext="ogg" ;;
+            *) yt_ext="m4a" ;;
+        esac
+        pilih_archive="n"
+        pilih_chapter="n"
+        pilih_lirik="n"
+        pilih_kompres="n"
+        pilih_playlist="n"
+        if [ -z "$links" ] || [ -z "${links[*]}" ]; then
+            echo -e "  ${RED}${ICO_FAIL} URL kosong! Batal.${RESET}"
+            return 0
+        fi
+    else
+        links=()
     fi
 
     while true; do
+        if [ -n "$AUTO_MODE" ]; then
+            break
+        fi
         if [ "$step" -eq 1 ]; then
                 links=()
                 echo -e "  ${CYAN}${ICO_ARROW} Masukkan link YouTube/YT Music (Maks 10 link)${RESET}"

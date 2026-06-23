@@ -107,11 +107,9 @@ _kompres_audio_batch() {
     find "$target_dir" -type f -name "*_temp.*" -delete 2>/dev/null
 
     local find_args=("$target_dir" -type f)
-    if [ -z "$ext_pilih" ]; then
-        find_args+=("(" -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" ")")
-    else
-        find_args+=(-iname "*.$ext_pilih")
-    fi
+    # Always scan ALL audio formats, not just target extension.
+    # This allows cross-format conversion (e.g. flac to m4a).
+    find_args+=("(" -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" ")")
     find_args+=("!" -name "*_temp.*" "${time_arg[@]}")
 
     local total_files
@@ -605,7 +603,8 @@ edit_metadata_manual() {
     new_cover=$(echo "$new_cover" | tr -d '"' | tr -d "'")
 
     echo -e "  ${YELLOW}${ICO_ARROW} Menyuntikkan metadata...${RESET}"
-    "$ZDT_VENV_DIR/bin/python" -c "
+    local meta_output
+    meta_output=$("$ZDT_VENV_DIR/bin/python" -c "
 import sys, os
 try:
     from mutagen.easyid3 import EasyID3
@@ -658,9 +657,15 @@ try:
     print('SUCCESS')
 except Exception as e:
     print(f'ERROR: {str(e)}')
-" "$selected_file" "$new_title" "$new_artist" "$new_cover"
+" "$selected_file" "$new_title" "$new_artist" "$new_cover" 2>&1)
 
-    echo -e "  ${GREEN}${ICO_OK} Metadata berhasil diperbarui!${RESET}"
+    # Check Python output for SUCCESS
+    if echo "$meta_output" | grep -q "SUCCESS"; then
+        echo -e "  ${GREEN}${ICO_OK} Metadata berhasil diperbarui!${RESET}"
+    else
+        local err_msg=$(echo "$meta_output" | grep -oP 'ERROR:\s*\K.+' || echo "Unknown error")
+        echo -e "  ${RED}${ICO_FAIL} Gagal memperbarui metadata: $err_msg${RESET}"
+    fi
 }
 
 bersih_nama() {

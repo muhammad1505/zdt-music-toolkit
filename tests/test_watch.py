@@ -32,7 +32,11 @@ def test_handler_process():
 
     with patch('time.sleep') as mock_sleep, \
          patch('subprocess.run') as mock_run, \
-         patch('shutil.which', return_value='/mock/bin/zdt'):
+         patch('shutil.which', return_value='/mock/bin/zdt'), \
+         patch('os.path.getsize', return_value=1024):
+        
+        # os.path.getsize returns stable 1024, so loop stabilizes after 3 iterations
+        # sleep(1) x3 for stability check, then sleep is not called again
         
         # Simulate processing a file
         handler.process('/fake/path/song.mp3')
@@ -40,8 +44,10 @@ def test_handler_process():
         # Verify it was added to processed set
         assert '/fake/path/song.mp3' in handler.processed_files
         
-        # Verify sleep was called (debounce)
-        mock_sleep.assert_called_once_with(2)
+        # Verify sleep was called 4 times (size stability: iter 1 resets (prev=-1 != 1024),
+        # iters 2-4 are stable -> stable_count reaches 3 at iter 4, loop exits)
+        assert mock_sleep.call_count == 4
+        mock_sleep.assert_any_call(1)
         
         # Verify subprocess was called with zdt --clean-file
         mock_run.assert_called_once()
