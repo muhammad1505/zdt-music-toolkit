@@ -106,4 +106,14 @@ elif CMD == "get_stats":
         "recent": recent
     }))
 
+elif CMD == "check_duplicate":
+    if len(sys.argv) < 4:
+        sys.exit(1)
+    url = sys.argv[3]
+    c.execute("SELECT id FROM downloads WHERE url = ?", (url,))
+    if c.fetchone():
+        print("True")
+    else:
+        print("False")
+
 conn.close()

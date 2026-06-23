@@ -423,6 +423,22 @@ download_ytdlp() {
         echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
         echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
 
+        # Duplicate Detector
+        local db_script="$PROJECT_DIR/zdt-modules/zdt_db.py"
+        local db_path="$HOME/.config/zdt/zdt.db"
+        if [ -f "$db_script" ]; then
+            local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
+            if [ "$is_dup" = "True" ]; then
+                echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Tautan ini sudah ada di Database Statistik!${RESET}"
+                echo -n -e "  ${CYAN}Apakah Anda yakin ingin mengunduh ulang? (y/N) ${RESET}"
+                read -r dup_confirm
+                if [[ ! "$dup_confirm" =~ ^[Yy]$ ]]; then
+                    echo -e "  ${GREEN}Dilewati.${RESET}"
+                    continue
+                fi
+            fi
+        fi
+
         local output_template
         local auto_folder_name=""
         case "$folder_mode" in
@@ -458,7 +474,7 @@ download_ytdlp() {
         local dl_status=0
         local archive_arg=()
         if [[ "$pilih_archive" =~ ^[Yy]$ ]]; then
-            archive_arg=("--download-archive" ".ytdlp_archive.txt")
+            archive_arg=("--download-archive" "$TARGET_DIR/.zdt_ytdlp_archive.txt")
         fi
         
         local chapter_arg=()
@@ -476,20 +492,35 @@ download_ytdlp() {
             bitrate_arg=("--audio-quality" "${AUTO_BITRATE}K")
         fi
 
-        case "$format_pilih" in
-            1) 
-                if [ -n "${AUTO_BITRATE:-}" ]; then
-                    yt-dlp --no-warnings --no-mtime -x --audio-format m4a "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$?
-                else
-                    yt-dlp --no-warnings --no-mtime -f "ba[ext=m4a]/ba" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$?
+        local max_retries=3
+        local retry_count=0
+        dl_status=1
+        
+        while [ $retry_count -lt $max_retries ] && [ $dl_status -ne 0 ]; do
+            dl_status=0
+            case "$format_pilih" in
+                1) 
+                    if [ -n "${AUTO_BITRATE:-}" ]; then
+                        yt-dlp --no-warnings --no-mtime -x --audio-format m4a "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$?
+                    else
+                        yt-dlp --no-warnings --no-mtime -f "ba[ext=m4a]/ba" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$?
+                    fi
+                    ;;
+                2) yt-dlp --no-warnings --no-mtime -x --audio-format mp3 "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+                3) yt-dlp --no-warnings --no-mtime -x --audio-format flac "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+                4) yt-dlp --no-warnings --no-mtime -x --audio-format wav "${bitrate_arg[@]}" -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+                5) yt-dlp --no-warnings --no-mtime -x --audio-format opus "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+                6) yt-dlp --no-warnings --no-mtime -x --audio-format ogg "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
+            esac
+
+            if [ $dl_status -ne 0 ]; then
+                retry_count=$((retry_count + 1))
+                if [ $retry_count -lt $max_retries ]; then
+                    echo -e "  ${YELLOW}${ICO_WARN} Unduhan gagal (Exit: $dl_status). Mencoba ulang ($retry_count/$max_retries) dalam 3 detik...${RESET}"
+                    sleep 3
                 fi
-                ;;
-            2) yt-dlp --no-warnings --no-mtime -x --audio-format mp3 "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-            3) yt-dlp --no-warnings --no-mtime -x --audio-format flac "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-            4) yt-dlp --no-warnings --no-mtime -x --audio-format wav "${bitrate_arg[@]}" -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-            5) yt-dlp --no-warnings --no-mtime -x --audio-format opus "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-            6) yt-dlp --no-warnings --no-mtime -x --audio-format ogg "${bitrate_arg[@]}" --embed-metadata --embed-thumbnail -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${playlist_arg[@]}" "$link" || dl_status=$? ;;
-        esac
+            fi
+        done
 
         if [ "$dl_status" -ne 0 ]; then
             echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Ada file yang gagal diunduh! Melanjutkan proses file yang berhasil...${RESET}"
@@ -773,6 +804,22 @@ download_video() {
         echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
         echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
 
+        # Duplicate Detector
+        local db_script="$PROJECT_DIR/zdt-modules/zdt_db.py"
+        local db_path="$HOME/.config/zdt/zdt.db"
+        if [ -f "$db_script" ]; then
+            local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
+            if [ "$is_dup" = "True" ]; then
+                echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Tautan ini sudah ada di Database Statistik!${RESET}"
+                echo -n -e "  ${CYAN}Apakah Anda yakin ingin mengunduh ulang? (y/N) ${RESET}"
+                read -r dup_confirm
+                if [[ ! "$dup_confirm" =~ ^[Yy]$ ]]; then
+                    echo -e "  ${GREEN}Dilewati.${RESET}"
+                    continue
+                fi
+            fi
+        fi
+
         local output_template
         local auto_folder_name=""
         case "$folder_mode" in
@@ -808,7 +855,7 @@ download_video() {
         local dl_status=0
         local archive_arg=()
         if [[ "$pilih_archive" =~ ^[Yy]$ ]]; then
-            archive_arg=("--download-archive" ".ytdlp_video_archive.txt")
+            archive_arg=("--download-archive" "$TARGET_DIR/.zdt_ytdlp_video_archive.txt")
         fi
         
         local chapter_arg=()
@@ -831,8 +878,22 @@ download_video() {
             playlist_arg=("--no-playlist")
         fi
 
-        yt-dlp --no-warnings --no-mtime -f "$format_str" --embed-metadata --merge-output-format "$merge_format" -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${sub_args[@]}" "${playlist_arg[@]}" "$link" || dl_status=$?
+        local max_retries=3
+        local retry_count=0
+        dl_status=1
+        
+        while [ $retry_count -lt $max_retries ] && [ $dl_status -ne 0 ]; do
+            dl_status=0
+            yt-dlp --no-warnings --no-mtime -f "$format_str" --embed-metadata --merge-output-format "$merge_format" -o "$output_template" "${archive_arg[@]}" "${chapter_arg[@]}" "${sub_args[@]}" "${playlist_arg[@]}" "$link" || dl_status=$?
 
+            if [ $dl_status -ne 0 ]; then
+                retry_count=$((retry_count + 1))
+                if [ $retry_count -lt $max_retries ]; then
+                    echo -e "  ${YELLOW}${ICO_WARN} Unduhan gagal (Exit: $dl_status). Mencoba ulang ($retry_count/$max_retries) dalam 3 detik...${RESET}"
+                    sleep 3
+                fi
+            fi
+        done
         if [ "$dl_status" -ne 0 ]; then
             echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Ada file yang gagal diunduh! Melanjutkan proses file yang berhasil...${RESET}"
             _log "WARN" "yt-dlp video reported errors: $link (exit: $dl_status)"

@@ -109,3 +109,12 @@ def test_downloads_table(temp_db):
     assert data["recent"][1]["filename"] == "song1.mp3"
     assert data["recent"][1]["source"] == "youtube"
     assert data["recent"][1]["size_bytes"] == 5000000
+
+    # Test check_duplicate
+    res = run_db_sys(temp_db, "check_duplicate", "http://youtube.com/1")
+    assert res.returncode == 0, res.stderr
+    assert res.stdout.strip() == "True"
+
+    res = run_db_sys(temp_db, "check_duplicate", "http://youtube.com/new_url")
+    assert res.returncode == 0, res.stderr
+    assert res.stdout.strip() == "False"
