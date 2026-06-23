@@ -2,6 +2,11 @@
 
 Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini.
 
+## v4.1.79 (Zaki AI UX Redesign — Conversational Flow)
+- **Refactor(AI)**: **Alur Percakapan Berkelanjutan** - Zaki AI tidak lagi `clear` layar & menggambar ulang menu tiap giliran. Header hanya tampil sekali; percakapan kini mengalir turn-demi-turn layaknya chat sungguhan (bukan menu).
+- **Refactor(AI)**: **Hapus `_pause` Pemutus Alur** - Menghilangkan prompt "Tekan tombol apa aja untuk kembali ke menu" setelah tiap jawaban/aksi/greeting/error. User bisa langsung lanjut mengetik.
+- **Fix(AI)**: **Pertanyaan Kapabilitas ke AI** - Menghapus intercept regex (`bisa apa aja`, `kemampuan`, dst.) yang membajak pertanyaan natural ke menu statis. Kini AI yang menjawab kontekstual (daftar fitur tetap akurat via system prompt).
+
 ## v4.1.78 (Security & Hardening)
 - **Fix(Security)**: **Pengaman `rm -rf`** - Menambahkan guard `${target:?}` pada `hapus_semua` (`daemon.sh`) untuk mencegah ekspansi tak terduga ke `/*` jika variabel target kosong (SC2115).
 - **Fix(Security)**: **Temp File Aman** - Mengganti nama temp file yang dapat ditebak (`/tmp/...$$`) dengan `mktemp` acak pada AI assistant (`assistant.sh`) dan OTA updater (`daemon.sh`) untuk mencegah serangan symlink.
