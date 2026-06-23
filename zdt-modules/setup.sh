@@ -396,6 +396,8 @@ install_global() {
     for py_script in zdt-web.py zdt-telegram.py zdt-watch.py; do
         [ -f "$script_dir/$py_script" ] && cp "$script_dir/$py_script" "$target_share/"
     done
+    # Copy database helper
+    [ -f "$script_dir/zdt-modules/zdt_db.py" ] && cp "$script_dir/zdt-modules/zdt_db.py" "$target_share/zdt-modules/"
 
     # Buat desktop entry (jika ada)
     if [ -d "$HOME/.local/share/applications" ] && [ -z "${TERMUX_VERSION:-}" ]; then
@@ -427,6 +429,8 @@ DESKEOF
 _parse_args() {
     ORIGINAL_ARGS=("$@")
     
+    # First pass: parse all flag options (--web-bind, --port, --format-spec, --bitrate, --debug, --no-color, --no-unicode, --log-file)
+    # BEFORE action flags that may exit immediately (--web, --telegram, --update)
     while [ $# -gt 0 ]; do
         case "$1" in
             --debug)
@@ -447,39 +451,21 @@ _parse_args() {
                 LOG_FILE="$2"
                 shift 2
                 ;;
-            --version|-v)
-                echo "$APP_NAME v$APP_VERSION"
-                exit 0
-                ;;
-            --help|-h)
-                tampilkan_dokumentasi
-                exit 0
-                ;;
-            --install|install)
-                install_global
-                exit $?
-                ;;
-            --web|web)
-                _setup_colors
-                _setup_unicode
-                _init_logging
-                start_web_dashboard
-                exit 0
-                ;;
-            --telegram)
-                _setup_colors
-                _setup_unicode
-                _init_logging
-                start_telegram_bot
-                exit 0
-                ;;
             --web-bind)
                 WEB_BIND="$2"
                 shift 2
                 ;;
-            --update|update)
-                update_zdt_script
-                exit 0
+            --port)
+                WEB_PORT="$2"
+                shift 2
+                ;;
+            --format-spec)
+                AUTO_FORMAT_SPEC="$2"
+                shift 2
+                ;;
+            --bitrate)
+                AUTO_BITRATE="$2"
+                shift 2
                 ;;
             --download-audio)
                 AUTO_DOWNLOAD_URL="$2"
@@ -496,38 +482,54 @@ _parse_args() {
                 shift 2
                 MAIN_MODE="spotify_sync"
                 ;;
-            --format-spec)
-                AUTO_FORMAT_SPEC="$2"
-                shift 2
-                ;;
-            --bitrate)
-                AUTO_BITRATE="$2"
-                shift 2
-                ;;
             --clean-file)
                 CLEAN_FILE="$2"
-                _setup_colors
-                _setup_unicode
-                _init_logging
-                _load_config
-                _load_storage_dir
-                _bersih_satu_nama "$CLEAN_FILE"
-                exit 0
+                shift 2
+                MAIN_MODE="clean_file"
                 ;;
             --kompres-media-all)
                 MAIN_MODE="kompres_media"
+                shift
                 ;;
             --extract-vocal-all)
                 MAIN_MODE="extract_vocal"
+                shift
                 ;;
             --sync-lirik-all)
                 MAIN_MODE="sync_lirik"
+                shift
                 ;;
             --bersih-nama-all)
                 MAIN_MODE="bersih_nama"
+                shift
                 ;;
             --bikin-playlist-all)
                 MAIN_MODE="bikin_playlist"
+                shift
+                ;;
+            --version|-v)
+                echo "$APP_NAME v$APP_VERSION"
+                exit 0
+                ;;
+            --help|-h)
+                tampilkan_dokumentasi
+                exit 0
+                ;;
+            --install|install)
+                install_global
+                exit $?
+                ;;
+            --update|update)
+                update_zdt_script
+                exit 0
+                ;;
+            --web|web)
+                MAIN_MODE="web"
+                shift
+                ;;
+            --telegram)
+                MAIN_MODE="telegram"
+                shift
                 ;;
             *)
                 echo -e "Argumen tidak dikenal: $1"
@@ -536,4 +538,23 @@ _parse_args() {
                 ;;
         esac
     done
+    
+    # Execute deferred actions that need init (colors, config, etc.)
+    if [ -n "$MAIN_MODE" ]; then
+        _setup_colors; _setup_unicode; _init_logging; _load_config; _load_storage_dir
+        case "$MAIN_MODE" in
+            web)
+                start_web_dashboard
+                exit 0
+                ;;
+            telegram)
+                start_telegram_bot
+                exit 0
+                ;;
+            clean_file)
+                _bersih_satu_nama "$CLEAN_FILE"
+                exit 0
+                ;;
+        esac
+    fi
 }

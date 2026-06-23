@@ -18,6 +18,8 @@ try:
 except ImportError:
     pass
 
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 WEB_TASK_LOG_PATH = os.environ.get("ZDT_WEB_LOG", os.path.join(tempfile.gettempdir(), "zdt_web_task.log"))
 
 # Clear old task logs on startup
@@ -1312,8 +1314,12 @@ def manage_daemon():
     if action == 'start':
         if is_process_running(os.path.basename(script_path)):
             return jsonify({"success": True, "message": f"{service.capitalize()} is already running."})
+        # Pass target directory to watch daemon
+        watch_args = []
+        if service == 'watch':
+            watch_args = [get_target_dir()]
         # Use close_fds=True and stdin=DEVNULL to fully detach and prevent hanging the API request
-        subprocess.Popen([venv_python, script_path], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
+        subprocess.Popen([venv_python, script_path] + watch_args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
         return jsonify({"success": True, "message": f"Started {service} daemon."})
         
     elif action == 'stop':
@@ -1436,7 +1442,11 @@ def update_metadata():
     if not filename: return jsonify({"success": False, "message": "Pilih file."})
     if not title and not artist: return jsonify({"success": False, "message": "Isi minimal title atau artist."})
     
-    filepath = os.path.join(get_target_dir(), filename)
+    # Path traversal protection
+    target = get_target_dir()
+    filepath = os.path.realpath(os.path.join(target, filename))
+    if not filepath.startswith(os.path.realpath(target) + os.sep):
+        return jsonify({"success": False, "message": "Akses ditolak."})
     if not os.path.exists(filepath): return jsonify({"success": False, "message": "File tidak ditemukan."})
     
     try:
@@ -1467,6 +1477,16 @@ def server_tools():
     action = data.get('action')
     filename = data.get('filename')
     target = get_target_dir()
+    
+    # Path traversal protection: ensure filename resolves within target directory
+    if filename:
+        allowed_files = []
+        if os.path.exists(target):
+            for ext in ['*.mp3', '*.m4a', '*.flac', '*.wav', '*.ogg', '*.opus', '*.mp4', '*.mkv', '*.webm']:
+                allowed_files.extend(glob.glob(os.path.join(target, ext)))
+        allowed_basenames = {os.path.basename(f) for f in allowed_files}
+        if filename not in allowed_basenames:
+            return jsonify({"success": False, "message": "File tidak valid atau di luar direktori yang diizinkan."})
     
     zdt_bin = shutil.which("zdt")
     if not zdt_bin:
@@ -1512,7 +1532,10 @@ def server_tools():
 
         elif action == 'demucs':
             if not filename: return jsonify({"success": False, "message": "Pilih file."})
-            filepath = os.path.join(target, filename)
+            # Path traversal protection
+            filepath = os.path.realpath(os.path.join(target, filename))
+            if not filepath.startswith(os.path.realpath(target) + os.sep):
+                return jsonify({"success": False, "message": "Akses ditolak."})
             demucs_bin = os.path.expanduser("~/.local/share/zdt/demucs_venv/bin/demucs")
             if not os.path.exists(demucs_bin): demucs_bin = shutil.which("demucs")
             if not demucs_bin: return jsonify({"success": False, "message": "Demucs AI belum terinstal."})
@@ -1523,7 +1546,10 @@ def server_tools():
 
         elif action == 'compress':
             if not filename: return jsonify({"success": False, "message": "Pilih file."})
-            filepath = os.path.join(target, filename)
+            # Path traversal protection
+            filepath = os.path.realpath(os.path.join(target, filename))
+            if not filepath.startswith(os.path.realpath(target) + os.sep):
+                return jsonify({"success": False, "message": "Akses ditolak."})
             name, fext = os.path.splitext(filename)
             outpath = os.path.join(target, f"{name}_compressed{fext}")
             if fext.lower() in ('.mp4', '.mkv', '.webm', '.avi'):

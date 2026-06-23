@@ -40,7 +40,19 @@ ICO_SEARCH="" ICO_LIST="" ICO_CUT="" ICO_UPDATE="" ICO_DANGER="" ICO_ROCKET=""
 ICO_EXIT="" ICO_PLAY="" ICO_CHECK_OK="" ICO_CHECK_FAIL=""
 _load_config() {
     if [ -f "$ZDT_CONFIG_FILE" ]; then
-        source "$ZDT_CONFIG_FILE"
+        # Safe parser: read key=value pairs without shell evaluation (prevents RCE via config injection)
+        while IFS='=' read -r key value; do
+            # Trim leading and trailing whitespace from key
+            key="${key#"${key%%[![:space:]]*}"}"
+            key="${key%"${key##*[![:space:]]}"}"
+            # Skip comments, empty keys, or keys with invalid characters
+            [[ -z "$key" || "$key" == \#* || "$key" != [a-zA-Z_]* ]] && continue
+            # Strip surrounding quotes from value
+            value="${value%\"}" && value="${value#\"}"
+            value="${value%\'}" && value="${value#\'}"
+            # Assign safely using printf -v (no shell expansion)
+            printf -v "$key" "%s" "$value" 2>/dev/null || true
+        done < "$ZDT_CONFIG_FILE"
     fi
 }
 
@@ -336,21 +348,38 @@ _trap_err() {
 LOCK_FILE="/tmp/.zdt_sh_$(id -u 2>/dev/null || echo 0).lock"
 
 _acquire_lock() {
-    if [ -f "$LOCK_FILE" ]; then
-        local old_pid
-        old_pid=$(cat "$LOCK_FILE" 2>/dev/null)
-        if [ -n "$old_pid" ] && [ "$old_pid" != "$$" ] && kill -0 "$old_pid" 2>/dev/null; then
-            echo -e "  ${RED}${ICO_FAIL} Instance lain sedang berjalan (PID: $old_pid)!${RESET}"
-            echo -e "  ${YELLOW}Tutup dulu instance tersebut, atau hapus: $LOCK_FILE${RESET}"
-            return 1
+    # Use flock on a lock file descriptor for atomic locking
+    if ! command -v flock >/dev/null 2>&1; then
+        # Fallback: PID file with check (non-atomic but better than nothing)
+        if [ -f "$LOCK_FILE" ]; then
+            local old_pid
+            old_pid=$(cat "$LOCK_FILE" 2>/dev/null)
+            if [ -n "$old_pid" ] && [ "$old_pid" != "$$" ] && kill -0 "$old_pid" 2>/dev/null; then
+                echo -e "  ${RED}${ICO_FAIL} Instance lain sedang berjalan (PID: $old_pid)!${RESET}"
+                echo -e "  ${YELLOW}Tutup dulu instance tersebut, atau hapus: $LOCK_FILE${RESET}"
+                return 1
+            fi
+            rm -f "$LOCK_FILE"
         fi
-        rm -f "$LOCK_FILE"
+        echo $$ > "$LOCK_FILE"
+        return 0
     fi
-    echo $$ > "$LOCK_FILE"
+    
+    # Atomic flock-based locking
+    exec 200>"$LOCK_FILE" 2>/dev/null || true
+    if ! flock -n 200 2>/dev/null; then
+        echo -e "  ${RED}${ICO_FAIL} Instance lain sedang berjalan!${RESET}"
+        echo -e "  ${YELLOW}Tutup instance lain atau tunggu hingga selesai.${RESET}"
+        return 1
+    fi
+    echo $$ >&200
     return 0
 }
 
 _release_lock() {
+    if command -v flock >/dev/null 2>&1; then
+        flock -u 200 2>/dev/null || true
+    fi
     rm -f "$LOCK_FILE" 2>/dev/null
 }
 

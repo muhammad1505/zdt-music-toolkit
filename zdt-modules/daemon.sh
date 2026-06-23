@@ -206,8 +206,10 @@ update_zdt_script() {
             # Download ALL shell modules
             local mod_dir="$share_dir/zdt-modules"
             mkdir -p "$mod_dir"
+            # Clean up stale module from previous buggy OTA
+            rm -f "$mod_dir/download.sh"
             echo -e "  ${CYAN}${ICO_ARROW} Mengupdate shell modules...${RESET}"
-            for mod in core helpers download media playlist daemon setup assistant; do
+            for mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
                 curl -sL "${base_url}/zdt-modules/${mod}.sh${cache_bust}" -o "${mod_dir}/${mod}.sh" 2>/dev/null
             done
             
@@ -217,11 +219,13 @@ update_zdt_script() {
                 curl -sL "${base_url}/${pyfile}${cache_bust}" -o "${share_dir}/${pyfile}" 2>/dev/null
             done
             
-            # Download utility scripts
+            # Download utility scripts + database helper
             echo -e "  ${CYAN}${ICO_ARROW} Mengupdate utility files...${RESET}"
             for util in install.sh Makefile README.md; do
                 curl -sL "${base_url}/${util}${cache_bust}" -o "${share_dir}/${util}" 2>/dev/null
             done
+            # Download database helper
+            curl -sL "${base_url}/zdt-modules/zdt_db.py${cache_bust}" -o "${mod_dir}/zdt_db.py" 2>/dev/null
             chmod +x "${share_dir}/install.sh" 2>/dev/null
             
             rm -f "$tmp_file"

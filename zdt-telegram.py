@@ -407,13 +407,13 @@ def auto_download_audio(message):
                                     kompres_cmd(message)
                                 elif action == "sync lirik":
                                     sent_msg = bot.reply_to(message, "⏳ <b>Menyelaraskan lirik di background...</b>", parse_mode="HTML")
-                                    run_bg_task(["--sync-lyrics-all"], "Lirik berhasil di-sync!", sent_msg)
+                                    run_bg_task(["--sync-lirik-all"], "Lirik berhasil di-sync!", sent_msg)
                                 elif action == "bersih nama":
                                     sent_msg = bot.reply_to(message, "⏳ <b>Membersihkan nama file di background...</b>", parse_mode="HTML")
-                                    run_bg_task(["--clean-names"], "Nama file berhasil dirapikan!", sent_msg)
+                                    run_bg_task(["--bersih-nama-all"], "Nama file berhasil dirapikan!", sent_msg)
                                 elif action == "bikin playlist":
                                     sent_msg = bot.reply_to(message, "⏳ <b>Membuat playlist di background...</b>", parse_mode="HTML")
-                                    run_bg_task(["--create-playlist"], "Playlist M3U8 berhasil dibuat!", sent_msg)
+                                    run_bg_task(["--bikin-playlist-all"], "Playlist M3U8 berhasil dibuat!", sent_msg)
                                 elif action == "hapus semua":
                                     # Konfirmasi keamanan sebelum hapus
                                     markup = InlineKeyboardMarkup()

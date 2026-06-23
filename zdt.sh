@@ -4,7 +4,7 @@ export LC_ALL=C.UTF-8
 # zdt.sh — Universal Music Toolkit (Modular Build)
 # Version : 4.1.77
 set -uo pipefail
-readonly APP_VERSION="4.1.79"
+readonly APP_VERSION="4.1.80"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -28,6 +28,8 @@ if [ ! -d "$_MODULES_DIR" ]; then
     for _mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
         curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt-modules/${_mod}.sh?t=$(date +%s)" -o "$_MODULES_DIR/${_mod}.sh" 2>/dev/null
     done
+    # Download database helper
+    curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main/zdt-modules/zdt_db.py?t=$(date +%s)" -o "$_MODULES_DIR/zdt_db.py" 2>/dev/null
 fi
 
 if [ -d "$_MODULES_DIR" ]; then
@@ -54,7 +56,13 @@ main() {
             cd "$ROOT_DIR" || true
         fi
         case "$MAIN_MODE" in
-            download_audio) download_spotdl ;;
+            download_audio)
+                if [[ "$AUTO_DOWNLOAD_URL" == *spotify* ]]; then
+                    download_spotdl
+                else
+                    download_ytdlp
+                fi
+                ;;
             download_video) download_video ;;
             spotify_sync) sync_spotify_playlist ;;
             kompres_media) _kompres_audio_batch ;;

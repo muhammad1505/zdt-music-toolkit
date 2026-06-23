@@ -196,7 +196,7 @@ download_ytdlp() {
         echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
 
         # Duplicate Detector
-        local db_script="$PROJECT_DIR/zdt-modules/zdt_db.py"
+        local db_script="$_MODULES_DIR/zdt_db.py"
         local db_path="$HOME/.config/zdt/zdt.db"
         if [ -f "$db_script" ]; then
             local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
@@ -304,7 +304,7 @@ download_ytdlp() {
 
         if [[ "$pilih_lirik" =~ ^[Yy]$ && "$yt_ext" != "mp4" ]]; then
             echo -e "  ${CYAN}${ICO_ARROW} MENCARI LIRIK${RESET}"
-            if _check_dependency "syncedlyrics"; then
+            if _ensure_python_tool "syncedlyrics" "syncedlyrics" 0; then
                 while IFS= read -r file; do
                     local fname fname_noext lrc_file query
                     fname=$(basename "$file")
@@ -566,7 +566,7 @@ download_video() {
         echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
 
         # Duplicate Detector
-        local db_script="$PROJECT_DIR/zdt-modules/zdt_db.py"
+        local db_script="$_MODULES_DIR/zdt_db.py"
         local db_path="$HOME/.config/zdt/zdt.db"
         if [ -f "$db_script" ]; then
             local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)

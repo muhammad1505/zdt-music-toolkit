@@ -422,7 +422,7 @@ except Exception:
                         echo -e "\n  ${YELLOW}${ICO_WARN} Gemini API sibuk (429). Mengalihkan ke OpenRouter (Graceful Fallback)...${RESET}"
                         local or_url="https://openrouter.ai/api/v1/chat/completions"
                         local or_parse="import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))"
-                        local or_payload="{\"models\": [\"google/gemini-2.0-flash-lite-preview-02-05:free\", \"meta-llama/llama-3.3-70b-instruct:free\"], \"messages\": [{\"role\":\"system\",\"content\":\"$ai_prompt\"},{\"role\":\"user\",\"content\":\"$user_input\"}], \"max_tokens\": 1000}"
+                        local or_payload="{\"models\": [\"google/gemini-2.0-flash-lite-preview-02-05:free\", \"meta-llama/llama-3.3-70b-instruct:free\"], \"messages\": [{\"role\":\"system\",\"content\":\"$ai_prompt\"},{\"role\":\"user\",\"content\":\"$bot_prompt\"}], \"max_tokens\": 1000}"
                         curl -s --max-time 20 -H "Authorization: Bearer $fallback_key" -H "Content-Type: application/json" -d "$or_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
                         local or_pid=$!
                         _zaki_spinner $or_pid
@@ -539,7 +539,7 @@ except Exception:
                             search_output=$(yt-dlp --print "%(title)s (ID: %(id)s)" "ytsearch5:$search_q" 2>/dev/null)
                             
                             if [ -z "$search_output" ]; then
-                                echo -e "  ${RED}${ICO_CROSS} Pencarian gagal atau tidak ditemukan.${RESET}"
+                                echo -e "  ${RED}${ICO_FAIL} Pencarian gagal atau tidak ditemukan.${RESET}"
                             else
                                 local options=()
                                 local ids=()
