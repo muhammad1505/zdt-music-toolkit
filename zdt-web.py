@@ -79,6 +79,7 @@ HTML_TEMPLATE = """
     <title>ZDT Enterprise Dashboard</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-base: #050505;
@@ -577,22 +578,27 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             
-            <div style="margin-top:20px; background:var(--card-bg); border-radius:8px; border:1px solid var(--border-light); overflow:hidden;">
-                <h4 style="padding:15px; margin:0; border-bottom:1px solid var(--border-light);">10 Unduhan Terakhir</h4>
-                <div style="overflow-x:auto;">
-                    <table style="width:100%; border-collapse:collapse; text-align:left; font-size:14px;">
-                        <thead>
-                            <tr style="background:rgba(255,255,255,0.05);">
-                                <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">File</th>
-                                <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Sumber</th>
-                                <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Ukuran</th>
-                                <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Waktu</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recentDownloadsTbody">
-                            <tr><td colspan="4" style="padding:15px; text-align:center; color:var(--text-muted);">Memuat data...</td></tr>
-                        </tbody>
-                    </table>
+            <div style="display:flex; gap:20px; margin-top:20px; flex-wrap:wrap;">
+                <div style="flex:1; min-width:300px; background:var(--bg-card); border-radius:8px; border:1px solid var(--border-light); padding:20px; display:flex; justify-content:center; align-items:center; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+                    <canvas id="statsChart" style="max-height: 250px;"></canvas>
+                </div>
+                <div style="flex:2; min-width:400px; background:var(--bg-card); border-radius:8px; border:1px solid var(--border-light); overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+                    <h4 style="padding:15px; margin:0; border-bottom:1px solid var(--border-light);">10 Unduhan Terakhir</h4>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse; text-align:left; font-size:14px;">
+                            <thead>
+                                <tr style="background:rgba(255,255,255,0.05);">
+                                    <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">File</th>
+                                    <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Sumber</th>
+                                    <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Ukuran</th>
+                                    <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Waktu</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentDownloadsTbody">
+                                <tr><td colspan="4" style="padding:15px; text-align:center; color:var(--text-muted);">Memuat data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -835,6 +841,8 @@ HTML_TEMPLATE = """
             if(tabId === 'statistik') loadDbStats();
         }
 
+        let statsChartInstance = null;
+
         async function loadDbStats() {
             try {
                 const res = await fetch('/api/stats');
@@ -843,8 +851,36 @@ HTML_TEMPLATE = """
                 
                 document.getElementById('statTotalDl').innerText = data.total_count || 0;
                 document.getElementById('statTotalSize').innerText = ((data.total_size_bytes || 0) / (1024*1024)).toFixed(2) + ' MB';
-                document.getElementById('statSpotify').innerText = data.sources['spotify'] || 0;
-                document.getElementById('statYoutube').innerText = data.sources['youtube'] || 0;
+                const spCount = data.sources['spotify'] || 0;
+                const ytCount = data.sources['youtube'] || 0;
+                document.getElementById('statSpotify').innerText = spCount;
+                document.getElementById('statYoutube').innerText = ytCount;
+                
+                const ctx = document.getElementById('statsChart');
+                if(ctx) {
+                    if(statsChartInstance) statsChartInstance.destroy();
+                    statsChartInstance = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Spotify', 'YouTube', 'Lainnya'],
+                            datasets: [{
+                                data: [spCount, ytCount, (data.total_count || 0) - spCount - ytCount],
+                                backgroundColor: ['#1DB954', '#FF0000', '#6366f1'],
+                                borderWidth: 0,
+                                hoverOffset: 4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '70%',
+                            plugins: {
+                                legend: { position: 'bottom', labels: { color: '#ffffff', padding: 20, font: { family: 'Inter', size: 12 } } },
+                                title: { display: true, text: 'Proporsi Sumber Unduhan', color: '#a1a1aa', font: { family: 'Inter', size: 14, weight: 'normal' } }
+                            }
+                        }
+                    });
+                }
                 
                 const tbody = document.getElementById('recentDownloadsTbody');
                 tbody.innerHTML = '';
