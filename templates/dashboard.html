@@ -983,7 +983,7 @@
         loadNotifConfig();
         loadSchedulerStatus();
         loadScheduledPlaylists();
-        setInterval(loadSchedulerStatus, 5000);
+        setInterval(loadSchedulerStatus, 10000);
 
         // TOAST NOTIFICATION LOGIC
         function showToast(message, type = 'info') {
@@ -1445,7 +1445,7 @@
                     document.getElementById("liveProgressWrapper").style.display = "none";
                 }
             } catch(e) {}
-        }, 1500);
+        }, 3000);
     </script>
 </body>
 </html>

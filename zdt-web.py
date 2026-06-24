@@ -86,10 +86,11 @@ def requires_csrf(f):
         return f(*args, **kwargs)
     return decorated
 
-# Rate limiting: max 30 requests per minute per IP
+# Rate limiting: max 120 requests per minute per IP
+# (dashboard has 3 polling loops: status 3s, logs 3s, scheduler 10s = ~46 req/min)
 _rate_limit_store = defaultdict(list)
 
-def _rate_limit(ip, max_requests=30, window=60):
+def _rate_limit(ip, max_requests=120, window=60):
     """Return True if rate limited."""
     now = time.time()
     _rate_limit_store[ip] = [t for t in _rate_limit_store[ip] if now - t < window]
