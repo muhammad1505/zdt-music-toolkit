@@ -73,9 +73,13 @@ def _validate_csrf_token(token):
     return False
 
 def requires_csrf(f):
-    """Decorator for POST endpoints requiring CSRF token."""
+    """Decorator for endpoints requiring CSRF token.
+    Skips validation for safe HTTP methods (GET, HEAD, OPTIONS).
+    """
     @wraps(f)
     def decorated(*args, **kwargs):
+        if request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return f(*args, **kwargs)
         token = request.headers.get("X-CSRF-Token") or (request.json or {}).get("csrf_token", "")
         if not _validate_csrf_token(token):
             return jsonify({"success": False, "message": "CSRF token invalid. Refresh halaman dan coba lagi."}), 403

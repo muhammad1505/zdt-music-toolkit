@@ -107,6 +107,7 @@ class MockTestClient:
         if handler is None:
             return MockTestResponse("Not Found", 404)
         try:
+            self.app._request.method = "GET"
             result = handler()
             status = 200
             if isinstance(result, tuple):
@@ -126,6 +127,7 @@ class MockTestClient:
             return MockTestResponse("Not Found", 404)
         try:
             if hasattr(self.app, '_request'):
+                self.app._request.method = "POST"
                 self.app._request.json = json_data or {}
             result = handler()
             status = 200
@@ -146,6 +148,7 @@ class MockRequest:
     """Mock Flask request object."""
     def __init__(self, headers_dict=None):
         self.json = {}
+        self.method = "GET"
         self.authorization = MockAuth()
         self.remote_addr = "127.0.0.1"
         self.headers = MockHeaders(headers_dict or {})

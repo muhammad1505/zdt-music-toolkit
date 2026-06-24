@@ -37,6 +37,7 @@ class CsrfTestClient(MockTestClient):
             return MockTestResponse("Not Found", 404)
         try:
             if hasattr(self.app, '_request'):
+                self.app._request.method = "GET"
                 self.app._request.json = {}
                 self.app._request.headers = MockHeaders({})
             result = handler()
@@ -58,6 +59,7 @@ class CsrfTestClient(MockTestClient):
             return MockTestResponse("Not Found", 404)
         try:
             req = self.app._request
+            req.method = "POST"
             req.json = json_data or {}
 
             if use_csrf:
