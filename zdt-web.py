@@ -29,7 +29,7 @@ if os.path.exists(WEB_TASK_LOG_PATH):
     except OSError:
         pass
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=os.path.join(PROJECT_DIR, 'templates'))
 app.secret_key = secrets.token_hex(32)
 
 # CSRF token store: dict[token, expiry_time]

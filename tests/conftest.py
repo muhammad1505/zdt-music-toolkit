@@ -63,7 +63,7 @@ class MockPopen:
 
 class MockFlask:
     """Mock Flask application class."""
-    def __init__(self, name):
+    def __init__(self, name, **kwargs):
         self.name = name
         self._routes = {}
 

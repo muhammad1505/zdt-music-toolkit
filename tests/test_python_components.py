@@ -80,7 +80,7 @@ class TestWebDashboard:
         """The file should create a Flask app instance."""
         with open(os.path.join(PROJECT_DIR, "zdt-web.py")) as f:
             content = f.read()
-        assert "app = Flask(__name__)" in content or 'app = Flask(__name__)' in content
+        assert "app = Flask(" in content and "__name__" in content
 
     def test_argparse_configured(self):
         """The file should have argparse for --bind and --port."""
