@@ -91,18 +91,52 @@ def _ensure_password():
     config_file = CONFIG_FILE
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
     
-    if not os.path.exists(config_file):
-        random_pass = secrets.token_urlsafe(12)
-        with open(config_file, 'w') as f:
-            f.write(f'ZDT_WEB_USER=admin\n')
-            f.write(f'ZDT_WEB_PASS={random_pass}\n')
-        try:
-            os.chmod(config_file, 0o600)
-        except OSError:
-            pass
+    # Baca dulu config yang sudah ada (untuk migrasi dari config.conf)
+    old_conf = os.path.expanduser("~/.config/zdt/config.conf")
+    existing_user = ""
+    existing_pass = ""
+    lines = []
+    
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            lines = f.readlines()
+    
+    # Cek apakah kredensial sudah ada di config.env
+    has_user = any(l.startswith("ZDT_WEB_USER=") for l in lines)
+    has_pass = any(l.startswith("ZDT_WEB_PASS=") for l in lines)
+    
+    if has_user and has_pass:
+        return  # Sudah ada kredensial
+    
+    # Coba migrasi dari config.conf (file lama)
+    if not has_user and os.path.exists(old_conf):
+        with open(old_conf, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("ZDT_WEB_USER="):
+                    existing_user = line.split("=", 1)[1].strip('"\'')
+                elif line.startswith("ZDT_WEB_PASS="):
+                    existing_pass = line.split("=", 1)[1].strip('"\'')
+    
+    if not has_user:
+        lines = [l for l in lines if not l.startswith("ZDT_WEB_USER=")]
+        lines.append(f'ZDT_WEB_USER={existing_user or "admin"}\n')
+    if not has_pass:
+        lines = [l for l in lines if not l.startswith("ZDT_WEB_PASS=")]
+        random_pass = existing_pass or secrets.token_urlsafe(12)
+        lines.append(f'ZDT_WEB_PASS={random_pass}\n')
+    
+    with open(config_file, 'w') as f:
+        f.writelines(lines)
+    try:
+        os.chmod(config_file, 0o600)
+    except OSError:
+        pass
+    
+    if not existing_pass:
         print(f"\n{'='*60}")
-        print(f"  🔐 FIRST RUN: Web Dashboard credentials generated!")
-        print(f"  Username: admin")
+        print(f"  🔐 Web Dashboard credentials generated!")
+        print(f"  Username: {existing_user or 'admin'}")
         print(f"  Password: {random_pass}")
         print(f"  Saved to: {config_file}")
         print(f"{'='*60}\n")
