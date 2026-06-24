@@ -20,6 +20,20 @@ except ImportError:
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def _find_templates_dir():
+    """Find templates directory across multiple possible install locations."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(script_dir, 'templates'),
+        os.path.join(os.path.dirname(script_dir), 'templates'),
+        os.path.expanduser('~/.local/share/zdt/templates'),
+        '/usr/local/share/zdt/templates',
+    ]
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    return candidates[0]
+
 WEB_TASK_LOG_PATH = os.environ.get("ZDT_WEB_LOG", os.path.join(tempfile.gettempdir(), "zdt_web_task.log"))
 
 # Clear old task logs on startup
@@ -29,7 +43,7 @@ if os.path.exists(WEB_TASK_LOG_PATH):
     except OSError:
         pass
 
-app = Flask(__name__, template_folder=os.path.join(PROJECT_DIR, 'templates'))
+app = Flask(__name__, template_folder=_find_templates_dir())
 app.secret_key = secrets.token_hex(32)
 
 # CSRF token store: dict[token, expiry_time]

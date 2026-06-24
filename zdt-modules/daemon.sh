@@ -247,6 +247,11 @@ update_zdt_script() {
                 curl -sL "${base_url}/${pyfile}${cache_bust}" -o "${share_dir}/${pyfile}" 2>/dev/null
             done
             
+            # Download templates
+            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate dashboard template...${RESET}"
+            mkdir -p "$share_dir/templates"
+            curl -sL "${base_url}/templates/dashboard.html${cache_bust}" -o "$share_dir/templates/dashboard.html" 2>/dev/null
+            
             # Download utility scripts + database helper
             echo -e "  ${CYAN}${ICO_ARROW} Mengupdate utility files...${RESET}"
             for util in install.sh Makefile README.md; do
