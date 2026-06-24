@@ -382,10 +382,10 @@ Jawab dengan informatif dan detail tentang fitur ZDT.
 
 Contoh:
 User: download lagu tulus
-Bot: Gas download Tulus! \ud83c\udfb5 [AUTO_ACTION: gas download audio ytsearch1:Tulus]
+Bot: Gas download Tulus! 🎵 [AUTO_ACTION: gas download audio ytsearch1:Tulus]
 
 User: cek status server
-Bot: Cek status bentar! \ud83d\udcca [AUTO_ACTION: cek status]
+Bot: Cek status bentar! 📊 [AUTO_ACTION: cek status]
 
 User: apa itu zdt
 Bot: ZDT adalah toolkit manajemen musik/video... (jelaskan fitur lengkap)
@@ -580,6 +580,33 @@ Riwayat Chat Terbaru:
                                     InlineKeyboardButton("❌ BATAL", callback_data="CANCEL_DELETE")
                                 )
                                 bot.reply_to(message, f"⚠️ *PERINGATAN KEAMANAN!*\n\nAnda akan menghapus SEMUA file di:\n`{abs_path}`\n\nTindakan ini TIDAK BISA dibatalkan!\n\nKlik tombol di bawah untuk konfirmasi:", parse_mode="Markdown", reply_markup=markup)
+                            elif action == "cek status":
+                                server_status(message)
+                            elif action == "buka web":
+                                bot.reply_to(message, "🌐 Buka Web Dashboard di: http://localhost:5678/\n\nLogin dengan user/password dari config.env.\n\nFitur: Monitoring server, download management, scheduler, notifikasi Telegram.")
+                            elif action == "setup tools":
+                                bot.reply_to(message, "⚙️ Menjalankan Setup Tools...")
+                                try:
+                                    with open(os.devnull, 'w') as devnull:
+                                        subprocess.Popen([zdt_bin, "--setup"], stdout=devnull, stderr=devnull, start_new_session=True)
+                                except Exception as e:
+                                    bot.reply_to(message, f"❌ Error: {e}")
+                            elif action == "update tools":
+                                bot.reply_to(message, "🔄 Menjalankan Update ZDT...")
+                                try:
+                                    with open(os.devnull, 'w') as devnull:
+                                        subprocess.Popen([zdt_bin, "--update"], stdout=devnull, stderr=devnull, start_new_session=True)
+                                except Exception as e:
+                                    bot.reply_to(message, f"❌ Error: {e}")
+                            elif action == "start telegram":
+                                bot.reply_to(message, "🤖 Telegram Bot sudah berjalan! (Ini botnya sendiri)")
+                            elif action == "start watch":
+                                sent_msg = bot.reply_to(message, "⏳ <b>Memulai Watch Daemon...</b>", parse_mode="HTML")
+                                run_bg_task(["--watch"], "Watch Daemon berjalan!")
+                            elif action == "buka scheduler":
+                                bot.reply_to(message, "📅 Scheduler ada di Web Dashboard -> panel Scheduler.\n\nCara pakai:\n1. Buka http://localhost:5678/\n2. Login, buka panel Scheduler\n3. Tambah URL playlist Spotify\n4. Atur interval (jam)\n5. Klik Start Daemon\n\nDownload otomatis + notif Telegram kalau selesai!")
+                            elif action == "ubah storage":
+                                bot.reply_to(message, "📁 Untuk mengubah folder Storage:\n1. Edit file ~/.config/zdt/config.env\n2. Set TARGET_DIR=/path/baru\n3. Restart bot\n\nAtau lewat CLI: zdt -> pilih menu Storage Setup")
                             else:
                                 bot.reply_to(message, f"❌ Aksi {action} belum didukung di Telegram.")
                                 
