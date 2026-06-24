@@ -383,10 +383,10 @@ query: URL atau kata kunci pencarian
 
 Contoh:
 User: download lagu Tulus
-JSON: {\"reply\":\"Download Tulus! \\\\ud83c\\\\udfb5\",\"intent\":\"download audio\",\"query\":\"ytsearch1:Tulus\"}
+JSON: {\"reply\":\"Download Tulus! 🎵\",\"intent\":\"download audio\",\"query\":\"ytsearch1:Tulus\"}
 
 User: cek status server
-JSON: {\"reply\":\"Cek status bentar! \\\\ud83d\\\\udcca\",\"intent\":\"info sistem\",\"query\":\"\"}
+JSON: {\"reply\":\"Cek status bentar! 📊\",\"intent\":\"info sistem\",\"query\":\"\"}
 
 User: gimana cara pake scheduler
 JSON: {\"reply\":\"Buka Web Dashboard -> Scheduler panel. Tambah URL playlist Spotify, atur interval, start daemon. Download otomatis + notif Telegram!\",\"intent\":\"\",\"query\":\"\"}

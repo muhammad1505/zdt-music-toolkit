@@ -354,6 +354,9 @@ Config keys: ~/.config/zdt/gemini_key atau ~/.config/zdt/openrouter_key
 ~/.config/zdt/zdt_history.db - SQLite chat history
 Storage: ~/Music/ZDT/ (default, bisa diubah)
 
+### SYSTEMD SERVICE:
+zdt-scheduler.service + zdt-scheduler.timer (auto-start on boot via systemd)
+
 ### AUTO_ACTION TAGS (18 jenis):
 Download Audio/Lagu: [AUTO_ACTION: gas download audio ytsearch1:judul atau URL]
 Download Video: [AUTO_ACTION: gas download video ytsearch1:judul atau URL]

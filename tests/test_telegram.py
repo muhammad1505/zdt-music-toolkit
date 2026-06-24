@@ -127,6 +127,342 @@ def test_telegram_gemini_only():
         assert "Aduh otak" not in reply_text, f"Should NOT be error, got: {reply_text}"
 
 
+def test_telegram_auto_action_cek_status():
+    """Test AUTO_ACTION: cek status dispatches to server_status()."""
+    import json
+    from unittest.mock import patch, MagicMock
+
+    mock_msg = MagicMock()
+    mock_msg.chat.id = 99910
+    mock_msg.text = "cek status server"
+
+    # AI response with AUTO_ACTION: cek status
+    ai_response_text = "Cek status bentar! [AUTO_ACTION: cek status]"
+    or_response = {
+        "choices": [{
+            "message": {"content": ai_response_text}
+        }]
+    }
+
+    def _mock_urlopen(req, timeout=20):
+        url = req.full_url if hasattr(req, 'full_url') else str(req)
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    key_paths = [
+        os.path.expanduser("~/.config/zdt/openrouter_key"),
+    ]
+    def _mock_exists(path):
+        return path in key_paths
+
+    def _mock_open(path, *args, **kwargs):
+        m = MagicMock()
+        m.__enter__.return_value.read.return_value = "sk-or-v1-test-key"
+        return m
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open), \
+         patch.object(zdt_telegram, 'server_status') as mock_server_status:
+
+        zdt_telegram.auto_download_audio(mock_msg)
+
+        # server_status should be called with the message
+        mock_server_status.assert_called_once_with(mock_msg)
+        # reply should have the clean text (without AUTO_ACTION tag)
+        assert mock_reply.called
+        args = mock_reply.call_args[0]
+        assert "Cek status bentar!" in args[1]
+
+
+def test_telegram_auto_action_buka_web():
+    """Test AUTO_ACTION: buka web sends dashboard URL."""
+    import json
+    from unittest.mock import patch, MagicMock
+
+    mock_msg = MagicMock()
+    mock_msg.chat.id = 99911
+    mock_msg.text = "buka web dashboard"
+
+    ai_response_text = "Buka dashboard! [AUTO_ACTION: buka web]"
+    or_response = {
+        "choices": [{
+            "message": {"content": ai_response_text}
+        }]
+    }
+
+    def _mock_urlopen(req, timeout=20):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    key_paths = [os.path.expanduser("~/.config/zdt/openrouter_key")]
+    def _mock_exists(path):
+        return path in key_paths
+
+    def _mock_open(path, *args, **kwargs):
+        m = MagicMock()
+        m.__enter__.return_value.read.return_value = "sk-or-v1-test-key"
+        return m
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open):
+
+        zdt_telegram.auto_download_audio(mock_msg)
+
+        assert mock_reply.called
+        args = mock_reply.call_args[0]
+        reply_text = args[1]
+        assert "Buka dashboard!" in reply_text or "localhost:5678" in reply_text
+
+
+def test_telegram_auto_action_setup_tools():
+    """Test AUTO_ACTION: setup tools runs zdt --setup."""
+    import json
+    from unittest.mock import patch, MagicMock, call as mock_call
+
+    mock_msg = MagicMock()
+    mock_msg.chat.id = 99912
+    mock_msg.text = "setup tools"
+
+    ai_response_text = "Setup! [AUTO_ACTION: setup tools]"
+    or_response = {
+        "choices": [{
+            "message": {"content": ai_response_text}
+        }]
+    }
+
+    def _mock_urlopen(req, timeout=20):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    key_paths = [os.path.expanduser("~/.config/zdt/openrouter_key")]
+    def _mock_exists(path):
+        return path in key_paths
+
+    def _mock_open(path, *args, **kwargs):
+        m = MagicMock()
+        m.__enter__.return_value.read.return_value = "sk-or-v1-test-key"
+        return m
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open), \
+         patch('subprocess.Popen') as mock_popen:
+
+        zdt_telegram.auto_download_audio(mock_msg)
+
+        # Should call Popen with --setup
+        mock_popen.assert_called()
+        popen_args = mock_popen.call_args[0][0]
+        assert '--setup' in popen_args or 'setup' in str(popen_args)
+
+
+def test_telegram_auto_action_start_watch():
+    """Test AUTO_ACTION: start watch runs zdt --watch."""
+    import json
+    from unittest.mock import patch, MagicMock
+
+    mock_msg = MagicMock()
+    mock_msg.chat.id = 99913
+    mock_msg.text = "mulai watch daemon"
+
+    ai_response_text = "Watch started! [AUTO_ACTION: start watch]"
+    or_response = {
+        "choices": [{
+            "message": {"content": ai_response_text}
+        }]
+    }
+
+    def _mock_urlopen(req, timeout=20):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    key_paths = [os.path.expanduser("~/.config/zdt/openrouter_key")]
+    def _mock_exists(path):
+        return path in key_paths
+
+    def _mock_open(path, *args, **kwargs):
+        m = MagicMock()
+        m.__enter__.return_value.read.return_value = "sk-or-v1-test-key"
+        return m
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open), \
+         patch('subprocess.Popen') as mock_popen:
+
+        zdt_telegram.auto_download_audio(mock_msg)
+
+        # Should call Popen with --watch (via run_bg_task which uses Popen)
+        mock_popen.assert_called()
+        popen_args = mock_popen.call_args[0][0]
+        assert '--watch' in popen_args or 'watch' in str(popen_args)
+
+
+def test_telegram_auto_action_update_tools():
+    """Test AUTO_ACTION: update tools runs zdt --update."""
+    import json
+    from unittest.mock import patch, MagicMock
+
+    mock_msg = MagicMock()
+    mock_msg.chat.id = 99914
+    mock_msg.text = "update tools"
+
+    ai_response_text = "Updating! [AUTO_ACTION: update tools]"
+    or_response = {
+        "choices": [{
+            "message": {"content": ai_response_text}
+        }]
+    }
+
+    def _mock_urlopen(req, timeout=20):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    key_paths = [os.path.expanduser("~/.config/zdt/openrouter_key")]
+    def _mock_exists(path):
+        return path in key_paths
+
+    def _mock_open(path, *args, **kwargs):
+        m = MagicMock()
+        m.__enter__.return_value.read.return_value = "sk-or-v1-test-key"
+        return m
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open), \
+         patch('subprocess.Popen') as mock_popen:
+
+        zdt_telegram.auto_download_audio(mock_msg)
+
+        mock_popen.assert_called()
+        popen_args = mock_popen.call_args[0][0]
+        assert '--update' in popen_args or 'update' in str(popen_args)
+
+
+def test_telegram_auto_action_scheduler():
+    """Test info-only AUTO_ACTIONs: buka scheduler, ubah storage, start telegram."""
+    import json
+    from unittest.mock import patch, MagicMock
+
+    key_paths = [os.path.expanduser("~/.config/zdt/openrouter_key")]
+
+    def _mock_exists(path):
+        return path in key_paths
+
+    def _mock_open(path, *args, **kwargs):
+        m = MagicMock()
+        m.__enter__.return_value.read.return_value = "sk-or-v1-test-key"
+        return m
+
+    # Test buka scheduler
+    mock_msg = MagicMock()
+    mock_msg.chat.id = 99915
+    mock_msg.text = "buka scheduler"
+
+    ai_response_text = "Scheduler info [AUTO_ACTION: buka scheduler]"
+    or_response = {"choices": [{"message": {"content": ai_response_text}}]}
+
+    def _mock_urlopen_scheduler(req, timeout=20):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen_scheduler), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open):
+
+        zdt_telegram.auto_download_audio(mock_msg)
+        assert mock_reply.called, "reply_to should be called for buka scheduler"
+        args = mock_reply.call_args[0]
+        reply_text = args[1]
+        assert "Scheduler info" in reply_text or "Web Dashboard" in reply_text or "Tambah URL" in reply_text
+
+    # Test ubah storage
+    mock_msg2 = MagicMock()
+    mock_msg2.chat.id = 99916
+    mock_msg2.text = "ubah storage"
+
+    ai_response_text2 = "Storage info [AUTO_ACTION: ubah storage]"
+    or_response2 = {"choices": [{"message": {"content": ai_response_text2}}]}
+
+    def _mock_urlopen_storage(req, timeout=20):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response2).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply2, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen_storage), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open):
+
+        zdt_telegram.auto_download_audio(mock_msg2)
+        assert mock_reply2.called, "reply_to should be called for ubah storage"
+        args2 = mock_reply2.call_args[0]
+        reply2 = args2[1]
+        assert "Storage info" in reply2 or "config.env" in reply2 or "TARGET_DIR" in reply2
+
+    # Test start telegram
+    mock_msg3 = MagicMock()
+    mock_msg3.chat.id = 99917
+    mock_msg3.text = "start telegram"
+
+    ai_response_text3 = "Bot running [AUTO_ACTION: start telegram]"
+    or_response3 = {"choices": [{"message": {"content": ai_response_text3}}]}
+
+    def _mock_urlopen_telegram(req, timeout=20):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response3).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply3, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen_telegram), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open):
+
+        zdt_telegram.auto_download_audio(mock_msg3)
+        assert mock_reply3.called, "reply_to should be called for start telegram"
+        args3 = mock_reply3.call_args[0]
+        reply3 = args3[1]
+        assert "Bot running" in reply3 or "Telegram Bot" in reply3 or "sudah berjalan" in reply3
+
+
 def test_telegram_or_fallback_to_gemini():
     """Test that when all OR tiers fail (HTTP 429), Gemini is used as fallback."""
     import json
