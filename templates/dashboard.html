@@ -1006,24 +1006,55 @@
 
         // CSRF Token management
         let csrfToken = '';
+        let _csrfRefreshing = false;
         
         async function refreshCsrfToken() {
+            if (_csrfRefreshing) return;
+            _csrfRefreshing = true;
             try {
-                const res = await fetch('/api/csrf-token');
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const res = await fetch('/api/csrf-token', { signal: controller.signal });
+                clearTimeout(timeoutId);
                 const data = await res.json();
                 if (data.csrf_token) csrfToken = data.csrf_token;
-            } catch(e) {}
+            } catch(e) { console.error('CSRF refresh failed:', e); }
+            _csrfRefreshing = false;
         }
         
-        function csrfFetch(url, options = {}) {
+        async function csrfFetch(url, options = {}) {
+            const FETCH_TIMEOUT = 30000; // 30 detik
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
+            
             if (!options.headers) options.headers = {};
             options.headers['X-CSRF-Token'] = csrfToken;
             if (!options.headers['Content-Type']) options.headers['Content-Type'] = 'application/json';
-            return fetch(url, options).then(async res => {
-                // Refresh CSRF token after each request
+            options.signal = controller.signal;
+            
+            try {
+                const res = await fetch(url, options);
+                clearTimeout(timeoutId);
+                
+                // Auto-retry on 403: token expired/dipakai — refresh dan coba sekali lagi
+                if (res.status === 403) {
+                    await refreshCsrfToken();
+                    options.headers['X-CSRF-Token'] = csrfToken;
+                    const retryRes = await fetch(url, options);
+                    if (retryRes.status !== 403) refreshCsrfToken();
+                    return retryRes;
+                }
+                
                 if (res.status !== 403) refreshCsrfToken();
                 return res;
-            });
+            } catch (err) {
+                clearTimeout(timeoutId);
+                if (err.name === 'AbortError') {
+                    throw new Error('Request timeout — server tidak merespon. Coba refresh halaman.');
+                }
+                throw err;
+            }
         }
         
         // Initial CSRF token fetch
@@ -1053,16 +1084,26 @@
                 const status = document.getElementById(statusId);
                 const originalHtml = btn.innerHTML;
                 btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${loadingText}`;
+                
+                // Slow warning: kasih tau user kalau request > 20 detik
+                let slowWarning = setTimeout(() => {
+                    showToast('Server masih memproses... mohon tunggu', 'info');
+                }, 20000);
+                
                 try {
                     const res = await csrfFetch(apiEndpoint, {
                         method: 'POST', headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(payloadBuilder())
                     });
+                    clearTimeout(slowWarning);
                     const data = await res.json();
                     showToast(data.message, data.success ? 'success' : 'error');
                     if(data.success && formId !== 'formSettings' && formId !== 'formMeta') e.target.reset();
                     if(formId === 'formSettings') { document.getElementById('dashTargetDir').innerText = 'Loading...'; loadStatus(); }
-                } catch(err) { showToast('Connection Error!', 'error'); }
+                } catch(err) {
+                    clearTimeout(slowWarning);
+                    showToast(err.message || 'Connection Error!', 'error');
+                }
                 btn.disabled = false; btn.innerHTML = originalHtml;
             });
         }
@@ -1110,7 +1151,7 @@
                 showToast(data.message, data.success ? 'success' : 'error');
                 if(data.success) { loadFiles(); loadStatus(); }
             } catch(err) {
-                showToast('Connection Error!', 'error');
+                showToast(err.message || 'Connection Error!', 'error');
             }
         }
 
@@ -1125,7 +1166,7 @@
                 showToast(data.message, data.success ? 'success' : 'error');
                 loadStatus();
             } catch(err) {
-                showToast('Connection Error!', 'error');
+                showToast(err.message || 'Connection Error!', 'error');
             }
         }
 
@@ -1209,17 +1250,21 @@
         
         // Toggle scheduler daemon
         async function toggleScheduler() {
-            const btn = document.getElementById('btnScheduler');
-            const isRunning = document.getElementById('badgeScheduler').classList.contains('badge-active');
-            const action = isRunning ? 'stop' : 'start';
-            
-            const res = await csrfFetch('/api/daemon', {
-                method: 'POST',
-                body: JSON.stringify({ service: 'scheduler', action })
-            });
-            const data = await res.json();
-            showToast(data.message, data.success ? 'success' : 'error');
-            loadSchedulerStatus();
+            try {
+                const isRunning = document.getElementById('badgeScheduler').classList.contains('badge-active');
+                const action = isRunning ? 'stop' : 'start';
+                showToast(`Sending ${action} scheduler...`, 'info');
+                
+                const res = await csrfFetch('/api/daemon', {
+                    method: 'POST',
+                    body: JSON.stringify({ service: 'scheduler', action })
+                });
+                const data = await res.json();
+                showToast(data.message, data.success ? 'success' : 'error');
+                loadSchedulerStatus();
+            } catch(err) {
+                showToast(err.message || 'Connection Error!', 'error');
+            }
         }
         
         // Load scheduled playlists
@@ -1350,7 +1395,9 @@
 
         async function closeLogs() {
             document.getElementById("logSection").style.display = "none";
-            await csrfFetch('/api/logs/clear', {method: 'POST'});
+            try {
+                await csrfFetch('/api/logs/clear', {method: 'POST'});
+            } catch(err) {}
         }
 
         setInterval(async () => {
