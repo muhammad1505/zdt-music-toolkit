@@ -26,30 +26,36 @@ WEB_TASK_LOG_PATH = os.environ.get("ZDT_WEB_LOG", os.path.join(tempfile.gettempd
 if os.path.exists(WEB_TASK_LOG_PATH):
     try:
         os.remove(WEB_TASK_LOG_PATH)
-    except:
+    except OSError:
         pass
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
 
-# CSRF token store
-_csrf_tokens = set()
+# CSRF token store: dict[token, expiry_time]
+_csrf_tokens = {}
+_CSRF_TOKEN_TTL = 3600  # 1 hour
 
 def _generate_csrf_token():
-    """Generate and store a CSRF token."""
+    """Generate and store a CSRF token with expiry."""
+    _expire_old_csrf_tokens()
     token = secrets.token_urlsafe(32)
-    _csrf_tokens.add(token)
-    # Keep only last 100 tokens to prevent memory leak
-    if len(_csrf_tokens) > 100:
-        _csrf_tokens.clear()
-        _csrf_tokens.add(token)
+    _csrf_tokens[token] = time.time() + _CSRF_TOKEN_TTL
     return token
+
+def _expire_old_csrf_tokens():
+    """Remove expired tokens to prevent memory leak."""
+    now = time.time()
+    expired = [t for t, exp in _csrf_tokens.items() if now > exp]
+    for t in expired:
+        _csrf_tokens.pop(t, None)
 
 def _validate_csrf_token(token):
     """Validate and consume a CSRF token."""
     if token in _csrf_tokens:
-        _csrf_tokens.discard(token)
-        return True
+        expiry = _csrf_tokens.pop(token, 0)
+        if time.time() <= expiry:
+            return True
     return False
 
 def requires_csrf(f):
@@ -81,8 +87,8 @@ def check_rate_limit():
         return jsonify({"error": "Too many requests. Slow down!"}), 429
 
 def _ensure_password():
-    """Generate random password on first run, save to config."""
-    config_file = os.path.expanduser("~/.config/zdt/config.conf")
+    """Generate random password on first run, save to config.env."""
+    config_file = CONFIG_FILE
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
     
     if not os.path.exists(config_file):
@@ -92,7 +98,8 @@ def _ensure_password():
             f.write(f'ZDT_WEB_PASS={random_pass}\n')
         try:
             os.chmod(config_file, 0o600)
-        except: pass
+        except OSError:
+            pass
         print(f"\n{'='*60}")
         print(f"  🔐 FIRST RUN: Web Dashboard credentials generated!")
         print(f"  Username: admin")
@@ -101,7 +108,7 @@ def _ensure_password():
         print(f"{'='*60}\n")
 
 def check_auth(username, password):
-    config_file = os.path.expanduser("~/.config/zdt/config.conf")
+    config_file = CONFIG_FILE
     conf_user, conf_pass = "", ""
     if os.path.exists(config_file):
         with open(config_file, 'r') as f:
@@ -117,7 +124,7 @@ def check_auth(username, password):
 
 def authenticate():
     return Response(
-        'Akses Web Dashboard Ditolak!\\nSilakan login menggunakan username dan password Anda.\\nPassword dibuat otomatis saat pertama dijalankan (cek output terminal / ~/.config/zdt/config.conf).', 401,
+        'Akses Web Dashboard Ditolak!\\nSilakan login menggunakan username dan password Anda.\\nPassword dibuat otomatis saat pertama dijalankan (cek output terminal / ~/.config/zdt/config.env).', 401,
         {'WWW-Authenticate': 'Basic realm="ZDT Enterprise Server"'})
 
 def requires_auth(f):
@@ -189,7 +196,7 @@ def is_process_running(script_name):
             if script_name in line and "python" in line and not "grep" in line:
                 return True
         return False
-    except:
+    except Exception:
         return False
 
 @app.route('/api/status', methods=['GET'])
@@ -200,7 +207,7 @@ def get_status():
     try:
         total, used, free = shutil.disk_usage(target if os.path.exists(target) else "/")
         storage_free = f"{free // (2**30)} GB"
-    except:
+    except Exception:
         pass
     
     # Count media files
@@ -488,7 +495,8 @@ def server_tools():
                     try:
                         os.remove(fp)
                         count += 1
-                    except: pass
+                    except OSError:
+                        pass
             return jsonify({"success": True, "message": f"Berhasil menghapus {count} file media dari Storage!"})
 
         elif action == 'demucs':
@@ -566,8 +574,10 @@ def get_logs():
 @requires_auth
 @requires_csrf
 def clear_logs():
-    try: os.remove(WEB_TASK_LOG_PATH)
-    except: pass
+    try:
+        os.remove(WEB_TASK_LOG_PATH)
+    except OSError:
+        pass
     return jsonify({"success": True})
 
 

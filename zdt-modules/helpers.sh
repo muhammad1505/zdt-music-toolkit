@@ -222,6 +222,22 @@ bersih_nama_otomatis() {
 }
 
 # ==========================================
+# HELPER: SPINNER (untuk background tasks)
+# ==========================================
+_zdt_spinner() {
+    local pid=$1
+    local msg="${2:-Memproses...}"
+    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\r  %s %s  " "${frames[$i]}" "$msg"
+        i=$(( (i + 1) % ${#frames[@]} ))
+        sleep 0.12
+    done
+    printf "\r%*s\r" "$(( ${#msg} + 6 ))" ""
+}
+
+# ==========================================
 # HELPER: SCAN MEDIA FILES (DRY)
 # ==========================================
 # _find_media_files <target_dir> <type> [extra_find_args...]
@@ -372,7 +388,7 @@ _playlist_selector() {
     # Run yt-dlp in background to show spinner
     yt-dlp --flat-playlist --print "%(playlist_index)s|%(url)s|%(title)s" "$url" > "$tmp_playlist" 2>/dev/null &
     local yt_pid=$!
-    _zaki_spinner $yt_pid
+    _zdt_spinner $yt_pid "Mengambil daftar playlist..."
     
     if [ ! -s "$tmp_playlist" ]; then
         echo -e "  ${RED}${ICO_FAIL} Gagal mengambil daftar playlist atau playlist kosong.${RESET}"

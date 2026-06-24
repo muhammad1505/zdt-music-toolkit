@@ -4,6 +4,7 @@ import os
 import time
 import subprocess
 import threading
+from concurrent.futures import ThreadPoolExecutor
 try:
     import telebot
     from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -31,6 +32,9 @@ if not TOKEN:
         TOKEN = "dummy_token_for_import"
 
 bot = telebot.TeleBot(TOKEN)
+
+# Thread pool untuk background tasks — batasi maks 10 thread concurrent
+_bg_thread_pool = ThreadPoolExecutor(max_workers=10, thread_name_prefix="zdt_bg")
 
 import logging
 logging.basicConfig(
@@ -237,13 +241,13 @@ def auto_download_audio(message):
             try:
                 with open(gemini_key_file, "r") as f:
                     gemini_key = f.read().strip()
-            except:
+            except (OSError, PermissionError):
                 pass
         if os.path.exists(openrouter_key_file):
             try:
                 with open(openrouter_key_file, "r") as f:
                     openrouter_key = f.read().strip()
-            except:
+            except (OSError, PermissionError):
                 pass
         
         # Dual-key logic: jika gemini_key starts with sk-or- -> backward compat sbg OR key
@@ -256,21 +260,13 @@ def auto_download_audio(message):
                 bot.send_chat_action(message.chat.id, 'typing')
                 import urllib.request, json
                     
-                abs_path = os.path.expanduser("~/Music/ZDT")
-                conf_file = os.path.expanduser("~/.config/zdt/config")
-                if os.path.exists(conf_file):
-                    with open(conf_file, 'r') as cf:
-                        for line in cf:
-                            if line.startswith("storage_dir="):
-                                val = line.strip().split('=', 1)[1].strip('"').strip("'")
-                                abs_path = os.path.expanduser(val)
-                                break
+                abs_path = get_target_dir()
                 try:
                     if os.path.exists(abs_path):
                         dir_contents = ", ".join(os.listdir(abs_path)[:50])
                     else:
                         dir_contents = "Direktori kosong/tidak ada."
-                except Exception:
+                except (OSError, PermissionError):
                     dir_contents = "Gagal membaca direktori."
 
                 chat_data = chat_history.get(message.chat.id, {"messages": [], "search_results": []})
@@ -471,13 +467,13 @@ Riwayat Chat Terbaru:
                                             if progress_msg:
                                                 try:
                                                     bot.edit_message_text(f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", chat_id=progress_msg.chat.id, message_id=progress_msg.message_id, parse_mode="HTML")
-                                                except:
+                                                except Exception:
                                                     bot.reply_to(message, f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
                                             else:
                                                 bot.reply_to(message, f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
                                     except Exception as e:
                                         bot.reply_to(message, f"❌ System Error: {e}")
-                                threading.Thread(target=_task).start()
+                                _bg_thread_pool.submit(_task)
 
                             if action.startswith("gas download audio"):
                                 url = action.replace("gas download audio", "").strip()
@@ -519,7 +515,7 @@ Riwayat Chat Terbaru:
                                             bot.reply_to(message, "❌ Pencarian tidak menemukan hasil.")
                                     except Exception as e:
                                         bot.reply_to(message, f"❌ Error pencarian: {e}")
-                                threading.Thread(target=_search_task).start()
+                                _bg_thread_pool.submit(_search_task)
                             elif action.startswith("cari playlist"):
                                 query = action.replace("cari playlist", "").strip()
                                 import urllib.parse
@@ -558,7 +554,7 @@ Riwayat Chat Terbaru:
                                             bot.reply_to(message, "❌ Pencarian playlist tidak menemukan hasil.")
                                     except Exception as e:
                                         bot.reply_to(message, f"❌ Error pencarian playlist: {e}")
-                                threading.Thread(target=_search_playlist_task).start()
+                                _bg_thread_pool.submit(_search_playlist_task)
                             elif action == "hapus vokal":
                                 bot.reply_to(message, "⚙️ Mengakses panel Demucs AI...")
                                 demucs_cmd(message)
@@ -701,7 +697,7 @@ Riwayat Chat Terbaru:
 try:
     bot.remove_webhook()
     time.sleep(1)
-except Exception as e:
+except Exception:
     pass
 
 
@@ -746,7 +742,7 @@ def process_specific_file(call):
     bot.answer_callback_query(call.id, "Memulai proses background...")
     msg = bot.send_message(call.message.chat.id, f"⏳ *Mempersiapkan tugas...*\n📍 `{os.path.basename(filepath)}`", parse_mode="Markdown")
     
-    import threading, subprocess, time, re, shutil
+    import subprocess, time, re, shutil
     
     def _task():
         try:
@@ -796,8 +792,10 @@ def process_specific_file(call):
                     import html
                     context = "\\n".join(log_buffer)
                     text = f"⏳ <b>{task_name}</b> [{last_pct}]\\n<pre>{html.escape(context)}</pre>"
-                    try: bot.edit_message_text(text, chat_id=msg.chat.id, message_id=msg.message_id, parse_mode="HTML")
-                    except: pass
+                    try:
+                        bot.edit_message_text(text, chat_id=msg.chat.id, message_id=msg.message_id, parse_mode="HTML")
+                    except Exception:
+                        pass
                     last_update = time.time()
             
             process.wait()
@@ -809,7 +807,7 @@ def process_specific_file(call):
         except Exception as e:
             bot.edit_message_text(f"❌ Error: {str(e)}", chat_id=msg.chat.id, message_id=msg.message_id)
 
-    threading.Thread(target=_task, daemon=True).start()
+    _bg_thread_pool.submit(_task)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('CONFIRM_DELETE:'))
 def confirm_delete_callback(call):
@@ -833,7 +831,7 @@ def confirm_delete_callback(call):
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
                     deleted += 1
-            except Exception:
+            except (OSError, PermissionError):
                 pass
         
         bot.edit_message_text(f"✅ *Selesai!* {deleted} item berhasil dihapus dari:\n`{target_path}`", chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode="Markdown")
