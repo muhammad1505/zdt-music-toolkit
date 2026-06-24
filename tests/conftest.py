@@ -273,6 +273,8 @@ class WebTestEnv:
         self.mod = importlib.util.module_from_spec(spec)
         sys.modules[self.module_name] = self.mod
         spec.loader.exec_module(self.mod)
+        # Save original check_auth before override (needed by test_web_config.py)
+        self.mod._original_check_auth = self.mod.check_auth
         self.mod.check_auth = lambda u, p: True
         self.mod.app._request = self.flask_mod.request
 

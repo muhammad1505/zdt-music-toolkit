@@ -118,6 +118,7 @@ def _ensure_password():
                 elif line.startswith("ZDT_WEB_PASS="):
                     existing_pass = line.split("=", 1)[1].strip('"\'')
     
+    random_pass = existing_pass or ""
     if not has_user:
         lines = [l for l in lines if not l.startswith("ZDT_WEB_USER=")]
         lines.append(f'ZDT_WEB_USER={existing_user or "admin"}\n')
