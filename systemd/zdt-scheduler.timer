@@ -1,0 +1,10 @@
+[Unit]
+Description=ZDT Scheduler Timer - checks every hour
+Requires=zdt-scheduler.service
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=ZDT Music Toolkit Scheduler
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/zaki/zdt-project/zdt-scheduler.py
+Restart=on-failure
+RestartSec=30
+User=%i
+Environment=ZDT_VENV_PYTHON=/usr/bin/python3
+
+[Install]
+WantedBy=multi-user.target

@@ -248,7 +248,8 @@ def manage_daemon():
         return os.path.join(script_dir, name)
     script_map = {
         'watch': find_script('zdt-watch.py'),
-        'telegram': find_script('zdt-telegram.py')
+        'telegram': find_script('zdt-telegram.py'),
+        'scheduler': find_script('zdt-scheduler.py')
     }
     
     if service not in script_map:
@@ -526,15 +527,40 @@ def server_tools():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
 
+# Track previous log state for notification detection
+_last_log_state = {"active": False, "last_content": ""}
+
 @app.route("/api/logs", methods=["GET"])
 @requires_auth
 def get_logs():
+    global _last_log_state
     log_file = WEB_TASK_LOG_PATH
+    log_content = "No active tasks."
+    has_content = False
+    
     if os.path.exists(log_file):
         with open(log_file, "r") as f:
             lines = f.readlines()
-            if lines: return jsonify({"log": "".join(lines[-100:])})
-    return jsonify({"log": "No active tasks."})
+            if lines:
+                log_content = "".join(lines[-100:])
+                has_content = True
+    
+    # Detect task completion: was active, now idle -> send notification
+    notify_sent = False
+    if _last_log_state["active"] and not has_content and _last_log_state.get("notified", False) == False:
+        # Task just completed — send notification if configured
+        token, chat_id = _get_telegram_config()
+        if token and chat_id:
+            _send_telegram_message(token, chat_id, "✅ <b>ZDT Task Selesai!</b>\\nTask di web dashboard telah selesai dieksekusi.")
+        _last_log_state["notified"] = True
+        notify_sent = True
+    
+    _last_log_state["active"] = has_content
+    if has_content:
+        _last_log_state["last_content"] = log_content
+        _last_log_state["notified"] = False
+    
+    return jsonify({"log": log_content, "notify_sent": notify_sent})
 
 @app.route("/api/logs/clear", methods=["POST"])
 @requires_auth
@@ -672,6 +698,21 @@ def scheduler_save_playlists():
 
 if __name__ == '__main__':
     _ensure_password()
+    # Auto-start scheduler daemon in background if configured
+    try:
+        scheduler_config = os.path.expanduser("~/.config/zdt/scheduler.json")
+        if os.path.exists(scheduler_config):
+            scheduler_script = os.path.join(PROJECT_DIR, "zdt-scheduler.py")
+            if os.path.exists(scheduler_script):
+                scheduler_python = os.environ.get("ZDT_VENV_PYTHON", sys.executable)
+                subprocess.Popen(
+                    [scheduler_python, scheduler_script],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True
+                )
+                print("  ⏰ Scheduler daemon auto-started.")
+    except Exception as e:
+        print(f"  ⚠ Scheduler auto-start skipped: {e}")
     import argparse
     parser = argparse.ArgumentParser(description='ZDT Enterprise Dashboard')
     parser.add_argument('--bind', default='127.0.0.1', help='Bind address (default: 127.0.0.1)')

@@ -408,6 +408,8 @@
         <div class="nav-item" onclick="switchTab('servertools', this)"><i class="fa-solid fa-toolbox"></i> Tools</div>
         <div class="nav-item nav-hide-mobile" onclick="switchTab('system', this)"><i class="fa-solid fa-server"></i> Daemons</div>
         <div class="nav-item nav-hide-mobile" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i> Settings</div>
+        <div class="nav-item nav-hide-mobile" onclick="switchTab('notifikasi', this)"><i class="fa-brands fa-telegram"></i> Notifikasi</div>
+        <div class="nav-item nav-hide-mobile" onclick="switchTab('scheduler', this)"><i class="fa-solid fa-clock"></i> Scheduler</div>
         <div class="nav-more-trigger" onclick="toggleMoreMenu()"><i class="fa-solid fa-ellipsis"></i> Lainnya</div>
     </div>
 
@@ -418,6 +420,8 @@
         <div class="more-sheet-item" onclick="moreNav('metadata')"><i class="fa-solid fa-tags"></i> Metadata Editor</div>
         <div class="more-sheet-item" onclick="moreNav('system')"><i class="fa-solid fa-server"></i> System Daemons</div>
         <div class="more-sheet-item" onclick="moreNav('settings')"><i class="fa-solid fa-gear"></i> Pengaturan</div>
+        <div class="more-sheet-item" onclick="moreNav('notifikasi')"><i class="fa-brands fa-telegram"></i> Notifikasi</div>
+        <div class="more-sheet-item" onclick="moreNav('scheduler')"><i class="fa-solid fa-clock"></i> Penjadwalan</div>
     </div>
 
     <div class="main-content">
@@ -686,7 +690,101 @@
             </div>
         </div>
 
-        <!-- Settings Panel -->
+                <!-- Notification Panel -->
+        <div id="notifikasi" class="panel">
+            <h3><i class="fa-brands fa-telegram"></i> Notifikasi Telegram</h3>
+            <p style="color:var(--text-muted); margin-bottom:25px; font-size:14px;">Kirim notifikasi otomatis ke Telegram saat task selesai. Butuh Bot Token dan Chat ID.</p>
+            
+            <div id="notifStatus" class="status-box" style="margin-bottom: 20px;"></div>
+            
+            <form id="formNotif">
+                <div class="form-group">
+                    <label>Bot Token</label>
+                    <input type="text" id="notifToken" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" required>
+                </div>
+                <div class="form-group">
+                    <label>Chat ID / Group ID</label>
+                    <input type="text" id="notifChatId" placeholder="-1001234567890" required>
+                </div>
+                <button type="submit" id="btnNotif" class="btn"><i class="fa-solid fa-floppy-disk"></i> Simpan Konfigurasi</button>
+            </form>
+            
+            <button id="btnTestNotif" class="btn btn-outline" style="margin-top:15px;" onclick="testNotification()">
+                <i class="fa-solid fa-paper-plane"></i> Kirim Test Notification
+            </button>
+            
+            <div style="margin-top: 20px; padding: 16px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid var(--border-light);">
+                <h4 style="margin:0 0 10px 0; font-size:14px;">Status Notifikasi: <span id="notifStatusBadge" class="badge badge-inactive">Belum dikonfigurasi</span></h4>
+                <p style="font-size:12px; color:var(--text-muted); margin:0;">
+                    Cara dapat Chat ID: Kirim pesan ke bot kamu, lalu buka<br>
+                    <code style="color:var(--primary);">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>
+                </p>
+            </div>
+        </div>
+
+        <!-- Scheduler Panel -->
+        <div id="scheduler" class="panel">
+            <h3><i class="fa-solid fa-clock"></i> Auto-Sync Scheduler</h3>
+            <p style="color:var(--text-muted); margin-bottom:25px; font-size:14px;">Jadwalkan sinkronisasi Spotify playlist secara otomatis. Scheduler akan mengecek setiap jam dan menjalankan playlist yang waktunya sudah tiba.</p>
+            
+            <div id="schedulerStatusBar" class="status-box" style="margin-bottom: 20px;"></div>
+            
+            <div class="switch-wrapper">
+                <div class="switch-info">
+                    <h4>Scheduler Daemon <span id="badgeScheduler" class="badge badge-inactive">Offline</span></h4>
+                    <p>Background daemon yang menjalankan scheduled tasks secara periodik.</p>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button id="btnScheduler" class="btn" style="width:auto; padding: 10px 15px;" onclick="toggleScheduler()"><i class="fa-solid fa-play"></i> Start</button>
+                </div>
+            </div>
+            
+            <h4 style="margin:30px 0 15px 0; font-size:15px; border-bottom:1px solid var(--border-light); padding-bottom:8px;">Daftar Playlist Terjadwal</h4>
+            
+            <form id="formScheduler">
+                <div style="display:flex; gap:15px; flex-wrap:wrap;">
+                    <div class="form-group" style="flex:3; min-width:200px;">
+                        <label>Spotify Playlist URL</label>
+                        <input type="text" id="schedUrl" placeholder="https://open.spotify.com/playlist/..." required>
+                    </div>
+                    <div class="form-group" style="flex:1; min-width:100px;">
+                        <label>Nama (opsional)</label>
+                        <input type="text" id="schedName" placeholder="My Playlist">
+                    </div>
+                    <div class="form-group" style="flex:1; min-width:80px;">
+                        <label>Interval (jam)</label>
+                        <select id="schedInterval">
+                            <option value="6">6 Jam</option>
+                            <option value="12">12 Jam</option>
+                            <option value="24" selected>24 Jam (Harian)</option>
+                            <option value="48">2 Hari</option>
+                            <option value="72">3 Hari</option>
+                            <option value="168">1 Minggu</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" id="btnSched" class="btn btn-spotify"><i class="fa-solid fa-plus"></i> Tambah Playlist</button>
+            </form>
+            
+            <div style="margin-top:20px; overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; text-align:left; font-size:14px;">
+                    <thead>
+                        <tr style="background:rgba(255,255,255,0.05);">
+                            <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Nama</th>
+                            <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">URL</th>
+                            <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Interval</th>
+                            <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Terakhir</th>
+                            <th style="padding:12px 15px; border-bottom:1px solid var(--border-light);">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedTbody">
+                        <tr><td colspan="5" style="padding:15px; text-align:center; color:var(--text-muted);">Belum ada playlist terjadwal.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+<!-- Settings Panel -->
         <div id="settings" class="panel">
             <h3><i class="fa-solid fa-gear"></i> Global Settings</h3>
             <form id="formSettings">
@@ -759,6 +857,8 @@
                 'spotify': ['Spotify Synchronization', 'Keep your local library synced with Spotify'],
                 'metadata': ['Metadata Editor', 'Fix missing album art and ID3 tags'],
                 'servertools': ['Server Utility Tools', 'Batch process files directly on the server'],
+                'notifikasi': ['Notifikasi Telegram', 'Konfigurasi notifikasi otomatis ke Telegram'],
+                'scheduler': ['Auto-Sync Scheduler', 'Jadwalkan sinkronisasi Spotify otomatis'],
                 'system': ['System Daemons', 'Manage background automation services'],
                 'settings': ['Global Settings', 'Configure ZDT core behaviors']
             };
@@ -766,6 +866,8 @@
             document.getElementById('pageSubtitle').innerText = titles[tabId][1];
             
             if(['metadata', 'servertools'].includes(tabId)) loadFiles();
+            if(tabId === 'notifikasi') loadNotifConfig();
+            if(tabId === 'scheduler') { loadSchedulerStatus(); loadScheduledPlaylists(); }
             if(tabId === 'statistik') loadDbStats();
         }
 
@@ -878,6 +980,10 @@
         }
         setInterval(loadStatus, 3000);
         loadStatus();
+        loadNotifConfig();
+        loadSchedulerStatus();
+        loadScheduledPlaylists();
+        setInterval(loadSchedulerStatus, 5000);
 
         // TOAST NOTIFICATION LOGIC
         function showToast(message, type = 'info') {
@@ -1023,7 +1129,192 @@
             }
         }
 
+        
+        // ============================================
+        // NOTIFICATION & SCHEDULER FUNCTIONS
+        // ============================================
+        
+        // Load notification config
+        async function loadNotifConfig() {
+            try {
+                const res = await fetch('/api/notify/config');
+                const data = await res.json();
+                const badge = document.getElementById('notifStatusBadge');
+                if (data.configured) {
+                    badge.className = 'badge badge-active';
+                    badge.innerText = 'Terkonfigurasi';
+                    document.getElementById('notifToken').value = '***saved***';
+                    document.getElementById('notifChatId').value = data.chat_id;
+                } else {
+                    badge.className = 'badge badge-inactive';
+                    badge.innerText = 'Belum dikonfigurasi';
+                }
+            } catch(e) {}
+        }
+        
+        // Save notification config
+        document.getElementById('formNotif').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnNotif');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> MENYIMPAN...';
+            try {
+                const res = await csrfFetch('/api/notify/config', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        token: document.getElementById('notifToken').value,
+                        chat_id: document.getElementById('notifChatId').value
+                    })
+                });
+                const data = await res.json();
+                showToast(data.message, data.success ? 'success' : 'error');
+                if(data.success) loadNotifConfig();
+            } catch(err) { showToast('Connection Error!', 'error'); }
+            btn.disabled = false; btn.innerHTML = originalHtml;
+        });
+        
+        // Test notification
+        async function testNotification() {
+            const btn = document.getElementById('btnTestNotif');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> MENGIRIM...';
+            try {
+                const res = await csrfFetch('/api/notify/test', {method: 'POST'});
+                const data = await res.json();
+                showToast(data.message, data.success ? 'success' : 'error');
+            } catch(err) { showToast('Connection Error!', 'error'); }
+            btn.disabled = false; btn.innerHTML = originalHtml;
+        }
+        
+        // Load scheduler status
+        async function loadSchedulerStatus() {
+            try {
+                const res = await fetch('/api/scheduler/status');
+                const data = await res.json();
+                const badge = document.getElementById('badgeScheduler');
+                const btn = document.getElementById('btnScheduler');
+                if (data.running) {
+                    badge.className = 'badge badge-active';
+                    badge.innerText = 'Running';
+                    btn.className = 'btn btn-danger';
+                    btn.innerHTML = '<i class="fa-solid fa-stop"></i> Stop';
+                } else {
+                    badge.className = 'badge badge-inactive';
+                    badge.innerText = 'Offline';
+                    btn.className = 'btn';
+                    btn.innerHTML = '<i class="fa-solid fa-play"></i> Start';
+                }
+            } catch(e) {}
+        }
+        
+        // Toggle scheduler daemon
+        async function toggleScheduler() {
+            const btn = document.getElementById('btnScheduler');
+            const isRunning = document.getElementById('badgeScheduler').classList.contains('badge-active');
+            const action = isRunning ? 'stop' : 'start';
+            
+            const res = await csrfFetch('/api/daemon', {
+                method: 'POST',
+                body: JSON.stringify({ service: 'scheduler', action })
+            });
+            const data = await res.json();
+            showToast(data.message, data.success ? 'success' : 'error');
+            loadSchedulerStatus();
+        }
+        
+        // Load scheduled playlists
+        async function loadScheduledPlaylists() {
+            try {
+                const res = await fetch('/api/scheduler/playlists');
+                const data = await res.json();
+                const tbody = document.getElementById('schedTbody');
+                if (!data.playlists || data.playlists.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="padding:15px; text-align:center; color:var(--text-muted);">Belum ada playlist terjadwal.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = '';
+                data.playlists.forEach((item, idx) => {
+                    const tr = document.createElement('tr');
+                    const interval = item.interval_hours + ' jam';
+                    const lastRun = item.last_run ? new Date(item.last_run).toLocaleString('id-ID') : 'Belum pernah';
+                    const status = item.last_status === 'ok' ? '<span style="color:var(--accent);">OK</span>' : 
+                                   item.last_status === 'failed' ? '<span style="color:var(--danger);">Failed</span>' : '-';
+                    tr.innerHTML = `
+                        <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.05);">${item.name || '-'}</td>
+                        <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.05); max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${item.url}">${item.url}</td>
+                        <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.05);">${interval}</td>
+                        <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.05); color:var(--text-muted); font-size:12px;">${lastRun} ${status}</td>
+                        <td style="padding:12px 15px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <button class="btn btn-danger" style="width:auto; padding:5px 10px; font-size:11px;" onclick="removeSchedPlaylist(${idx})"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch(e) {}
+        }
+        
+        // Add scheduled playlist
+        document.getElementById('formScheduler').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSched');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> MENYIMPAN...';
+            try {
+                // Get current playlists first
+                const getRes = await fetch('/api/scheduler/playlists');
+                const current = await getRes.json();
+                if (!current.playlists) current.playlists = [];
+                
+                current.playlists.push({
+                    url: document.getElementById('schedUrl').value,
+                    name: document.getElementById('schedName').value || '',
+                    interval_hours: parseInt(document.getElementById('schedInterval').value)
+                });
+                
+                const res = await csrfFetch('/api/scheduler/playlists', {
+                    method: 'POST',
+                    body: JSON.stringify(current)
+                });
+                const data = await res.json();
+                showToast(data.message, data.success ? 'success' : 'error');
+                if (data.success) {
+                    e.target.reset();
+                    loadScheduledPlaylists();
+                }
+            } catch(err) { showToast('Connection Error!', 'error'); }
+            btn.disabled = false; btn.innerHTML = originalHtml;
+        });
+        
+        // Remove scheduled playlist
+        async function removeSchedPlaylist(index) {
+            try {
+                const getRes = await fetch('/api/scheduler/playlists');
+                const current = await getRes.json();
+                current.playlists.splice(index, 1);
+                const res = await csrfFetch('/api/scheduler/playlists', {
+                    method: 'POST', body: JSON.stringify(current)
+                });
+                const data = await res.json();
+                showToast(data.message, 'success');
+                loadScheduledPlaylists();
+            } catch(err) { showToast('Connection Error!', 'error'); }
+        }
+        
+        // Auto-notify: track task completion and send Telegram notification
+        let _notifPreviousLog = '';
+        let _notifTaskActive = false;
+        let _notifTimer = null;
+        
+        // Patch the existing log poller to detect task completion
+        const _origLogInterval = setInterval;
+        // We'll hook into the existing poller by monitoring when log goes from active to idle
+        
+        // ============================================
+        // END NOTIFICATION & SCHEDULER FUNCTIONS
+        // ============================================
+        
         // More menu functions
+
         function toggleMoreMenu() {
             document.getElementById('moreOverlay').classList.toggle('show');
             document.getElementById('moreSheet').classList.toggle('show');
