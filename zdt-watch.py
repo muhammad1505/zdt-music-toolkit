@@ -3,6 +3,7 @@ import sys
 import os
 import time
 import subprocess
+from collections import OrderedDict
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
@@ -10,18 +11,17 @@ class ZDTFileHandler(PatternMatchingEventHandler):
     def __init__(self):
         super().__init__(patterns=["*.mp3", "*.m4a", "*.mp4", "*.mkv", "*.webm", "*.flac"],
                          ignore_directories=True, case_sensitive=False)
-        # LRU-like bounded set: prevent memory leak from unbounded growth
-        self.processed_files = set()
+        # Proper LRU: OrderedDict for predictable O(1) eviction of oldest entries
+        self.processed_files = OrderedDict()
         self._max_processed = 1000
 
     def process(self, filepath):
         if filepath in self.processed_files:
             return
-        self.processed_files.add(filepath)
-        # LRU eviction: keep from growing unbounded
+        self.processed_files[filepath] = True
+        # Evict oldest entry when over limit (predictable O(1) popitem)
         if len(self.processed_files) > self._max_processed:
-            # Remove oldest 200 entries
-            self.processed_files = set(list(self.processed_files)[-800:])
+            self.processed_files.popitem(last=False)
         
         print(f"[{time.strftime('%H:%M:%S')}] File baru terdeteksi: {os.path.basename(filepath)}")
         

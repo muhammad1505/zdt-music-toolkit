@@ -201,6 +201,7 @@ def _create_mock_flask_module(headers_dict=None):
     flask_mod.Flask = MockFlask
     flask_mod.request = MockRequest(headers_dict or {})
     flask_mod.render_template_string = lambda s, **kw: s
+    flask_mod.render_template = lambda s, **kw: s
     flask_mod.jsonify = lambda *args, **kw: args[0] if args else kw
     flask_mod.Response = MockTestResponse
     return flask_mod

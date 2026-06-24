@@ -58,7 +58,8 @@ class TestWebDashboard:
 
     def test_html_template_has_key_elements(self):
         """The HTML template should contain expected UI elements."""
-        with open(os.path.join(PROJECT_DIR, "zdt-web.py")) as f:
+        template_path = os.path.join(PROJECT_DIR, "templates", "dashboard.html")
+        with open(template_path) as f:
             content = f.read()
         # Check for key UI components
         assert "Dashboard" in content
