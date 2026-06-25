@@ -237,6 +237,11 @@ download_ytdlp() {
             if [ -f "$db_script" ]; then
                 local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
                 if [ "$is_dup" = "True" ]; then
+                    if [ "${AUTO_MODE:-0}" = "1" ]; then
+                        # Auto/web mode: skip tanpa prompt (gak ada terminal interaktif)
+                        echo -e "  ${YELLOW}${ICO_WARN} Tautan sudah ada di Database Statistik. Dilewati (auto mode).${RESET}"
+                        continue
+                    fi
                     echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Tautan ini sudah ada di Database Statistik!${RESET}"
                     echo -n -e "  ${CYAN}Apakah Anda yakin ingin mengunduh ulang? (y/N) ${RESET}"
                     read -r dup_confirm
@@ -613,6 +618,11 @@ download_video() {
             if [ -f "$db_script" ]; then
                 local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
                 if [ "$is_dup" = "True" ]; then
+                    if [ "${AUTO_MODE:-0}" = "1" ]; then
+                        # Auto/web mode: skip tanpa prompt (gak ada terminal interaktif)
+                        echo -e "  ${YELLOW}${ICO_WARN} Tautan sudah ada di Database Statistik. Dilewati (auto mode).${RESET}"
+                        continue
+                    fi
                     echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Tautan ini sudah ada di Database Statistik!${RESET}"
                     echo -n -e "  ${CYAN}Apakah Anda yakin ingin mengunduh ulang? (y/N) ${RESET}"
                     read -r dup_confirm

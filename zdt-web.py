@@ -302,11 +302,14 @@ def get_status():
     except Exception:
         pass
     
-    # Count media files
+    # Count media files (recursive, including subdirectories)
     file_count = 0
     if os.path.exists(target):
-        for ext in ['*.mp3','*.m4a','*.flac','*.wav','*.ogg','*.opus','*.mp4','*.mkv']:
-            file_count += len(glob.glob(os.path.join(target, ext)))
+        media_exts = {'.mp3', '.m4a', '.flac', '.wav', '.ogg', '.opus', '.mp4', '.mkv', '.webm'}
+        for root, dirs, files in os.walk(target):
+            for f in files:
+                if os.path.splitext(f)[1].lower() in media_exts:
+                    file_count += 1
     
     return jsonify({
         "target_dir": target,
@@ -324,9 +327,13 @@ def get_files():
     if not os.path.exists(target): return jsonify({"files": []})
     
     files = []
-    for ext in ['*.mp3', '*.m4a', '*.flac', '*.wav', '*.ogg', '*.opus', '*.mp4', '*.mkv', '*.webm']:
-        for f in glob.glob(os.path.join(target, ext)):
-            files.append(os.path.basename(f))
+    media_exts = {'.mp3', '.m4a', '.flac', '.wav', '.ogg', '.opus', '.mp4', '.mkv', '.webm'}
+    for root, dirs, fnames in os.walk(target):
+        for f in fnames:
+            if os.path.splitext(f)[1].lower() in media_exts:
+                # Include relative path to disambiguate files with same name in different dirs
+                rel = os.path.relpath(os.path.join(root, f), target)
+                files.append(rel)
     files.sort()
     return jsonify({"files": files})
 
@@ -544,13 +551,19 @@ def server_tools():
     target = get_target_dir()
     
     # Path traversal protection: ensure filename resolves within target directory
+    # Supports both basenames (legacy) and relative paths (new /api/files recursive)
     if filename:
-        allowed_files = []
+        allowed_files = set()
+        allowed_basenames = set()
         if os.path.exists(target):
-            for ext in ['*.mp3', '*.m4a', '*.flac', '*.wav', '*.ogg', '*.opus', '*.mp4', '*.mkv', '*.webm']:
-                allowed_files.extend(glob.glob(os.path.join(target, ext)))
-        allowed_basenames = {os.path.basename(f) for f in allowed_files}
-        if filename not in allowed_basenames:
+            media_exts = {'.mp3', '.m4a', '.flac', '.wav', '.ogg', '.opus', '.mp4', '.mkv', '.webm'}
+            for root, dirs, fnames in os.walk(target):
+                for f in fnames:
+                    if os.path.splitext(f)[1].lower() in media_exts:
+                        rel = os.path.relpath(os.path.join(root, f), target)
+                        allowed_files.add(rel)
+                        allowed_basenames.add(os.path.basename(f))
+        if filename not in allowed_files and filename not in allowed_basenames:
             return jsonify({"success": False, "message": "File tidak valid atau di luar direktori yang diizinkan."})
     
     zdt_bin = shutil.which("zdt")
