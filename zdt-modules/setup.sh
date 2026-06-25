@@ -407,6 +407,12 @@ install_global() {
     for py_script in zdt-web.py zdt-telegram.py zdt-watch.py; do
         [ -f "$script_dir/$py_script" ] && cp "$script_dir/$py_script" "$target_share/"
     done
+    # Copy templates
+    if [ -d "$script_dir/templates" ]; then
+        mkdir -p "$target_share/templates"
+        cp -r "$script_dir/templates/"* "$target_share/templates/" 2>/dev/null
+        echo -e "  ${GREEN}${ICO_OK} Dashboard template disalin!${RESET}"
+    fi
     # Copy database helper
     [ -f "$script_dir/zdt-modules/zdt_db.py" ] && cp "$script_dir/zdt-modules/zdt_db.py" "$target_share/zdt-modules/"
 

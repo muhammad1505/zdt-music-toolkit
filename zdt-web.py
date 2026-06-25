@@ -21,17 +21,37 @@ except ImportError:
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def _find_templates_dir():
-    """Find templates directory across multiple possible install locations."""
+    """Find templates directory across multiple possible install locations.
+    If not found, auto-create and copy from known sources."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
         os.path.join(script_dir, 'templates'),
         os.path.join(os.path.dirname(script_dir), 'templates'),
         os.path.expanduser('~/.local/share/zdt/templates'),
         '/usr/local/share/zdt/templates',
+        # Also search common project directories for dev setups
+        os.path.join(os.path.dirname(script_dir), 'templates'),
+        os.path.expanduser('~/zdt-music-toolkit/templates'),
     ]
     for candidate in candidates:
         if os.path.isdir(candidate):
             return candidate
+    # Auto-create templates dir at the installed location
+    target_dir = os.path.expanduser('~/.local/share/zdt/templates')
+    target_file = os.path.join(target_dir, 'dashboard.html')
+    # Search for source template in various locations
+    source_candidates = [
+        os.path.join(script_dir, 'templates', 'dashboard.html'),
+        os.path.join(os.path.dirname(script_dir), 'templates', 'dashboard.html'),
+        os.path.expanduser('~/zdt-music-toolkit/templates/dashboard.html'),
+        os.path.join(PROJECT_DIR, 'templates', 'dashboard.html'),
+    ]
+    for src in source_candidates:
+        if os.path.exists(src):
+            os.makedirs(target_dir, exist_ok=True)
+            shutil.copy2(src, target_file)
+            print(f"  📋 Template dashboard copied to {target_file}")
+            return target_dir
     return candidates[0]
 
 WEB_TASK_LOG_PATH = os.environ.get("ZDT_WEB_LOG", os.path.join(tempfile.gettempdir(), "zdt_web_task.log"))
