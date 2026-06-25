@@ -287,8 +287,11 @@ download_ytdlp() {
         echo -e "  ${CYAN}${ICO_ARROW} Mendownload Media...${RESET}"
         local dl_status=0
         local archive_arg=()
-        if [[ "$pilih_archive" =~ ^[Yy]$ ]]; then
+        if [[ "$pilih_archive" =~ ^[Yy]$ ]] || [[ "$pilih_playlist" =~ ^[Yy]$ ]]; then
             archive_arg=("--download-archive" "$TARGET_DIR/.zdt_ytdlp_archive.txt")
+        fi
+        if [[ "$pilih_playlist" =~ ^[Yy]$ ]] && [[ ! "$pilih_archive" =~ ^[Yy]$ ]]; then
+            echo -e "  ${CYAN}${ICO_ARROW} Playlist terdeteksi — Archive System otomatis diaktifkan (skip lagu yg sudah ada).${RESET}"
         fi
         
         local chapter_arg=()
@@ -412,6 +415,14 @@ download_video() {
     if [ -n "$AUTO_DOWNLOAD_URL" ]; then
         links=("$AUTO_DOWNLOAD_URL")
         AUTO_DOWNLOAD_URL=""
+        # Auto-detect playlist URLs — if URL contains list=, download full playlist
+        pilih_playlist="n"
+        for l in "${links[@]}"; do
+            if [[ "$l" == *"list="* ]]; then
+                pilih_playlist="y"
+                break
+            fi
+        done
         step=2
     fi
         while true; do
@@ -668,8 +679,11 @@ download_video() {
         echo -e "  ${CYAN}${ICO_ARROW} Mendownload Video...${RESET}"
         local dl_status=0
         local archive_arg=()
-        if [[ "$pilih_archive" =~ ^[Yy]$ ]]; then
+        if [[ "$pilih_archive" =~ ^[Yy]$ ]] || [[ "$pilih_playlist" =~ ^[Yy]$ ]]; then
             archive_arg=("--download-archive" "$TARGET_DIR/.zdt_ytdlp_video_archive.txt")
+        fi
+        if [[ "$pilih_playlist" =~ ^[Yy]$ ]] && [[ ! "$pilih_archive" =~ ^[Yy]$ ]]; then
+            echo -e "  ${CYAN}${ICO_ARROW} Playlist terdeteksi — Archive System otomatis diaktifkan (skip video yg sudah ada).${RESET}"
         fi
         
         local chapter_arg=()
