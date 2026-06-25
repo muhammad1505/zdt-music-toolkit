@@ -226,18 +226,24 @@ download_ytdlp() {
         echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
         echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
 
-        # Duplicate Detector
-        local db_script="$_MODULES_DIR/zdt_db.py"
-        local db_path="$HOME/.config/zdt/zdt.db"
-        if [ -f "$db_script" ]; then
-            local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
-            if [ "$is_dup" = "True" ]; then
-                echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Tautan ini sudah ada di Database Statistik!${RESET}"
-                echo -n -e "  ${CYAN}Apakah Anda yakin ingin mengunduh ulang? (y/N) ${RESET}"
-                read -r dup_confirm
-                if [[ ! "$dup_confirm" =~ ^[Yy]$ ]]; then
-                    echo -e "  ${GREEN}Dilewati.${RESET}"
-                    continue
+        # Duplicate Detector — skip untuk playlist URLs karena yt-dlp akan handle individual videos
+        local skip_dup=0
+        if [[ "$link" == *"list="* ]] && [[ "$pilih_playlist" =~ ^[Yy]$ ]]; then
+            skip_dup=1
+        fi
+        if [ "$skip_dup" -eq 0 ]; then
+            local db_script="$_MODULES_DIR/zdt_db.py"
+            local db_path="$HOME/.config/zdt/zdt.db"
+            if [ -f "$db_script" ]; then
+                local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
+                if [ "$is_dup" = "True" ]; then
+                    echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Tautan ini sudah ada di Database Statistik!${RESET}"
+                    echo -n -e "  ${CYAN}Apakah Anda yakin ingin mengunduh ulang? (y/N) ${RESET}"
+                    read -r dup_confirm
+                    if [[ ! "$dup_confirm" =~ ^[Yy]$ ]]; then
+                        echo -e "  ${GREEN}Dilewati.${RESET}"
+                        continue
+                    fi
                 fi
             fi
         fi
@@ -596,18 +602,24 @@ download_video() {
         echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
         echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
 
-        # Duplicate Detector
-        local db_script="$_MODULES_DIR/zdt_db.py"
-        local db_path="$HOME/.config/zdt/zdt.db"
-        if [ -f "$db_script" ]; then
-            local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
-            if [ "$is_dup" = "True" ]; then
-                echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Tautan ini sudah ada di Database Statistik!${RESET}"
-                echo -n -e "  ${CYAN}Apakah Anda yakin ingin mengunduh ulang? (y/N) ${RESET}"
-                read -r dup_confirm
-                if [[ ! "$dup_confirm" =~ ^[Yy]$ ]]; then
-                    echo -e "  ${GREEN}Dilewati.${RESET}"
-                    continue
+        # Duplicate Detector — skip untuk playlist URLs karena yt-dlp akan handle individual videos
+        local skip_dup=0
+        if [[ "$link" == *"list="* ]] && [[ "$pilih_playlist" =~ ^[Yy]$ ]]; then
+            skip_dup=1
+        fi
+        if [ "$skip_dup" -eq 0 ]; then
+            local db_script="$_MODULES_DIR/zdt_db.py"
+            local db_path="$HOME/.config/zdt/zdt.db"
+            if [ -f "$db_script" ]; then
+                local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
+                if [ "$is_dup" = "True" ]; then
+                    echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Tautan ini sudah ada di Database Statistik!${RESET}"
+                    echo -n -e "  ${CYAN}Apakah Anda yakin ingin mengunduh ulang? (y/N) ${RESET}"
+                    read -r dup_confirm
+                    if [[ ! "$dup_confirm" =~ ^[Yy]$ ]]; then
+                        echo -e "  ${GREEN}Dilewati.${RESET}"
+                        continue
+                    fi
                 fi
             fi
         fi
