@@ -30,6 +30,17 @@ _ensure_python_tool() {
     fi
 
     if [ "$required" = "1" ]; then
+        if [ "${AUTO_MODE:-0}" = "1" ]; then
+            # CLI/non-interactive mode: auto-install without prompting
+            echo -e "  ${YELLOW}${ICO_WARN} $display_name belum terinstal. Menginstal otomatis...${RESET}"
+            install_missing_tools >/dev/null 2>&1
+            if command -v "$tool_name" >/dev/null 2>&1 || [ -f "$ZDT_VENV_DIR/bin/$tool_name" ]; then
+                return 0
+            else
+                echo -e "  ${RED}${ICO_FAIL} Gagal menginstal $display_name. Jalankan 'zdt' lalu menu [1] Setup.${RESET}"
+                return 1
+            fi
+        fi
         echo -e "  ${YELLOW}${ICO_WARN} $display_name belum terinstal!${RESET}"
         echo -e -n "  ${BOLD}[?] Instal sekarang? (Y/n): ${RESET}"
         local ans
@@ -534,10 +545,12 @@ _parse_args() {
                 ;;
             --web|web)
                 MAIN_MODE="web"
+                AUTO_MODE=1
                 shift
                 ;;
             --telegram)
                 MAIN_MODE="telegram"
+                AUTO_MODE=1
                 shift
                 ;;
             *)
@@ -552,14 +565,6 @@ _parse_args() {
     if [ -n "$MAIN_MODE" ]; then
         _setup_colors; _setup_unicode; _init_logging; _load_config; _load_storage_dir
         case "$MAIN_MODE" in
-            web)
-                start_web_dashboard
-                exit 0
-                ;;
-            telegram)
-                start_telegram_bot
-                exit 0
-                ;;
             clean_file)
                 _bersih_satu_nama "$CLEAN_FILE"
                 exit 0

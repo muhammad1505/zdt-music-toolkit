@@ -70,6 +70,8 @@ main() {
             sync_lirik) AUTO_SYNC_LIRIK="1"; auto_sync_lirik ;;
             bersih_nama) bersih_nama_otomatis "." "all" ;;
             bikin_playlist) bikin_playlist ;;
+            web) start_web_dashboard ;;
+            telegram) start_telegram_bot ;;
         esac
         exit 0
     fi
