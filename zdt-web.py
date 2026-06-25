@@ -161,6 +161,23 @@ def _ensure_password():
         print(f"  Saved to: {config_file}")
         print(f"{'='*60}\n")
 
+def _print_credentials():
+    """Print login credentials on every startup."""
+    config_file = CONFIG_FILE
+    conf_user, conf_pass = "", ""
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("ZDT_WEB_USER="):
+                    conf_user = line.split("=", 1)[1].strip('"\'')
+                elif line.startswith("ZDT_WEB_PASS="):
+                    conf_pass = line.split("=", 1)[1].strip('"\'')
+    if conf_user and conf_pass:
+        print(f"  🔐 Login: {conf_user} / {conf_pass}")
+    else:
+        print(f"  🔐 Login: admin / (lihat output terminal di atas)")
+
 def check_auth(username, password):
     config_file = CONFIG_FILE
     conf_user, conf_pass = "", ""
@@ -762,6 +779,8 @@ def scheduler_save_playlists():
 
 if __name__ == '__main__':
     _ensure_password()
+    # Always print credentials on every startup
+    _print_credentials()
     # Auto-start scheduler daemon in background if configured
     try:
         scheduler_config = os.path.expanduser("~/.config/zdt/scheduler.json")
