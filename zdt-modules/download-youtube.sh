@@ -39,11 +39,18 @@ download_ytdlp() {
         pilih_chapter="n"
         pilih_lirik="n"
         pilih_kompres="n"
-        pilih_playlist="n"
-        if [ -z "$links" ] || [ -z "${links[*]}" ]; then
-            echo -e "  ${RED}${ICO_FAIL} URL kosong! Batal.${RESET}"
-            return 0
+    # Auto-detect playlist URLs — if URL contains list=, download full playlist
+    pilih_playlist="n"
+    for l in "${links[@]}"; do
+        if [[ "$l" == *"list="* ]]; then
+            pilih_playlist="y"
+            break
         fi
+    done
+    if [ -z "$links" ] || [ -z "${links[*]}" ]; then
+        echo -e "  ${RED}${ICO_FAIL} URL kosong! Batal.${RESET}"
+        return 0
+    fi
     else
         links=()
     fi

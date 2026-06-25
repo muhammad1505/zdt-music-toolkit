@@ -55,9 +55,21 @@ if [ -f "zdt-web.py" ]; then
     chmod +x "$SHAREDIR/zdt-web.py"
 fi
 
+# Copy web dashboard templates
+if [ -d "templates" ] && [ -n "$(ls -A templates/ 2>/dev/null)" ]; then
+    mkdir -p "$SHAREDIR/templates"
+    cp -r templates/* "$SHAREDIR/templates/"
+    echo -e "${GREEN}Templates:${NC} Web dashboard templates installed."
+fi
+
 if [ -f "zdt-watch.py" ]; then
     cp zdt-watch.py "$SHAREDIR/"
     chmod +x "$SHAREDIR/zdt-watch.py"
+fi
+
+if [ -f "zdt-scheduler.py" ]; then
+    cp zdt-scheduler.py "$SHAREDIR/"
+    chmod +x "$SHAREDIR/zdt-scheduler.py"
 fi
 
 # Copy module files

@@ -334,6 +334,10 @@ hapus_semua() {
     
     local target="${STORAGE_DIR:-${TARGET_DIR:-${ROOT_DIR:-.}}}"
     
+    echo -e "  ${CYAN}${ICO_ARROW} Target direktori: ${YELLOW}$target${RESET}"
+    echo -e "  ${CYAN}${ICO_ARROW} Direktori aktif saat ini: ${YELLOW}$(pwd)${RESET}"
+    echo ""
+    
     # Safety: refuse to operate on dangerous paths
     if [ "$target" = "." ] || [ "$target" = "/" ] || [ "$target" = "$HOME" ] || [ "$target" = "/root" ] || [ "$target" = "/home" ]; then
         echo -e "  ${RED}${ICO_DANGER} DITOLAK! Target direktori tidak aman: $target${RESET}"

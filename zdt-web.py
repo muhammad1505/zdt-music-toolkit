@@ -24,14 +24,14 @@ def _find_templates_dir():
     """Find templates directory across multiple possible install locations.
     If not found, auto-create and copy from known sources."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    cwd = os.getcwd()
     candidates = [
         os.path.join(script_dir, 'templates'),
         os.path.join(os.path.dirname(script_dir), 'templates'),
         os.path.expanduser('~/.local/share/zdt/templates'),
         '/usr/local/share/zdt/templates',
-        # Also search common project directories for dev setups
-        os.path.join(os.path.dirname(script_dir), 'templates'),
         os.path.expanduser('~/zdt-music-toolkit/templates'),
+        os.path.join(cwd, 'templates'),  # dev mode: running from project dir
     ]
     for candidate in candidates:
         if os.path.isdir(candidate):
@@ -45,6 +45,7 @@ def _find_templates_dir():
         os.path.join(os.path.dirname(script_dir), 'templates', 'dashboard.html'),
         os.path.expanduser('~/zdt-music-toolkit/templates/dashboard.html'),
         os.path.join(PROJECT_DIR, 'templates', 'dashboard.html'),
+        os.path.join(cwd, 'templates', 'dashboard.html'),  # dev mode
     ]
     for src in source_candidates:
         if os.path.exists(src):
@@ -340,8 +341,13 @@ def manage_daemon():
     
     # Try multiple locations for scripts
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    cwd = os.getcwd()
     def find_script(name):
-        for p in [os.path.join(script_dir, name), os.path.expanduser(f"~/.local/share/zdt/{name}")]:
+        for p in [
+            os.path.join(script_dir, name),
+            os.path.expanduser(f"~/.local/share/zdt/{name}"),
+            os.path.join(cwd, name),  # dev mode
+        ]:
             if os.path.exists(p): return p
         return os.path.join(script_dir, name)
     script_map = {
@@ -579,16 +585,28 @@ def server_tools():
         elif action == 'delete_all':
             if not os.path.exists(target): return jsonify({"success": False, "message": "Direktori kosong."})
             count = 0
+            dirs_removed = 0
             media_exts = {'.mp3', '.m4a', '.flac', '.wav', '.ogg', '.opus', '.mp4', '.mkv', '.webm', '.avi', '.mov', '.ts', '.jpg', '.jpeg', '.png', '.lrc', '.m3u', '.srt'}
-            for f in os.listdir(target):
-                fp = os.path.join(target, f)
-                if os.path.isfile(fp) and os.path.splitext(f)[1].lower() in media_exts:
+            # Walk recursively through all subdirectories (bottom-up for safe dir removal)
+            for root, dirs, files in os.walk(target, topdown=False):
+                for f in files:
+                    if os.path.splitext(f)[1].lower() in media_exts:
+                        fp = os.path.join(root, f)
+                        try:
+                            os.remove(fp)
+                            count += 1
+                        except OSError:
+                            pass
+                # Remove empty directories after deleting their files
+                for d in dirs:
+                    dp = os.path.join(root, d)
                     try:
-                        os.remove(fp)
-                        count += 1
+                        if not os.listdir(dp):  # only if empty
+                            os.rmdir(dp)
+                            dirs_removed += 1
                     except OSError:
                         pass
-            return jsonify({"success": True, "message": f"Berhasil menghapus {count} file media dari Storage!"})
+            return jsonify({"success": True, "message": f"Berhasil menghapus {count} file & {dirs_removed} folder dari Storage!"})
 
         elif action == 'demucs':
             if not filename: return jsonify({"success": False, "message": "Pilih file."})
@@ -678,17 +696,27 @@ def clear_logs():
 # ============================================
 
 def _send_telegram_message(bot_token, chat_id, message):
-    """Send a message via Telegram Bot API."""
+    """Send a message via Telegram Bot API.
+    Returns dict on success, or error string on failure."""
     import urllib.request, json as _json
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = _json.dumps({"chat_id": chat_id, "text": message, "parse_mode": "HTML"}).encode()
+    # Convert numeric chat_id to int to avoid API issues with supergroups
+    try:
+        chat_id_val = int(chat_id)
+    except (ValueError, TypeError):
+        chat_id_val = chat_id
+    payload = _json.dumps({"chat_id": chat_id_val, "text": message, "parse_mode": "HTML"}).encode()
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return _json.loads(resp.read())
+    except urllib.request.HTTPError as e:
+        body = e.read().decode(errors='replace')
+        print(f"Telegram notify error: {e.code} - {body}")
+        return f"Telegram API {e.code}: {body}"
     except Exception as e:
         print(f"Telegram notify error: {e}")
-        return None
+        return str(e)
 
 def _get_telegram_config():
     """Get Telegram notification config from config file."""
@@ -760,7 +788,7 @@ def notify_test():
     if not token or not chat_id:
         return jsonify({"success": False, "message": "Notify belum dikonfigurasi."})
     result = _send_telegram_message(token, chat_id, "🔔 <b>ZDT Test Notification</b>\nWeb dashboard terhubung dengan notifikasi Telegram!")
-    if result and result.get('ok'):
+    if isinstance(result, dict) and result.get('ok'):
         return jsonify({"success": True, "message": "Test notification terkirim! Cek Telegram."})
     return jsonify({"success": False, "message": f"Gagal kirim: {result}"})
 
@@ -805,8 +833,17 @@ if __name__ == '__main__':
     try:
         scheduler_config = os.path.expanduser("~/.config/zdt/scheduler.json")
         if os.path.exists(scheduler_config):
-            scheduler_script = os.path.join(PROJECT_DIR, "zdt-scheduler.py")
-            if os.path.exists(scheduler_script):
+            # Search for scheduler script in multiple locations
+            cwd = os.getcwd()
+            scheduler_script = next(
+                (p for p in [
+                    os.path.join(PROJECT_DIR, "zdt-scheduler.py"),
+                    os.path.expanduser("~/.local/share/zdt/zdt-scheduler.py"),
+                    os.path.join(cwd, "zdt-scheduler.py"),
+                ] if os.path.exists(p)),
+                None
+            )
+            if scheduler_script and os.path.exists(scheduler_script):
                 scheduler_python = os.environ.get("ZDT_VENV_PYTHON", sys.executable)
                 subprocess.Popen(
                     [scheduler_python, scheduler_script],
