@@ -375,6 +375,14 @@ Ubah Storage: [AUTO_ACTION: ubah storage]
 
 Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}.
 
+ATURAN FORMAT RESPON:
+- Pakai format Telegram Markdown: *bold* untuk teks tebal (bukan **bold**)
+- JANGAN pakai ### atau ## atau # heading — Telegram gak support
+- Pake bullet • atau - untuk daftar, jangan pake * karena bentrok markdown
+- Pisah paragraf dengan baris kosong (double newline)
+- Jangan double space
+AWALI DAN AKHIRI dengan kalimat santai khas anak muda Indonesia
+
 ATURAN: JIKA user menyuruh EKSEKUSI aksi, WAJIB sertakan tag AUTO_ACTION!
 JIKA user hanya tanya/curhat/minta penjelasan, JANGAN pakai AUTO_ACTION!
 Jawab dengan informatif dan detail tentang fitur ZDT.
@@ -611,9 +619,9 @@ Riwayat Chat Terbaru:
                                 
                             clean_reply = re.sub(r"\[AUTO_ACTION:.*?\]", "", reply_text).strip()
                             if clean_reply:
-                                bot.reply_to(message, clean_reply)
+                                bot.reply_to(message, clean_reply, parse_mode="Markdown")
                             return
-                    bot.reply_to(message, reply_text)
+                    bot.reply_to(message, reply_text, parse_mode="Markdown")
                     
                 # Dual-key routing: prefer OpenRouter if openrouter_key exists
                 if openrouter_key:
@@ -639,7 +647,7 @@ Riwayat Chat Terbaru:
                                     reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
                                 else:
                                     content = res.get("choices", [{}])[0].get("message", {}).get("content")
-                                    reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                                    reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip()
                                 break
                         except urllib.error.HTTPError as e:
                             err_msg = e.read().decode()
@@ -668,7 +676,7 @@ Riwayat Chat Terbaru:
                         reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
                     else:
                         content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
-                        reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                        reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip()
                     process_reply(reply_text)
                     return
                     
