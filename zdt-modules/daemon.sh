@@ -139,13 +139,13 @@ start_web_dashboard() {
     echo -e "  ${YELLOW}${ICO_ARROW} Menyalakan Web Dashboard...${RESET}"
 
     # Baca credentials asli dari config.env (bukan hardcoded "admin")
-    local _actual_user _actual_pass
+    local _actual_user="" _actual_pass=""
     if [ -f "$ZDT_CONFIG_FILE" ]; then
         _actual_user=$(grep "^ZDT_WEB_USER=" "$ZDT_CONFIG_FILE" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
         _actual_pass=$(grep "^ZDT_WEB_PASS=" "$ZDT_CONFIG_FILE" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")
     fi
-    if [ -z "$_actual_user" ]; then _actual_user="admin"; fi
-    if [ -z "$_actual_pass" ]; then _actual_pass="(auto-generated on first run)"; fi
+    [ -z "$_actual_user" ] && _actual_user="admin"
+    [ -z "$_actual_pass" ] && _actual_pass="(auto-generated on first run)"
     echo -e "  ${CYAN}${ICO_WARN} INFO AUTH: Username = ${BOLD}$_actual_user${RESET} | Password = ${BOLD}$_actual_pass${RESET}"
     echo ""
     
