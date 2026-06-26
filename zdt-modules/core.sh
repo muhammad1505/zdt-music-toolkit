@@ -20,6 +20,9 @@ CONF_VIDEO_FMT="4"
 
 # Global Variables Initialization (Strict Mode Safe)
 AUTO_DOWNLOAD_URL=""
+AUTO_MODE=""
+AUTO_FORMAT_SPEC=""
+AUTO_BITRATE=""
 ZDT_AUTO_KOMPRES=""
 ZDT_AUTO_VOKAL=""
 AUTO_SYNC_LIRIK=""
