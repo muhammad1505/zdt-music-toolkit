@@ -19,7 +19,7 @@ MINOR=${VER[1]}
 PATCH=${VER[2]}
 
 if [ "$BUMP_TYPE" = "patch" ]; then
-    if [ "$PATCH" -eq 9 ]; then
+    if [ "$PATCH" -ge 99 ]; then
         MINOR=$((MINOR + 1))
         PATCH=0
     else
