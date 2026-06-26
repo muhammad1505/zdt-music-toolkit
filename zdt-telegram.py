@@ -44,6 +44,24 @@ logging.basicConfig(
 )
 telebot.logger.setLevel(logging.INFO)
 
+def _format_tg(text):
+    """Convert AI markdown response to Telegram-safe HTML."""
+    import re, html as html_mod
+    text = html_mod.escape(text)
+    # Headers -> bold
+    text = re.sub(r'^#{1,3}\s+(.+)$', r'<b>\1</b>', text, flags=re.MULTILINE)
+    # **bold** -> <b>bold</b>
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
+    # *italic* -> <i>italic</i> (but not bullet points)
+    text = re.sub(r'(?<!\n)\*([^*\n]+?)\*', r'<i>\1</i>', text)
+    # `code` -> <code>code</code>
+    text = re.sub(r'`([^`]+?)`', r'<code>\1</code>', text)
+    # Bullet points: * item -> • item
+    text = re.sub(r'^\*\s+', '• ', text, flags=re.MULTILINE)
+    # Clean excessive newlines
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
 chat_history = {}
 
 original_send_message = bot.send_message
@@ -276,135 +294,44 @@ def auto_download_audio(message):
                 if search_context:
                     search_context = f"\\n\\nInfo Hasil Pencarian Terakhir (Ganti nomor dengan URL yang sesuai jika user memilih):\\n{search_context}"
                         
-                prompt = f'''Peranmu Zaki-Bot, asisten cerdas ZDT Music Toolkit Telegram Bot.
+                prompt = f'''Kamu Zaki-Bot, asisten Telegram untuk ZDT Music Toolkit. Bahasa gaul Indonesia, singkat, max 3-5 kalimat.
 
-## PENGETAHUAN APLIKASI ZDT
-ZDT adalah toolkit manajemen musik/video berbasis CLI + Web + Telegram.
+FITUR ZDT: Download YouTube/Spotify, Kompres Audio/Video, Pisah Vokal (Demucs AI), Sync Lirik, Bersih Nama File, Buat Playlist M3U, Web Dashboard (port 5678), Watch Daemon, Scheduler Daemon.
 
-### CLI MENU UTAMA (18 menu):
-1. Download YouTube — download audio/video dari YT
-2. Download Spotify — download lagu/playlist/album dari Spotify
-3. Kompres Audio — kompres file audio pakai FFmpeg
-4. Kompres Video — kompres file video pakai FFmpeg
-5. Pisah Vokal — ekstrak vokal/instrumen pakai Demucs AI
-6. Sync Lirik — cari dan sync lirik otomatis
-7. Bersih Nama File — rapikan nama file berantakan
-8. Buat Playlist M3U — buat playlist .m3u8
-9. Info Sistem — cek disk, RAM, CPU, uptime
-10. Metadata Editor — edit judul, artis, album
-11. Setup Tools — install dependencies
-12. Watch Daemon — pantau folder, proses file baru
-13. Web Dashboard — antarmuka web (port 5678)
-14. Zaki AI — asisten AI pintar
-15. Telegram Bot — kontrol via Telegram
-16. Update ZDT — update skrip via git
-17. Storage Setup — ubah folder penyimpanan
-18. Keluar
+TELEGRAM COMMANDS: /audio <url>, /video <url>, /status, /ping, /start, /demucs, /kompres.
+Inline buttons: Kompres, Vokal, Bersih Nama, Sync Lirik, Playlist.
 
-### CLI ARGUMENTS:
---help, --download-audio URL, --download-video URL
---sync-lirik-all, --bersih-nama-all, --bikin-playlist-all
---setup, --update, --watch, --web, --telegram
+AUTO_ACTION (WAJIB jika user suruh eksekusi):
+- Download: [AUTO_ACTION: gas download audio ytsearch1:judul]
+- Download video: [AUTO_ACTION: gas download video ytsearch1:judul]
+- Cari: [AUTO_ACTION: cari youtube kata_kunci]
+- Pisah vokal: [AUTO_ACTION: hapus vokal]
+- Kompres: [AUTO_ACTION: kompres media]
+- Lirik: [AUTO_ACTION: sync lirik]
+- Bersih nama: [AUTO_ACTION: bersih nama]
+- Playlist: [AUTO_ACTION: bikin playlist]
+- Status: [AUTO_ACTION: cek status]
+- Hapus semua: [AUTO_ACTION: hapus semua]
 
-### WEB DASHBOARD (port 5678):
-Monitoring: Disk, RAM, CPU + uptime (Chart.js bar charts)
-AI API: status Gemini/OpenRouter
-Watch: start/stop/status daemon
-Notifikasi: konfigurasi Telegram Bot Token + Chat ID
-Scheduler: daftar playlist Spotify terjadwal
-Login: admin + password dari config.env
-Auto-refresh tiap 1.5 detik
-
-### TELEGRAM BOT COMMANDS:
-/audio <url> - download audio
-/video <url> - download video
-/status - cek server
-/ping - cek latensi
-/start - menu bantuan
-/demucs - pilih file pisah vokal
-/kompres - pilih file kompresi
-Inline buttons: Kompres, Ekstrak Vokal, Bersih Nama, Sync Lirik, Bikin Playlist
-
-### AI BACKEND:
-OpenRouter 3-tier fallback:
-- Tier 1: qwen/qwen3-coder-next:free, deepseek/deepseek-v4-flash:free, google/gemma-4-31b-it:free
-- Tier 2: nvidia/nemotron-3-super:free, minimax/minimax-m2.5:free, meta-llama/llama-3.3-70b-instruct:free
-- Tier 3: openrouter/free (auto-select)
-Gemini: gemini-1.5-flash (secondary fallback)
-History: 6 pesan terakhir per chat (SQLite)
-Config keys: ~/.config/zdt/gemini_key atau ~/.config/zdt/openrouter_key
-
-### DAEMONS:
-1. Watch Daemon (zdt-watch.py): monitor folder download, auto-proses file baru
-2. Scheduler Daemon (zdt-scheduler.py): download playlist Spotify terjadwal
-   Baca jadwal dari ~/.config/zdt/scheduler.json
-   Kirim notif Telegram via webhook kalau selesai
-   Status: start/stop dari Web Dashboard
-
-### CONFIG FILES:
-~/.config/zdt/config.env - main config
-~/.config/zdt/gemini_key - Gemini API key
-~/.config/zdt/openrouter_key - OpenRouter API key
-~/.config/zdt/telegram_token.txt - Telegram Bot token
-~/.config/zdt/scheduler.json - scheduler config
-~/.config/zdt/zdt_history.db - SQLite chat history
-Storage: ~/Music/ZDT/ (default, bisa diubah)
-
-### SYSTEMD SERVICE:
-zdt-scheduler.service + zdt-scheduler.timer (auto-start on boot via systemd)
-
-### AUTO_ACTION TAGS (18 jenis):
-Download Audio/Lagu: [AUTO_ACTION: gas download audio ytsearch1:judul atau URL]
-Download Video: [AUTO_ACTION: gas download video ytsearch1:judul atau URL]
-Cari YouTube: [AUTO_ACTION: cari youtube kata_kunci]
-Cari Playlist: [AUTO_ACTION: cari playlist kata_kunci]
-Pisah Vokal: [AUTO_ACTION: hapus vokal]
-Kompres Media: [AUTO_ACTION: kompres media]
-Cari Lirik: [AUTO_ACTION: sync lirik]
-Rapi Nama File: [AUTO_ACTION: bersih nama]
-Buat Playlist: [AUTO_ACTION: bikin playlist]
-Hapus Semua File: [AUTO_ACTION: hapus semua]
-Cek Status Server: [AUTO_ACTION: cek status]
-Buka Web Dashboard: [AUTO_ACTION: buka web]
-Setup Tools: [AUTO_ACTION: setup tools]
-Update Tools: [AUTO_ACTION: update tools]
-Start Telegram Bot: [AUTO_ACTION: start telegram]
-Start Watch Daemon: [AUTO_ACTION: start watch]
-Buka Scheduler: [AUTO_ACTION: buka scheduler]
-Ubah Storage: [AUTO_ACTION: ubah storage]
-
-Info: Lokasi file di "{abs_path}". Isi file: {dir_contents}.
-
-ATURAN: JIKA user menyuruh EKSEKUSI aksi, WAJIB sertakan tag AUTO_ACTION!
-JIKA user hanya tanya/curhat/minta penjelasan, JANGAN pakai AUTO_ACTION!
-Jawab dengan informatif dan detail tentang fitur ZDT.
+ATURAN:
+- Jika user minta AKSI → sertakan AUTO_ACTION tag
+- Jika user tanya/ngobrol → jawab singkat TANPA AUTO_ACTION
+- JANGAN pakai markdown heading (###), pakai emoji saja
+- Jawab SINGKAT dan to the point, max 5 kalimat
 
 Contoh:
-User: download lagu tulus
+User: lu bisa apa bro
+Bot: Gue bisa download lagu/video, kompres file, pisahin vokal, sync lirik, bersihin nama file, dan masih banyak lagi! Ketik /start buat liat menu lengkap 🎵
+
+User: download tulus
 Bot: Gas download Tulus! 🎵 [AUTO_ACTION: gas download audio ytsearch1:Tulus]
 
-User: cek status server
-Bot: Cek status bentar! 📊 [AUTO_ACTION: cek status]
+User: cek server
+Bot: Cek status! 📊 [AUTO_ACTION: cek status]
 
-User: apa itu zdt
-Bot: ZDT adalah toolkit manajemen musik/video... (jelaskan fitur lengkap)
-
-User: cara setup telegram
-Bot: 1) Bikin bot di @BotFather, 2) Simpan token di ~/.config/zdt/telegram_token.txt
-
-User: daemon apa aja yang jalan
-Bot: Ada 2 daemon: Watch Daemon (pantau folder) dan Scheduler Daemon (download terjadwal). Status di Web Dashboard.
-
-User: gimana cara pake scheduler
-Bot: Buka Web Dashboard -> panel Scheduler. Tambah URL playlist Spotify, atur interval, start daemon.
-
-User: lagu yang tadi gak jadi
-Bot: Oke, gak jadi! Ada yang lain bisa dibantu?
-
+Storage: {abs_path}. File: {dir_contents}
 {search_context}
-
-Riwayat Chat Terbaru:
-{history_context}'''
+Chat: {history_context}'''
 
                 def process_reply(reply_text):
                     if "[AUTO_ACTION:" in reply_text:
@@ -611,9 +538,9 @@ Riwayat Chat Terbaru:
                                 
                             clean_reply = re.sub(r"\[AUTO_ACTION:.*?\]", "", reply_text).strip()
                             if clean_reply:
-                                bot.reply_to(message, clean_reply)
+                                bot.reply_to(message, _format_tg(clean_reply), parse_mode="HTML")
                             return
-                    bot.reply_to(message, reply_text)
+                    bot.reply_to(message, _format_tg(reply_text), parse_mode="HTML")
                     
                 # Dual-key routing: prefer OpenRouter if openrouter_key exists
                 if openrouter_key:
@@ -639,7 +566,7 @@ Riwayat Chat Terbaru:
                                     reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
                                 else:
                                     content = res.get("choices", [{}])[0].get("message", {}).get("content")
-                                    reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                                    reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip()
                                 break
                         except urllib.error.HTTPError as e:
                             err_msg = e.read().decode()
@@ -668,7 +595,7 @@ Riwayat Chat Terbaru:
                         reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
                     else:
                         content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
-                        reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip().replace("\n", " ")
+                        reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip()
                     process_reply(reply_text)
                     return
                     
