@@ -420,10 +420,9 @@ KONTEKS: Storage=$abs_path ($file_count file). Isi: $dir_contents"
                 # OpenRouter — Multi-tier fallback (max 3 models per request)
                 local or_url="https://openrouter.ai/api/v1/chat/completions"
                 local or_tiers=(
-                    '["google/gemini-2.0-flash-lite-preview-02-05:free","meta-llama/llama-3.3-70b-instruct:free"]'
-                    '["nvidia/nemotron-3-super-120b-a12b:free","qwen/qwen3-next-80b-a3b-instruct:free"]'
-                    '["google/gemma-4-31b-it:free","nousresearch/hermes-3-llama-3.1-405b:free"]'
-                    '["nex-agi/nex-n2-pro:free","openai/gpt-oss-120b:free"]'
+                    '["google/gemma-4-31b-it:free","google/gemma-4-26b-a4b-it:free"]'
+                    '["nvidia/nemotron-3-super-120b-a12b:free","meta-llama/llama-3.3-70b-instruct:free"]'
+                    '["nousresearch/hermes-3-llama-3.1-405b:free","meta-llama/llama-3.2-3b-instruct:free"]'
                 )
 
                 local or_parse='
@@ -528,7 +527,7 @@ except Exception:
 import sys, json
 try:
     payload = {
-        'models': ['google/gemini-2.0-flash-lite-preview-02-05:free', 'meta-llama/llama-3.3-70b-instruct:free'],
+        'models': ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free'],
         'messages': [{'role': 'system', 'content': sys.argv[1]}, {'role': 'user', 'content': sys.argv[2]}],
         'max_tokens': 1000
     }
