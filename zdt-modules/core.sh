@@ -320,6 +320,15 @@ _rotate_log() {
         local size
         size=$(stat -c%s "$LOG_FILE" 2>/dev/null || stat -f%z "$LOG_FILE" 2>/dev/null || wc -c < "$LOG_FILE" 2>/dev/null || echo 0)
         if [ "$size" -gt "$MAX_LOG_SIZE" ]; then
+            # Keep up to 5 rotated logs, compressed
+            if [ -f "${LOG_FILE}.4.gz" ]; then mv "${LOG_FILE}.4.gz" "${LOG_FILE}.5.gz" 2>/dev/null || true; fi
+            if [ -f "${LOG_FILE}.3.gz" ]; then mv "${LOG_FILE}.3.gz" "${LOG_FILE}.4.gz" 2>/dev/null || true; fi
+            if [ -f "${LOG_FILE}.2.gz" ]; then mv "${LOG_FILE}.2.gz" "${LOG_FILE}.3.gz" 2>/dev/null || true; fi
+            if [ -f "${LOG_FILE}.1.gz" ]; then mv "${LOG_FILE}.1.gz" "${LOG_FILE}.2.gz" 2>/dev/null || true; fi
+            if [ -f "${LOG_FILE}.old" ]; then
+                gzip -c "${LOG_FILE}.old" > "${LOG_FILE}.1.gz" 2>/dev/null || true
+                rm -f "${LOG_FILE}.old" 2>/dev/null || true
+            fi
             mv "$LOG_FILE" "${LOG_FILE}.old" 2>/dev/null || true
         fi
     fi
@@ -438,8 +447,12 @@ _config_set() {
         flock -w 5 $lock_fd 2>/dev/null || true
     fi
 
+    # Atomic write: read entire file, modify, write back — all inside lock scope
     if [ -f "$config_file" ]; then
-        local tmp_file="${config_file}.tmp.$$"
+        # Use mktemp for safe temp file (prevents symlink attacks & race conditions)
+        local tmp_file
+        tmp_file=$(mktemp "${TMPDIR:-/tmp}/zdt_config_XXXXXX" 2>/dev/null || echo "/tmp/zdt_config_$$")
+        # Baca file di dalam lock, tulis key baru, lalu mv atomic
         grep -v "^${key}=" "$config_file" > "$tmp_file" 2>/dev/null || true
         echo "${key}=${value}" >> "$tmp_file"
         mv -- "$tmp_file" "$config_file"
@@ -465,7 +478,8 @@ _config_unset() {
             flock -w 5 $lock_fd 2>/dev/null || true
         fi
 
-        local tmp_file="${config_file}.tmp.$$"
+        local tmp_file
+        tmp_file=$(mktemp "${TMPDIR:-/tmp}/zdt_config_XXXXXX" 2>/dev/null || echo "/tmp/zdt_config_$$")
         grep -v "^${key}=" "$config_file" > "$tmp_file" 2>/dev/null || true
         mv -- "$tmp_file" "$config_file"
 
@@ -521,9 +535,10 @@ _trap_ctrlc() {
     find "${ROOT_DIR:-.}" -type f -name "*_temp.*" -delete 2>/dev/null
     echo -e "  ${GREEN}${ICO_OK} Bersih! Kembali ke menu utama...${RESET}"
     sleep 1
-    cd "$ROOT_DIR" || exit 1
+    cd "$ROOT_DIR" || true
     _release_lock
-    exec bash "$SCRIPT_PATH" "${ORIGINAL_ARGS[@]}"
+    # Jangan restart aplikasi — biarkan fungsi yang terinterupsi selesai
+    # lalu kembali ke main loop secara alami. Subprocess (yt-dlp, ffmpeg) sudah di-kill oleh sinyal.
 }
 
 _trap_exit() {

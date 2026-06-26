@@ -243,8 +243,8 @@ update_zdt_script() {
             # Download ALL shell modules
             local mod_dir="$share_dir/zdt-modules"
             mkdir -p "$mod_dir"
-            # Clean up stale module from previous buggy OTA
-            rm -f "$mod_dir/download.sh"
+            # Clean up any stale modules from previous versions
+            rm -f "$mod_dir/download.sh" 2>/dev/null || true
             echo -e "  ${CYAN}${ICO_ARROW} Mengupdate shell modules...${RESET}"
             for mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
                 curl -sL "${base_url}/zdt-modules/${mod}.sh${cache_bust}" -o "${mod_dir}/${mod}.sh" 2>/dev/null

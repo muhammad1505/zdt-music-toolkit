@@ -4,7 +4,7 @@ export LC_ALL=C.UTF-8
 # zdt.sh — Universal Music Toolkit (Modular Build)
 # Version : 4.1.97
 set -uo pipefail
-readonly APP_VERSION="4.2.6"
+readonly APP_VERSION="4.2.7"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -73,6 +73,9 @@ main() {
             web) start_web_dashboard ;;
             telegram) start_telegram_bot ;;
         esac
+        # Cleanup network monitor before exit to prevent zombie processes
+        [ -n "$NET_PID" ] && kill -9 "$NET_PID" 2>/dev/null
+        [ -n "$NET_TMP" ] && rm -f "$NET_TMP" 2>/dev/null
         exit 0
     fi
     _setup_colors; _setup_unicode; _init_logging; _load_config
@@ -91,8 +94,20 @@ main() {
         trap '_trap_err $LINENO $?' ERR
         DEBUG_TRAP_SET=true
     fi
-    NET_TMP=$(mktemp "${TMPDIR:-/tmp}/zdt_net_XXXXXX" 2>/dev/null || echo "/tmp/.zdt_net_$$")
-    ( while true; do if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then echo "1" > "$NET_TMP"; else echo "0" > "$NET_TMP"; fi; sleep 3; done 2>/dev/null ) &
+    # Use mktemp with validation; fallback creates a proper file, not a string
+    NET_TMP=$(mktemp "${TMPDIR:-/tmp}/zdt_net_XXXXXX" 2>/dev/null || { touch "/tmp/.zdt_net_$$" 2>/dev/null && echo "/tmp/.zdt_net_$$"; } || echo "")
+    if [ -n "$NET_TMP" ] && [ -f "$NET_TMP" ]; then
+        # Network monitor: check every 30s (reduced from 3s to save resources on mobile/SSH)
+        ( while true; do
+            if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then echo "1" > "$NET_TMP"; else echo "0" > "$NET_TMP"; fi
+            sleep 30
+        done 2>/dev/null ) &
+        NET_PID=$!
+        disown "$NET_PID" 2>/dev/null
+    else
+        NET_PID=""
+        NET_TMP=""
+    fi
     NET_PID=$!
     disown "$NET_PID" 2>/dev/null
     _log "INFO" "ZDT started in $(pwd)"
