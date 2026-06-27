@@ -2,6 +2,16 @@
 
 Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini.
 
+## v4.4.2 (Path & Version Flexibility)
+- **Refactor(Python)**: **ZdtPaths Centralized** — New `zdt-modules/zdt_paths.py` sebagai single source of truth untuk semua path (share dir, bin, config, venv, demucs, templates, scripts). ~15 hardcoded paths di `zdt-web.py`, ~8 di `zdt-telegram.py`, dan sisanya di `zdt-watch.py` + `zdt-scheduler.py` diganti dengan `ZdtPaths.*()` calls.
+- **Refactor(Bash)**: **Shared Path Functions** — New `_get_share_dir()`, `_get_zdt_bin()`, `_find_script()`, `_find_module()` di `helpers.sh`. Semua for-loop path search di `daemon.sh` (4 fungsi), `setup.sh`, dan `assistant.sh` diganti dengan shared functions.
+- **Feat(Version)**: **Dynamic Version Resolution** — `ZdtPaths.get_version()` baca dari VERSION file (prioritas 1) → ZDT_VERSION env var (prioritas 2) → parse zdt.sh binary (prioritas 3) → 'unknown'. User-Agent GitHub API sekarang dinamis (`ZDT-Enterprise/{APP_VERSION}`).
+- **Feat(Core)**: **VERSION File** — `zdt.sh` otomatis nulis `APP_VERSION` ke `$share_dir/VERSION` tiap startup sebagai single source of truth untuk Python scripts.
+- **Feat(Core)**: **Post-Init Path Re-Resolution** — `zdt.sh` re-resolve `_MODULES_DIR` via `_get_share_dir()` setelah module loading.
+- **Fix(Version)**: **Hardcoded Fallback** — `zdt-web.py` dari `"4.3.0"` → dynamic. `assistant.sh` dari `4.0` → `${APP_VERSION:-unknown}`.
+- **Chore**: `readonly` guard di `helpers.sh` pakai `[ -z "${VAR:-}" ]` untuk cegah re-source error.
+- **Test**: 47/47 passed.
+
 ## v4.4.1 (Patch — Daemon Web UI Fix & OTA Update Fix)
 - **Fix(Web)**: **Daemon Start/Stop Macet** — `is_process_running()` sekarang pake `pgrep -f` dulu (cepat), fallback `ps aux` dengan **5s timeout**. Start daemon pake `_find_python()` (cari VENV/system python). Stop daemon pake SIGTERM → 1s → SIGKILL escalation.
 - **Fix(OTA)**: **Update Gagal Silent** — `update_zdt_script()` sekarang cek hasil `cp`, coba `sudo cp` kalau gagal, tampilkan instruksi manual jika semua gagal. Modules tetap terdownload meski binary gagal di-copy.

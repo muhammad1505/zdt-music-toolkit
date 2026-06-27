@@ -129,6 +129,75 @@ class ZdtPaths:
         candidates.append(os.path.join(os.getcwd(), "templates", name))
         return cls._find_first_file(candidates)
 
+    # ---- Version resolution ----
+
+    @classmethod
+    def get_version(cls):
+        """Get ZDT version dynamically — no hardcoded fallback.
+        Priority: VERSION file (share dir) → ZDT_VERSION env var → parse zdt.sh → 'unknown'.
+        """
+        # 1. VERSION file in share dir (written by zdt.sh on startup)
+        version_file = os.path.join(cls.get_share_dir(), "VERSION")
+        try:
+            with open(version_file) as f:
+                ver = f.read().strip()
+                if cls._is_valid_version(ver):
+                    return ver
+        except (OSError, IOError):
+            pass
+
+        # 2. Env var (set by zdt.sh: export ZDT_VERSION="$APP_VERSION")
+        env_ver = os.environ.get("ZDT_VERSION")
+        if env_ver and cls._is_valid_version(env_ver):
+            return env_ver
+
+        # 3. Parse zdt.sh
+        for candidate in cls._get_zdt_sh_candidates():
+            ver = cls._parse_zdt_sh(candidate)
+            if ver:
+                return ver
+
+        return "unknown"
+
+    @classmethod
+    def _is_valid_version(cls, ver):
+        """Basic validation: not empty, starts with digit."""
+        return bool(ver) and ver[0].isdigit()
+
+    @classmethod
+    def _get_zdt_sh_candidates(cls):
+        """Possible locations for zdt.sh."""
+        project = os.environ.get("ZDT_PROJECT_DIR", "")
+        cwd = os.getcwd()
+        candidates = []
+        if project:
+            candidates.append(os.path.join(project, "zdt.sh"))
+        # Use get_bin_path() which resolves the actual binary location
+        bin_path = cls.get_bin_path()
+        if bin_path and bin_path != "zdt":
+            candidates.append(bin_path)
+        candidates.append(os.path.join(cwd, "zdt.sh"))
+        return candidates
+
+    @classmethod
+    def _parse_zdt_sh(cls, path):
+        """Parse APP_VERSION from zdt.sh file."""
+        try:
+            with open(path) as f:
+                for line in f:
+                    # Match: readonly APP_VERSION="x.y.z" or APP_VERSION='x.y.z'
+                    if 'APP_VERSION' in line and ('="' in line or "='" in line):
+                        for quote in ['"', "'"]:
+                            if f"={quote}" in line:
+                                start = line.index(f"={quote}") + 2
+                                end = line.index(quote, start)
+                                ver = line[start:end]
+                                if cls._is_valid_version(ver):
+                                    return ver
+        except (OSError, IOError, ValueError):
+            pass
+        return None
+
     @classmethod
     def find_template_candidates(cls, script_dir=None):
         """Return all candidate directories for templates (for auto-create)."""

@@ -235,7 +235,7 @@ def requires_auth(f):
             return authenticate()
         return f(*args, **kwargs)
     return decorated
-APP_VERSION = os.environ.get("ZDT_VERSION", "4.3.0")
+APP_VERSION = os.environ.get("ZDT_VERSION") or ZdtPaths.get_version()
 
 CONFIG_FILE = ZdtPaths.get_config_file()
 
@@ -911,7 +911,7 @@ def check_update():
     try:
         req = urllib.request.Request(
             "https://api.github.com/repos/muhammad1505/zdt-music-toolkit/releases/latest",
-            headers={"User-Agent": "ZDT-Enterprise/4.3.0", "Accept": "application/vnd.github.v3+json"}
+            headers={"User-Agent": f"ZDT-Enterprise/{APP_VERSION}", "Accept": "application/vnd.github.v3+json"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = _json.loads(resp.read())
