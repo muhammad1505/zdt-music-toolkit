@@ -195,8 +195,20 @@ update_zdt_script() {
     if curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/${dl_ref}/zdt.sh" -o "$tmp_file"; then
         if [ -s "$tmp_file" ] && grep -qE "APP_VERSION|Version :" "$tmp_file"; then
             local new_version
-            # Try APP_VERSION="x.y.z" first (monolithic), else fallback to comment # Version : x.y.z (modular)
-            new_version=$(grep -oP 'APP_VERSION="\K[^"]+' "$tmp_file" 2>/dev/null || grep -oP 'Version : \K[0-9.]+' "$tmp_file" 2>/dev/null || echo "unknown")
+            # Parse APP_VERSION from zdt.sh: supports both old format APP_VERSION="4.4.3"
+            # and new format APP_VERSION="${_APP_VERSION:-4.4.3}"
+            local _raw_ver
+            _raw_ver=$(grep -oP 'APP_VERSION="\K[^"]+' "$tmp_file" 2>/dev/null || true)
+            if [ -z "$_raw_ver" ]; then
+                # Fallback: comment # Version : x.y.z (legacy)
+                new_version=$(grep -oP 'Version : \K[0-9.]+' "$tmp_file" 2>/dev/null || echo "unknown")
+            elif [[ "$_raw_ver" == *":-"* ]]; then
+                # New format: APP_VERSION="${_APP_VERSION:-x.y.z}" — extract fallback value
+                new_version=$(echo "$_raw_ver" | grep -oP '\K[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+            else
+                # Old format: APP_VERSION="x.y.z"
+                new_version="$_raw_ver"
+            fi
             echo -e "  ${GREEN}${ICO_OK} Versi $new_version berhasil didownload!${RESET}"
             
             local target_bin
@@ -267,6 +279,16 @@ update_zdt_script() {
             # Download database helper
             curl -sL "${base_url}/zdt-modules/zdt_db.py${cache_bust}" -o "${mod_dir}/zdt_db.py" 2>/dev/null
             chmod +x "${share_dir}/install.sh" 2>/dev/null
+            
+            # Download VERSION file (single source of truth)
+            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate VERSION file...${RESET}"
+            curl -sL "${base_url}/VERSION${cache_bust}" -o "${share_dir}/VERSION" 2>/dev/null
+            # Also copy to installed binary directory for local reads
+            local _installed_bin_dir
+            _installed_bin_dir=$(dirname "$target_bin" 2>/dev/null || true)
+            if [ -n "$_installed_bin_dir" ] && [ -d "$_installed_bin_dir" ]; then
+                cp "${share_dir}/VERSION" "$_installed_bin_dir/VERSION" 2>/dev/null || true
+            fi
             
             rm -f "$tmp_file"
             echo -e "  ${GREEN}${ICO_OK} Update v${new_version} selesai! Semua komponen diperbarui.${RESET}"
