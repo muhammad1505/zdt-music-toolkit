@@ -745,6 +745,48 @@ def _get_telegram_config():
                     chat_id = line.strip().split("=", 1)[1].strip('"').strip("'")
     return token, chat_id
 
+@app.route('/api/update-check', methods=['GET'])
+@requires_auth
+def check_update():
+    """Check GitHub for newer version."""
+    import json as _json
+    import urllib.request
+    try:
+        req = urllib.request.Request(
+            "https://api.github.com/repos/muhammad1505/zdt-music-toolkit/releases/latest",
+            headers={"User-Agent": "ZDT-Enterprise/4.3.0", "Accept": "application/vnd.github.v3+json"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = _json.loads(resp.read())
+            latest_tag = data.get("tag_name", "")
+            current_version = "v" + APP_VERSION
+            is_newer = False
+            if latest_tag and latest_tag != current_version:
+                # Compare versions numerically
+                try:
+                    curr = [int(x) for x in APP_VERSION.split(".")]
+                    latest = [int(x) for x in latest_tag.lstrip("v").split(".")]
+                    # Pad to same length
+                    while len(curr) < len(latest): curr.append(0)
+                    while len(latest) < len(curr): latest.append(0)
+                    is_newer = latest > curr
+                except ValueError:
+                    is_newer = latest_tag != current_version
+            return _json.dumps({
+                "has_update": is_newer,
+                "current": current_version,
+                "latest": latest_tag,
+                "release_url": data.get("html_url", ""),
+                "release_body": data.get("body", "")[:500] if data.get("body") else ""
+            }), 200, {"Content-Type": "application/json"}
+    except urllib.request.HTTPError as e:
+        if e.code == 403:
+            return _json.dumps({"has_update": False, "error": "rate_limited"}), 200, {"Content-Type": "application/json"}
+        return _json.dumps({"has_update": False, "error": f"http_{e.code}"}), 200, {"Content-Type": "application/json"}
+    except Exception as e:
+        print(f"Update check error: {e}")
+        return _json.dumps({"has_update": False, "error": str(e)}), 200, {"Content-Type": "application/json"}
+
 @app.route('/api/notify/config', methods=['GET', 'POST'])
 @requires_auth
 @requires_csrf

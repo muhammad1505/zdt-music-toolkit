@@ -463,7 +463,10 @@
 
         <!-- Dashboard Panel -->
         <div id="dashboard" class="panel active">
-            <h3><i class="fa-solid fa-home"></i> ZDT Enterprise Dashboard <span id="dashVersion" style="font-size:13px; color:var(--primary); font-weight:400;"></span></h3>
+            <h3><i class="fa-solid fa-home"></i>                ZDT Enterprise Dashboard <span id="dashVersion" style="font-size:13px; color:var(--primary); font-weight:400;"></span>
+                <span id="updateBadge" style="display:none; margin-left:12px; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600; background:rgba(251,191,36,0.15); color:var(--warning); border:1px solid rgba(251,191,36,0.3); cursor:pointer;" onclick="window.open(document.getElementById('updateBadge').getAttribute('data-url'), '_blank')">
+                    <i class="fa-solid fa-circle-up"></i> Update Tersedia!
+                </span></h3>
             <p style="color:var(--text-muted); line-height:1.6; font-size:15px;">
                 Server lokal ZDT aktif dan siap digunakan.
                 Gunakan sidebar untuk navigasi: download media, sinkronisasi Spotify, ekstrak vokal via AI, atau kelola daemon background.
@@ -984,9 +987,27 @@
         loadSchedulerStatus();
         loadScheduledPlaylists();
         setInterval(loadSchedulerStatus, 10000);
+        
+        // Auto-update notification
+        async function checkUpdate() {
+            try {
+                const res = await fetch('/api/update-check');
+                const data = await res.json();
+                if (data.has_update) {
+                    const badge = document.getElementById('updateBadge');
+                    badge.setAttribute('data-url', data.release_url || 'https://github.com/muhammad1505/zdt-music-toolkit/releases');
+                    badge.title = data.latest + ' tersedia! Klik untuk lihat rilis.';
+                    badge.style.display = 'inline-block';
+                    showToast(`✨ ${data.latest} tersedia! Klik banner untuk lihat changelog.`, 'info', 8000);
+                }
+            } catch(e) {}
+        }
+        // Check update on load, then every 30 minutes
+        setTimeout(checkUpdate, 5000);
+        setInterval(checkUpdate, 1800000);
 
         // TOAST NOTIFICATION LOGIC
-        function showToast(message, type = 'info') {
+        function showToast(message, type = 'info', duration = 4000) {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -1001,7 +1022,7 @@
             setTimeout(() => {
                 toast.style.animation = 'fadeOut 0.3s forwards';
                 setTimeout(() => toast.remove(), 300);
-            }, 4000);
+            }, duration);
         }
 
         // CSRF Token management
