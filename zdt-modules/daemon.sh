@@ -197,13 +197,44 @@ update_zdt_script() {
     local cache_bust="?v=$(date +%s)"
     local gh_url="${base_url}/${dl_ref}"
 
+    # --- Fungsi helper built-in (fallback jika helpers.sh tidak tersedia) ---
+    _sanitize_ver() {
+        local v="$1"
+        local clean
+        clean=$(echo "$v" | grep -oP '^[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+        [ -n "$clean" ] && echo "$clean" || echo "unknown"
+    }
+    _get_zdt_bin_fb() {
+        local _f _w
+        for _f in "$HOME/.local/bin/zdt" "/usr/local/bin/zdt" "/data/data/com.termux/files/usr/bin/zdt"; do
+            [ -f "$_f" ] && { echo "$_f"; return 0; }
+        done
+        _w=$(command -v zdt 2>/dev/null) && [ -n "$_w" ] && { echo "$_w"; return 0; }
+        echo "zdt"
+    }
+    _get_share_dir_fb() {
+        local _d
+        for _d in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
+            [ -d "$_d" ] && { echo "$_d"; return 0; }
+        done
+        echo "$HOME/.local/share/zdt"
+    }
+    _get_share_dir_fb() {
+        for _d in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
+            [ -d "$_d" ] && { echo "$_d"; return 0; }
+        done
+        echo "$HOME/.local/share/zdt"
+    }
+
     # Step 1: Download VERSION file FIRST — single source of truth
     local tmp_ver
     tmp_ver=$(mktemp "${TMPDIR:-/tmp}/zdt_version_XXXXXX" 2>/dev/null || echo "/tmp/zdt_version_$$")
     curl -sL "${gh_url}/VERSION${cache_bust}" -o "$tmp_ver" 2>/dev/null
     local new_version
     if [ -s "$tmp_ver" ]; then
-        new_version=$(cat "$tmp_ver" | tr -d '[:space:]')
+        local raw_ver
+        raw_ver=$(cat "$tmp_ver" | tr -d '[:space:]')
+        new_version=$(_sanitize_ver "$raw_ver")
     fi
     rm -f "$tmp_ver"
 
@@ -211,17 +242,21 @@ update_zdt_script() {
     if curl -sL "${gh_url}/zdt.sh${cache_bust}" -o "$tmp_file"; then
         if [ -s "$tmp_file" ] && grep -qE "APP_VERSION|Version :" "$tmp_file"; then
             # Step 3: Parse version from VERSION file (primary) or zdt.sh (fallback)
-            if [ -z "${new_version:-}" ]; then
+            if [ -z "${new_version:-}" ] || [ "$new_version" = "unknown" ]; then
                 # Fallback: parse dari zdt.sh (old format: APP_VERSION="x.y.z")
                 local _raw_ver
                 _raw_ver=$(grep -oP 'APP_VERSION="\K[^"]+' "$tmp_file" 2>/dev/null || true)
                 if [ -z "$_raw_ver" ]; then
-                    new_version=$(grep -oP 'Version : \K[0-9.]+' "$tmp_file" 2>/dev/null || echo "unknown")
+                    local raw_v
+                    raw_v=$(grep -oP 'Version : \K[0-9.]+' "$tmp_file" 2>/dev/null || echo "unknown")
+                    new_version=$(_sanitize_ver "$raw_v")
                 elif [[ "$_raw_ver" == *":-"* ]]; then
                     # New format: APP_VERSION="${_APP_VERSION:-x.y.z}" — extract fallback value
-                    new_version=$(echo "$_raw_ver" | grep -oP '\K[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+                    local raw_v
+                    raw_v=$(echo "$_raw_ver" | grep -oP '\K[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+                    new_version=$(_sanitize_ver "$raw_v")
                 else
-                    new_version="$_raw_ver"
+                    new_version=$(_sanitize_ver "$_raw_ver")
                 fi
             fi
             # Fallback if version is still empty
@@ -229,7 +264,12 @@ update_zdt_script() {
             echo -e "  ${GREEN}${ICO_OK} Versi $new_version berhasil didownload!${RESET}"
             
             local target_bin
-            target_bin=$(_get_zdt_bin)
+            # Fallback: coba fungsi helpers.sh dulu, lalu built-in
+            if command -v _get_zdt_bin >/dev/null 2>&1; then
+                target_bin=$(_get_zdt_bin)
+            else
+                target_bin=$(_get_zdt_bin_fb)
+            fi
             if [ "$target_bin" = "zdt" ]; then
                 target_bin="$0"
             fi
@@ -255,73 +295,120 @@ update_zdt_script() {
                 fi
             fi
             
-            # Step 4: Download modules & support files
-            local share_dir
-            share_dir=$(_get_share_dir)
-            local mod_dir="$share_dir/zdt-modules"
-            mkdir -p "$mod_dir"
-            rm -f "$mod_dir/download.sh" 2>/dev/null || true
-            
-            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate shell modules...${RESET}"
-            for mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
-                curl -sL "${gh_url}/zdt-modules/${mod}.sh${cache_bust}" -o "${mod_dir}/${mod}.sh" 2>/dev/null
-                # If dev mode, also update repo modules
-                if [ "$dev_mode" = true ]; then
-                    cp "${mod_dir}/${mod}.sh" "$SCRIPT_DIR/zdt-modules/${mod}.sh" 2>/dev/null || true
-                fi
-            done
-            
-            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate Python scripts...${RESET}"
-            for pyfile in zdt-web.py zdt-watch.py zdt-telegram.py; do
-                curl -sL "${gh_url}/${pyfile}${cache_bust}" -o "${share_dir}/${pyfile}" 2>/dev/null
-                if [ "$dev_mode" = true ]; then
-                    cp "${share_dir}/${pyfile}" "$SCRIPT_DIR/${pyfile}" 2>/dev/null || true
-                fi
-            done
-            
-            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate dashboard template...${RESET}"
-            mkdir -p "$share_dir/templates"
-            curl -sL "${gh_url}/templates/dashboard.html${cache_bust}" -o "$share_dir/templates/dashboard.html" 2>/dev/null
-            if [ "$dev_mode" = true ] && [ -d "$SCRIPT_DIR/templates" ]; then
-                cp "$share_dir/templates/dashboard.html" "$SCRIPT_DIR/templates/dashboard.html" 2>/dev/null || true
+            # Step 4: Backup existing version for rollback
+    local share_dir
+    # Fallback: coba fungsi helpers.sh dulu, lalu built-in
+    if command -v _get_share_dir >/dev/null 2>&1; then
+        share_dir=$(_get_share_dir)
+    else
+        share_dir=$(_get_share_dir_fb)
+    fi
+    local mod_dir="$share_dir/zdt-modules"
+    local backup_dir="$share_dir/backup-$(date +%Y%m%d%H%M%S)"
+    local old_version="${new_version:-unknown}"
+    
+    echo -e "  ${CYAN}${ICO_ARROW} Membuat backup versi lama di $backup_dir...${RESET}"
+    mkdir -p "$backup_dir/zdt-modules" 2>/dev/null
+    # Backup main binary
+    if [ -f "$target_bin" ]; then
+        cp "$target_bin" "$backup_dir/zdt.sh" 2>/dev/null || true
+    fi
+    # Backup modules
+    for mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
+        if [ -f "$mod_dir/${mod}.sh" ]; then
+            cp "$mod_dir/${mod}.sh" "$backup_dir/zdt-modules/" 2>/dev/null || true
+        fi
+    done
+    # Backup Python scripts
+    for pyfile in zdt-web.py zdt-watch.py zdt-telegram.py; do
+        if [ -f "$share_dir/$pyfile" ]; then
+            cp "$share_dir/$pyfile" "$backup_dir/" 2>/dev/null || true
+        fi
+    done
+    if [ -f "$share_dir/VERSION" ]; then
+        cp "$share_dir/VERSION" "$backup_dir/VERSION" 2>/dev/null || true
+    fi
+    echo -e "  ${GREEN}   ✓ Backup tersimpan di $backup_dir${RESET}"
+    
+    # Step 5: Clean up stale module from previous buggy OTA
+    mkdir -p "$mod_dir"
+    rm -f "$mod_dir/download.sh" 2>/dev/null || true
+    
+    echo -e "  ${CYAN}${ICO_ARROW} Mengupdate shell modules...${RESET}"
+    for mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
+        curl -sL "${gh_url}/zdt-modules/${mod}.sh${cache_bust}" -o "${mod_dir}/${mod}.sh" 2>/dev/null
+        # Verify download succeeded (file not empty)
+        if [ ! -s "${mod_dir}/${mod}.sh" ]; then
+            echo -e "  ${RED}   ✗ Gagal download ${mod}.sh! Mengembalikan dari backup...${RESET}"
+            if [ -f "$backup_dir/zdt-modules/${mod}.sh" ]; then
+                cp "$backup_dir/zdt-modules/${mod}.sh" "${mod_dir}/${mod}.sh" 2>/dev/null || true
             fi
-            
-            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate utility files...${RESET}"
-            for util in install.sh Makefile README.md; do
-                curl -sL "${gh_url}/${util}${cache_bust}" -o "${share_dir}/${util}" 2>/dev/null
-                if [ "$dev_mode" = true ] && [ -f "$SCRIPT_DIR/${util}" ]; then
-                    cp "${share_dir}/${util}" "$SCRIPT_DIR/${util}" 2>/dev/null || true
-                fi
-            done
-            curl -sL "${gh_url}/zdt-ai-prompt.txt${cache_bust}" -o "${share_dir}/zdt-ai-prompt.txt" 2>/dev/null
-            curl -sL "${gh_url}/zdt-modules/zdt_db.py${cache_bust}" -o "${mod_dir}/zdt_db.py" 2>/dev/null
-            if [ "$dev_mode" = true ] && [ -d "$SCRIPT_DIR/zdt-modules" ]; then
-                cp "${mod_dir}/zdt_db.py" "$SCRIPT_DIR/zdt-modules/zdt_db.py" 2>/dev/null || true
+        fi
+        # If dev mode, also update repo modules
+        if [ "$dev_mode" = true ]; then
+            cp "${mod_dir}/${mod}.sh" "$SCRIPT_DIR/zdt-modules/${mod}.sh" 2>/dev/null || true
+        fi
+    done
+    
+    echo -e "  ${CYAN}${ICO_ARROW} Mengupdate Python scripts...${RESET}"
+    for pyfile in zdt-web.py zdt-watch.py zdt-telegram.py; do
+        curl -sL "${gh_url}/${pyfile}${cache_bust}" -o "${share_dir}/${pyfile}" 2>/dev/null
+        if [ ! -s "${share_dir}/${pyfile}" ]; then
+            echo -e "  ${RED}   ✗ Gagal download ${pyfile}! Mengembalikan dari backup...${RESET}"
+            if [ -f "$backup_dir/$pyfile" ]; then
+                cp "$backup_dir/$pyfile" "${share_dir}/${pyfile}" 2>/dev/null || true
             fi
-            chmod +x "${share_dir}/install.sh" 2>/dev/null
-            
-            # Step 5: Write VERSION file everywhere
-            echo -e "  ${CYAN}${ICO_ARROW} Mengupdate VERSION file...${RESET}"
-            echo "$new_version" > "${share_dir}/VERSION"
-            local _installed_bin_dir
-            _installed_bin_dir=$(dirname "$target_bin" 2>/dev/null || true)
-            if [ -n "$_installed_bin_dir" ] && [ -d "$_installed_bin_dir" ]; then
-                cp "${share_dir}/VERSION" "$_installed_bin_dir/VERSION" 2>/dev/null || true
-            fi
-            if [ "$dev_mode" = true ]; then
-                echo "$new_version" > "$SCRIPT_DIR/VERSION"
-            fi
-            
-            rm -f "$tmp_file"
-            echo -e "  ${GREEN}${ICO_OK} Update v${new_version} selesai! Semua komponen diperbarui.${RESET}"
-            echo -e "  ${GREEN}   ✓ zdt.sh (main script)${RESET}"
-            echo -e "  ${GREEN}   ✓ 8 shell modules${RESET}"
-            echo -e "  ${GREEN}   ✓ 3 Python scripts (web, watch, telegram)${RESET}"
-            echo -e "  ${GREEN}   ✓ AI prompt template (zdt-ai-prompt.txt)${RESET}"
-            echo -e "  ${GREEN}   ✓ Utility files (installer, readme)${RESET}"
-            echo -e "  ${YELLOW}   Silakan jalankan ulang ZDT.${RESET}"
-            _log "INFO" "OTA Update completed to version $new_version (full update)"
-            exit 0
+        fi
+        if [ "$dev_mode" = true ]; then
+            cp "${share_dir}/${pyfile}" "$SCRIPT_DIR/${pyfile}" 2>/dev/null || true
+        fi
+    done
+    
+    echo -e "  ${CYAN}${ICO_ARROW} Mengupdate dashboard template...${RESET}"
+    mkdir -p "$share_dir/templates"
+    curl -sL "${gh_url}/templates/dashboard.html${cache_bust}" -o "$share_dir/templates/dashboard.html" 2>/dev/null
+    if [ "$dev_mode" = true ] && [ -d "$SCRIPT_DIR/templates" ]; then
+        cp "$share_dir/templates/dashboard.html" "$SCRIPT_DIR/templates/dashboard.html" 2>/dev/null || true
+    fi
+    
+    echo -e "  ${CYAN}${ICO_ARROW} Mengupdate utility files...${RESET}"
+    for util in install.sh Makefile README.md; do
+        curl -sL "${gh_url}/${util}${cache_bust}" -o "${share_dir}/${util}" 2>/dev/null
+        if [ "$dev_mode" = true ] && [ -f "$SCRIPT_DIR/${util}" ]; then
+            cp "${share_dir}/${util}" "$SCRIPT_DIR/${util}" 2>/dev/null || true
+        fi
+    done
+    curl -sL "${gh_url}/zdt-ai-prompt.txt${cache_bust}" -o "${share_dir}/zdt-ai-prompt.txt" 2>/dev/null
+    curl -sL "${gh_url}/zdt-modules/zdt_db.py${cache_bust}" -o "${mod_dir}/zdt_db.py" 2>/dev/null
+    if [ "$dev_mode" = true ] && [ -d "$SCRIPT_DIR/zdt-modules" ]; then
+        cp "${mod_dir}/zdt_db.py" "$SCRIPT_DIR/zdt-modules/zdt_db.py" 2>/dev/null || true
+    fi
+    chmod +x "${share_dir}/install.sh" 2>/dev/null
+    
+    # Step 6: Write VERSION file everywhere
+    echo -e "  ${CYAN}${ICO_ARROW} Mengupdate VERSION file...${RESET}"
+    echo "$new_version" > "${share_dir}/VERSION"
+    local _installed_bin_dir
+    _installed_bin_dir=$(dirname "$target_bin" 2>/dev/null || true)
+    if [ -n "$_installed_bin_dir" ] && [ -d "$_installed_bin_dir" ]; then
+        cp "${share_dir}/VERSION" "$_installed_bin_dir/VERSION" 2>/dev/null || true
+    fi
+    if [ "$dev_mode" = true ]; then
+        echo "$new_version" > "$SCRIPT_DIR/VERSION"
+    fi
+    
+    rm -f "$tmp_file"
+    echo -e "  ${GREEN}${ICO_OK} Update v${new_version} selesai! Semua komponen diperbarui.${RESET}"
+    echo -e "  ${GREEN}   ✓ Backup otomatis: $backup_dir${RESET}"
+    echo -e "  ${YELLOW}   Untuk rollback: jalankan 'zdt --rollback $backup_dir'${RESET}"
+    echo -e "  ${GREEN}   ✓ zdt.sh (main script)${RESET}"
+    echo -e "  ${GREEN}   ✓ 8 shell modules${RESET}"
+    echo -e "  ${GREEN}   ✓ 3 Python scripts (web, watch, telegram)${RESET}"
+    echo -e "  ${GREEN}   ✓ AI prompt template (zdt-ai-prompt.txt)${RESET}"
+    echo -e "  ${GREEN}   ✓ Utility files (installer, readme)${RESET}"
+    echo -e "  ${YELLOW}   Silakan jalankan ulang ZDT.${RESET}"
+    _log "INFO" "OTA Update completed to version $new_version (full update)"
+    exit 0
         else
             echo -e "  ${RED}${ICO_FAIL} File download tidak valid!${RESET}"
             rm -f "$tmp_file"
