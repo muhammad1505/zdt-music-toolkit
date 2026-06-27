@@ -26,6 +26,10 @@ install:
 		done; \
 	fi
 	# Install Python scripts
+	# Install AI prompt template
+	if [ -f zdt-ai-prompt.txt ]; then \
+		install -m 644 zdt-ai-prompt.txt $(DESTDIR)$(SHAREDIR)/; \
+	fi
 	for py in zdt-web.py zdt-telegram.py zdt-watch.py; do \
 		if [ -f "$$py" ]; then \
 			install -m 755 "$$py" $(DESTDIR)$(SHAREDIR)/; \

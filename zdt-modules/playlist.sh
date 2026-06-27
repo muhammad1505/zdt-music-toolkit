@@ -138,8 +138,13 @@ sync_spotify_playlist() {
     if ! _ensure_python_tool "spotdl" "spotdl" 0; then return 1; fi
 
     local target_dir
-    if ! pilih_folder_target; then return 0; fi
-    target_dir="$TARGET_DIR"
+    if [ -n "$AUTO_MODE" ]; then
+        target_dir="${STORAGE_DIR:-${TARGET_DIR:-${ROOT_DIR:-.}}}"
+        echo -e "  ${CYAN}${ICO_ARROW} Auto-mode: menggunakan storage dir${RESET}"
+    else
+        if ! pilih_folder_target; then return 0; fi
+        target_dir="$TARGET_DIR"
+    fi
 
     local playlist_url=""
     if [ -n "$AUTO_DOWNLOAD_URL" ]; then

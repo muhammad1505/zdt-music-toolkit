@@ -413,6 +413,9 @@ install_global() {
         cp -r "$script_dir/templates/"* "$target_share/templates/" 2>/dev/null
         echo -e "  ${GREEN}${ICO_OK} Dashboard template disalin!${RESET}"
     fi
+    # Copy AI prompt template
+    [ -f "$script_dir/zdt-ai-prompt.txt" ] && cp "$script_dir/zdt-ai-prompt.txt" "$target_share/"
+    echo -e "  ${GREEN}${ICO_OK} AI prompt template disalin!${RESET}"
     # Copy database helper
     [ -f "$script_dir/zdt-modules/zdt_db.py" ] && cp "$script_dir/zdt-modules/zdt_db.py" "$target_share/zdt-modules/"
 

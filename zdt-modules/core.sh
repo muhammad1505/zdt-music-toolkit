@@ -459,6 +459,8 @@ _config_set() {
     else
         echo "${key}=${value}" > "$config_file"
     fi
+    # Secure config file permission: hanya owner yang bisa baca
+    chmod 600 "$config_file" 2>/dev/null || true
 
     if command -v flock >/dev/null 2>&1; then
         eval "exec 200>-" 2>/dev/null
@@ -521,6 +523,107 @@ RUNTIME_ENV=""
 STORAGE_DIR=""
 NET_TMP=""
 NET_PID=""
+
+# ==========================================
+# UI CACHE SYSTEM (Terminal Rendah Optimization)
+# ==========================================
+# Reduce redundant system calls in main loop by caching
+# values that don't change frequently.
+# ==========================================
+
+# UI Cache timestamps
+_ZDT_CACHE_TIME_STATS=0
+_ZDT_CACHE_TIME_TOOLS=0
+_ZDT_CACHE_TIME_SYS=0
+
+# Cached values
+_ZDT_CACHED_RAM=""
+_ZDT_CACHED_UPTIME=""
+_ZDT_CACHED_STORAGE=""
+_ZDT_CACHED_OS_NAME=""
+_ZDT_CACHED_KERNEL=""
+_ZDT_CACHED_ARCH=""
+_ZDT_CACHED_USER=""
+_ZDT_CACHED_PKGS=""
+_ZDT_CACHED_LOAD=""
+_ZDT_CACHED_TEMP=""
+_ZDT_CACHED_CPU=""
+_ZDT_CACHED_FFMPEG=""
+_ZDT_CACHED_PYTHON3=""
+_ZDT_CACHED_YTDLP=""
+_ZDT_CACHED_SPOTDL=""
+_ZDT_CACHED_DEMUCS=""
+_ZDT_CACHED_MUTAGEN=""
+_ZDT_CACHED_TOOLS_STR=""
+
+# Initialize cache: run once at session start
+_init_ui_cache() {
+    local now
+    now=$(date +%s 2>/dev/null || echo 0)
+
+    # Refresh all caches
+    _ZDT_CACHE_TIME_STATS=$now
+    _ZDT_CACHED_RAM=$(_get_ram_percent)
+    _ZDT_CACHED_UPTIME=$(_get_uptime)
+    _ZDT_CACHED_STORAGE=$(_get_storage_percent)
+
+    _ZDT_CACHE_TIME_SYS=$now
+    _ZDT_CACHED_OS_NAME=$(_get_os_name)
+    _ZDT_CACHED_KERNEL=$(uname -r 2>/dev/null | cut -d'-' -f1,2 || echo "N/A")
+    _ZDT_CACHED_ARCH=$(uname -m 2>/dev/null || echo "N/A")
+    _ZDT_CACHED_USER=$(whoami 2>/dev/null || echo "user")
+    _ZDT_CACHED_PKGS=$(dpkg-query -f '.\n' -W 2>/dev/null | wc -l || echo 0)
+    _ZDT_CACHED_LOAD=$(cat /proc/loadavg 2>/dev/null | awk '{print $1" "$2" "$3}' || echo "N/A")
+    if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
+        _ZDT_CACHED_TEMP="$(($(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null) / 1000))°C"
+    else
+        _ZDT_CACHED_TEMP="N/A"
+    fi
+    _ZDT_CACHED_CPU=$(grep 'cpu ' /proc/stat 2>/dev/null | awk '{print ($2+$4)*100/($2+$4+$5)}' | cut -d. -f1 || echo "?")
+
+    _ZDT_CACHE_TIME_TOOLS=$now
+    _ZDT_CACHED_FFMPEG=$(command -v ffmpeg >/dev/null 2>&1 && echo "1" || echo "0")
+    _ZDT_CACHED_PYTHON3=$(command -v python3 >/dev/null 2>&1 && echo "1" || echo "0")
+    _ZDT_CACHED_YTDLP=$(command -v yt-dlp >/dev/null 2>&1 && echo "1" || echo "0")
+    _ZDT_CACHED_SPOTDL=$(command -v spotdl >/dev/null 2>&1 && echo "1" || echo "0")
+    _ZDT_CACHED_DEMUCS=$([ -f "$HOME/.local/share/zdt/demucs_venv/bin/demucs" ] && echo "1" || echo "0")
+    # Mutagen check: cache result (heavy Python import)
+    if [ -f "$HOME/.local/share/zdt/venv/bin/python" ]; then
+        "$HOME/.local/share/zdt/venv/bin/python" -c "import mutagen" >/dev/null 2>&1 && _ZDT_CACHED_MUTAGEN="1" || _ZDT_CACHED_MUTAGEN="0"
+    else
+        _ZDT_CACHED_MUTAGEN="0"
+    fi
+
+    # Build tools status string (for desktop & mobile views)
+    _ZDT_CACHED_TOOLS_STR=""
+    for _t_status in "$_ZDT_CACHED_FFMPEG" "$_ZDT_CACHED_PYTHON3" "$_ZDT_CACHED_YTDLP" "$_ZDT_CACHED_SPOTDL"; do
+        if [ "$_t_status" = "1" ]; then
+            _ZDT_CACHED_TOOLS_STR="${_ZDT_CACHED_TOOLS_STR}${GREEN}${ICO_CHECK_OK}${RESET} "
+        else
+            _ZDT_CACHED_TOOLS_STR="${_ZDT_CACHED_TOOLS_STR}${RED}${ICO_CHECK_FAIL}${RESET} "
+        fi
+    done
+}
+
+# Refresh fast-changing stats (RAM, uptime, storage, CPU)
+# CPU and load use TTL (2s) since they need awk computation
+_refresh_stats_cache() {
+    local now
+    now=$(date +%s 2>/dev/null || echo 0)
+    local elapsed=$(( now - _ZDT_CACHE_TIME_STATS ))
+
+    # Fast /proc reads — always refresh
+    _ZDT_CACHED_RAM=$(_get_ram_percent)
+    _ZDT_CACHED_UPTIME=$(_get_uptime)
+    _ZDT_CACHED_STORAGE=$(_get_storage_percent)
+
+    # CPU & load — refresh max every 2 seconds (save awk/grep)
+    if [ "$elapsed" -ge 2 ] || [ "$_ZDT_CACHE_TIME_STATS" -eq 0 ]; then
+        _ZDT_CACHED_LOAD=$(cat /proc/loadavg 2>/dev/null | awk '{print $1" "$2" "$3}' || echo "N/A")
+        _ZDT_CACHED_CPU=$(grep 'cpu ' /proc/stat 2>/dev/null | awk '{print ($2+$4)*100/($2+$4+$5)}' | cut -d. -f1 || echo "?")
+        _ZDT_CACHE_TIME_STATS=$now
+    fi
+}
 
 # ==========================================
 # ANTI-CRASH TRAP

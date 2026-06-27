@@ -62,6 +62,44 @@ def _format_tg(text):
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
 
+# ============================================
+# LOAD SHARED AI PROMPT TEMPLATE
+# ============================================
+def _load_ai_prompt():
+    """Load shared AI prompt template from file, with fallback."""
+    import os
+    search_dirs = [
+        os.path.dirname(os.path.abspath(__file__)),  # Same dir as this script
+        os.path.expanduser("~/.local/share/zdt"),
+        "/usr/local/share/zdt",
+        "/data/data/com.termux/files/usr/share/zdt",
+    ]
+    for d in search_dirs:
+        prompt_file = os.path.join(d, "zdt-ai-prompt.txt")
+        if os.path.exists(prompt_file):
+            with open(prompt_file, 'r') as f:
+                return f.read()
+    # Fallback: minimal prompt built-in
+    return (
+        "Kamu Zaki-Bot, asisten pintar ZDT Music Toolkit. Bahasa gaul Indonesia, jawab singkat dan to the point.\n\n"
+        "FITUR ZDT:\n"
+        "- Download Audio/Video dari YouTube, Spotify, TikTok, IG, FB, SoundCloud\n"
+        "- Kompres Audio (AAC/MP3/FLAC/OPUS) & Video (x264/x265/AV1/VP9)\n"
+        "- Pisah Vokal & Instrumen pakai AI Demucs (karaoke)\n"
+        "- Auto Sync Lirik (.lrc) via syncedlyrics\n"
+        "- Bersih & Rapikan Nama File\n"
+        "- Buat Playlist .M3U dari folder\n"
+        "- Web Dashboard (Flask, port 5000)\n"
+        "- Watch Daemon, Telegram Bot, Metadata Editor\n"
+        "- Storage Manager & System Info\n\n"
+        "PERSONALITY:\n"
+        "- Santai, gaul, pake bahasa sehari-hari Indonesia\n"
+        "- Jawab SINGKAT, max 2-3 kalimat\n"
+        "- Kalo user minta aksi → kasih tau sambil eksekusi\n"
+        "- JANGAN pake markdown heading (###)\n"
+        "- PAKAI emoji secukupnya aja"
+    )
+
 chat_history = {}
 
 original_send_message = bot.send_message
@@ -294,9 +332,8 @@ def auto_download_audio(message):
                 if search_context:
                     search_context = f"\\n\\nInfo Hasil Pencarian Terakhir (Ganti nomor dengan URL yang sesuai jika user memilih):\\n{search_context}"
                         
-                prompt = f'''Kamu Zaki-Bot, asisten Telegram untuk ZDT Music Toolkit. Bahasa gaul Indonesia, singkat, max 3-5 kalimat.
-
-FITUR ZDT: Download YouTube/Spotify, Kompres Audio/Video, Pisah Vokal (Demucs AI), Sync Lirik, Bersih Nama File, Buat Playlist M3U, Web Dashboard (port 5678), Watch Daemon, Scheduler Daemon.
+                base_prompt = _load_ai_prompt()
+                prompt = f"""{base_prompt}
 
 TELEGRAM COMMANDS: /audio <url>, /video <url>, /status, /ping, /start, /demucs, /kompres.
 Inline buttons: Kompres, Vokal, Bersih Nama, Sync Lirik, Playlist.
@@ -305,6 +342,7 @@ AUTO_ACTION (WAJIB jika user suruh eksekusi):
 - Download: [AUTO_ACTION: gas download audio ytsearch1:judul]
 - Download video: [AUTO_ACTION: gas download video ytsearch1:judul]
 - Cari: [AUTO_ACTION: cari youtube kata_kunci]
+- Cari playlist: [AUTO_ACTION: cari playlist kata_kunci]
 - Pisah vokal: [AUTO_ACTION: hapus vokal]
 - Kompres: [AUTO_ACTION: kompres media]
 - Lirik: [AUTO_ACTION: sync lirik]
@@ -317,7 +355,7 @@ ATURAN:
 - Jika user minta AKSI → sertakan AUTO_ACTION tag
 - Jika user tanya/ngobrol → jawab singkat TANPA AUTO_ACTION
 - JANGAN pakai markdown heading (###), pakai emoji saja
-- Jawab SINGKAT dan to the point, max 5 kalimat
+- Jawab SINGKAT dan to the point, max 3 kalimat
 
 Contoh:
 User: lu bisa apa bro
@@ -331,7 +369,7 @@ Bot: Cek status! 📊 [AUTO_ACTION: cek status]
 
 Storage: {abs_path}. File: {dir_contents}
 {search_context}
-Chat: {history_context}'''
+Chat: {history_context}"""
 
                 def process_reply(reply_text):
                     if "[AUTO_ACTION:" in reply_text:

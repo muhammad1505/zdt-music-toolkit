@@ -2,9 +2,9 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.1.97
+# Version : 4.3.0
 set -uo pipefail
-readonly APP_VERSION="4.2.9"
+readonly APP_VERSION="4.3.0"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -108,33 +108,30 @@ main() {
         NET_PID=""
         NET_TMP=""
     fi
-    NET_PID=$!
-    disown "$NET_PID" 2>/dev/null
     _log "INFO" "ZDT started in $(pwd)"
+    
+    # Initialize UI cache (cache tool status, OS info, system stats)
+    _init_ui_cache
     
     # Auto-Launch Zaki AI on Startup
     zaki_assistant
     
     while true; do
-        local ram_pct uptime_val storage_pct os_name net_status tools_ok
-        ram_pct=$(_get_ram_percent)
-        uptime_val=$(_get_uptime)
-        storage_pct=$(_get_storage_percent)
-        os_name=$(_get_os_name)
-        net_status=$(cat "$NET_TMP" 2>/dev/null || echo "?")
-        tools_ok=""
-        for t in ffmpeg python3 yt-dlp spotdl; do
-            if command -v "$t" >/dev/null 2>&1; then
-                tools_ok="${tools_ok}${GREEN}${ICO_CHECK_OK}${RESET} "
-            else
-                tools_ok="${tools_ok}${RED}${ICO_CHECK_FAIL}${RESET} "
-            fi
-        done
+        # Use cached values (updated once at init) instead of recomputing every iteration
+        # Fast-changing stats (RAM, uptime, storage) refresh each loop via /proc reads
+        _refresh_stats_cache
+        local ram_pct="$_ZDT_CACHED_RAM"
+        local uptime_val="$_ZDT_CACHED_UPTIME"
+        local storage_pct="$_ZDT_CACHED_STORAGE"
+        local os_name="$_ZDT_CACHED_OS_NAME"
+        local net_status=$(cat "$NET_TMP" 2>/dev/null || echo "?")
+        local tools_ok="$_ZDT_CACHED_TOOLS_STR"
+        
         if [ -z "${NO_COLOR:-}" ]; then
             echo -ne "\033[?25h"
             clear
         fi
-        local current_user=$(whoami 2>/dev/null || echo "user")
+        local current_user="$_ZDT_CACHED_USER"
         local net_str="OFFLINE"
         local net_col="${RED}"
         if [ "$net_status" = "1" ]; then
@@ -145,16 +142,11 @@ main() {
         local cols=$(tput cols 2>/dev/null || echo 100)
         local lines=$(tput lines 2>/dev/null || echo 30)
         
-        # We need CPU temp if possible
-        local temp="N/A"
-        if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
-            temp="$(($(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null) / 1000))°C"
-        fi
-        
-        local kernel_ver=$(uname -r | cut -d'-' -f1,2)
-        local arch=$(uname -m)
-        local pkgs=$(dpkg-query -f '.\n' -W 2>/dev/null | wc -l || echo 0)
-        local load_avg=$(cat /proc/loadavg 2>/dev/null | awk '{print $1" "$2" "$3}' || echo "N/A")
+        local temp="$_ZDT_CACHED_TEMP"
+        local kernel_ver="$_ZDT_CACHED_KERNEL"
+        local arch="$_ZDT_CACHED_ARCH"
+        local pkgs="$_ZDT_CACHED_PKGS"
+        local load_avg="$_ZDT_CACHED_LOAD"
         
         if [ "$cols" -ge 75 ]; then
             # DESKTOP VIEW (Gacor Graphic Dashboard)
@@ -169,7 +161,7 @@ main() {
             echo -e "  ${CYAN}███████╗██████╔╝   ██║   ${RESET}   ${CYAN}UPTIME :${RESET} $uptime_val"
             echo -e "  ${CYAN}╚══════╝╚═════╝    ╚═╝   ${RESET}   ${CYAN}USER   :${RESET} $current_user"
             
-            local stats_text="  CPU: $(grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}' | cut -d. -f1)%   RAM: ${ram_pct}%   DISK: ${storage_pct}%   TEMP: ${temp}   NET: ${net_str} "
+            local stats_text="  CPU: ${_ZDT_CACHED_CPU}%   RAM: ${ram_pct}%   DISK: ${storage_pct}%   TEMP: ${temp}   NET: ${net_str} "
             local stats_pad=$(_pad_str "$stats_text" $((inner_cols)))
             echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
             echo -e "  ${CYAN}│${RESET}${CYAN}${stats_pad}${RESET}${CYAN}│${RESET}"
@@ -195,6 +187,14 @@ main() {
                 "  ${RED}[0]${RESET} Shutdown Terminal"
             )
 
+            # Dependency status strings (cached, no command -v calls per iteration)
+            local dep_ffmpeg="$([ "$_ZDT_CACHED_FFMPEG" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+            local dep_python3="$([ "$_ZDT_CACHED_PYTHON3" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+            local dep_ytdlp="$([ "$_ZDT_CACHED_YTDLP" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+            local dep_spotdl="$([ "$_ZDT_CACHED_SPOTDL" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+            local dep_demucs="$([ "$_ZDT_CACHED_DEMUCS" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+            local dep_mutagen="$([ "$_ZDT_CACHED_MUTAGEN" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+
             local right_lines=(
                 " ${MAGENTA}QUICK INFO${RESET}"
                 "  ${CYAN}UI Mode ${RESET}: Desktop (${cols}x${lines})"
@@ -204,12 +204,12 @@ main() {
                 ""
                 "DIVIDER"
                 " ${MAGENTA}DEPENDENCIES${RESET}"
-                "  ${CYAN}FFmpeg  ${RESET}: $(command -v ffmpeg >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "  ${CYAN}Python3 ${RESET}: $(command -v python3 >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "  ${CYAN}YT-DLP  ${RESET}: $(command -v yt-dlp >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "  ${CYAN}SpotDL  ${RESET}: $(command -v spotdl >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "  ${CYAN}Demucs  ${RESET}: $([ -f "$HOME/.local/share/zdt/demucs_venv/bin/demucs" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-                "  ${CYAN}Mutagen ${RESET}: $([ -f "$HOME/.local/share/zdt/venv/bin/python" ] && "$HOME/.local/share/zdt/venv/bin/python" -c "import mutagen" >/dev/null 2>&1 && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+                "  ${CYAN}FFmpeg  ${RESET}: $dep_ffmpeg"
+                "  ${CYAN}Python3 ${RESET}: $dep_python3"
+                "  ${CYAN}YT-DLP  ${RESET}: $dep_ytdlp"
+                "  ${CYAN}SpotDL  ${RESET}: $dep_spotdl"
+                "  ${CYAN}Demucs  ${RESET}: $dep_demucs"
+                "  ${CYAN}Mutagen ${RESET}: $dep_mutagen"
                 "DIVIDER"
                 " ${MAGENTA}RECENT LOGS${RESET}"
                 "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} System init"
@@ -240,13 +240,14 @@ main() {
             [ "$inner_cols" -lt 30 ] && inner_cols=30
             
             local lw=34
+            local dep_ok="${GREEN}OK${RESET}" dep_miss="${RED}X${RESET}"
             local d1=" ${MAGENTA}${BOLD}■ DEPENDENCIES${RESET}"
-            local d2="   ${GRAY}FFmpeg :${RESET} $(command -v ffmpeg >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
-            local d3="   ${GRAY}Python3:${RESET} $(command -v python3 >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
-            local d4="   ${GRAY}YT-DLP :${RESET} $(command -v yt-dlp >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
-            local d5="   ${GRAY}SpotDL :${RESET} $(command -v spotdl >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
-            local d6="   ${GRAY}Demucs :${RESET} $([ -f "$HOME/.local/share/zdt/demucs_venv/bin/demucs" ] && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
-            local d7="   ${GRAY}Mutagen:${RESET} $([ -f "$HOME/.local/share/zdt/venv/bin/python" ] && "$HOME/.local/share/zdt/venv/bin/python" -c "import mutagen" >/dev/null 2>&1 && echo "${GREEN}OK${RESET}" || echo "${RED}X${RESET}")"
+            local d2="   ${GRAY}FFmpeg :${RESET} $([ "$_ZDT_CACHED_FFMPEG" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
+            local d3="   ${GRAY}Python3:${RESET} $([ "$_ZDT_CACHED_PYTHON3" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
+            local d4="   ${GRAY}YT-DLP :${RESET} $([ "$_ZDT_CACHED_YTDLP" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
+            local d5="   ${GRAY}SpotDL :${RESET} $([ "$_ZDT_CACHED_SPOTDL" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
+            local d6="   ${GRAY}Demucs :${RESET} $([ "$_ZDT_CACHED_DEMUCS" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
+            local d7="   ${GRAY}Mutagen:${RESET} $([ "$_ZDT_CACHED_MUTAGEN" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
 
             local q1=" ${CYAN}${BOLD}■ QUICK INFO${RESET}"
             local q2="   ${GRAY}Dir :${RESET} $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:15}${RESET}" || echo "${GRAY}(Def)${RESET}")"

@@ -48,6 +48,48 @@ print(json.dumps([{'role': 'system', 'content': sys.argv[1]}]))
     fi
 }
 
+# ==========================================
+# LOAD SHARED AI PROMPT TEMPLATE
+# ==========================================
+_load_ai_base_prompt() {
+    local prompt_file
+    # Cari di berbagai lokasi (sama seperti script lainnya)
+    for dir in "$SCRIPT_DIR" "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
+        if [ -f "$dir/zdt-ai-prompt.txt" ]; then
+            prompt_file="$dir/zdt-ai-prompt.txt"
+            break
+        fi
+    done
+
+    if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
+        # Baca file dan substitusi placeholder
+        sed "s/{APP_VERSION}/${APP_VERSION}/g" "$prompt_file"
+    else
+        # Fallback: base prompt minimal tanpa file
+        echo "Kamu Zaki-Bot, asisten pintar ZDT Music Toolkit v${APP_VERSION}. Bahasa gaul Indonesia, jawab singkat dan to the point."
+        echo ""
+        echo "FITUR ZDT:"
+        echo "- Download Audio/Video dari YouTube, Spotify, TikTok, IG, FB, SoundCloud"
+        echo "- Kompres Audio (AAC/MP3/FLAC/OPUS) & Video (x264/x265/AV1/VP9)"
+        echo "- Pisah Vokal & Instrumen pakai AI Demucs (karaoke)"
+        echo "- Auto Sync Lirik (.lrc) via syncedlyrics"
+        echo "- Bersih & Rapikan Nama File (hapus tag [Official], (Video), dll.)"
+        echo "- Buat Playlist .M3U dari folder"
+        echo "- Web Dashboard (Flask, port 5000)"
+        echo "- Watch Daemon (auto-process file baru)"
+        echo "- Telegram Bot (remote control dari HP)"
+        echo "- Metadata Editor (judul, artis, cover art)"
+        echo "- Storage Manager & System Info"
+        echo ""
+        echo "PERSONALITY:"
+        echo "- Santai, gaul, pake bahasa sehari-hari Indonesia"
+        echo "- Jawab SINGKAT, max 2-3 kalimat"
+        echo "- Kalo user minta aksi → kasih tau sambil eksekusi"
+        echo "- JANGAN pake markdown heading (###)"
+        echo "- PAKAI emoji secukupnya aja"
+    fi
+}
+
 _zaki_spinner() {
     local pid=$1
     local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
@@ -314,10 +356,11 @@ zaki_assistant() {
                 file_count=$(find "$abs_path" -maxdepth 2 -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.mp4" \) 2>/dev/null | wc -l)
             fi
 
-            local ai_prompt="Kamu Zaki-Bot, asisten CLI ZDT Music Toolkit v${APP_VERSION}. Bahasa gaul Indonesia.
+            local ai_prompt
+            ai_prompt=$(_load_ai_base_prompt)
+            ai_prompt="$ai_prompt
 
-ZDT: toolkit musik/video dengan CLI, Web Dashboard, Telegram Bot. Fitur: download YouTube/Spotify, kompres audio/video, pisah vokal (Demucs AI), sync lirik, bersih nama file, playlist M3U, watch daemon, scheduler.
-
+FORMAT RESPON:
 WAJIB balas HANYA JSON, tanpa markdown, tanpa penjelasan tambahan!
 Format: {\"reply\":\"...\",\"intent\":\"...\",\"query\":\"...\"}
 

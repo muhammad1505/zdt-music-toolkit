@@ -72,6 +72,12 @@ if [ -f "zdt-scheduler.py" ]; then
     chmod +x "$SHAREDIR/zdt-scheduler.py"
 fi
 
+# Copy AI prompt template
+if [ -f "zdt-ai-prompt.txt" ]; then
+    cp zdt-ai-prompt.txt "$SHAREDIR/"
+    echo -e "${GREEN}AI Prompt:${NC} ZDT AI prompt template installed."
+fi
+
 # Copy module files
 if [ -d "zdt-modules" ]; then
     mkdir -p "$SHAREDIR/zdt-modules"

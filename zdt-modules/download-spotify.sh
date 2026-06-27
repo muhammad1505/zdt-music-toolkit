@@ -78,46 +78,13 @@ download_spotdl() {
                 fi
                 step=2
             elif [ "$step" -eq 2 ]; then
-                _print_menu_box "MANAJEMEN FOLDER OUTPUT" \
-                    "${GREEN}[1]${RESET} Auto-Folder per Artis Utama" \
-                    "${GREEN}[2]${RESET} Bikin 1 Folder Manual" \
-                    "${GREEN}[3]${RESET} Tanpa folder baru" \
-                    "DIVIDER" \
-                    "${RED}[0]${RESET} KEMBALI"
-                echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
-                read -r -n 1 folder_mode
-                echo ""
-                if [ "$folder_mode" = "0" ]; then step=1; continue; fi
-                if [ "$folder_mode" = "2" ]; then step=3; else step=4; fi
-            elif [ "$step" -eq 3 ]; then
-                echo -e -n "  ${BOLD}[?] Nama folder (0=Kembali): ${RESET}"
-                local nama_folder_input
-                read -r nama_folder_input
-                if [ "$nama_folder_input" = "0" ]; then step=2; continue; fi
-                if [ -z "$nama_folder_input" ]; then
-                    echo -e "  ${YELLOW}${ICO_WARN} Nama folder kosong! Otomatis download ke direktori saat ini.${RESET}"
-                    folder_manual_name=""
-                else
-                    folder_manual_name="${nama_folder_input// /-}"
-                fi
+                if ! _ask_folder_mode; then step=1; continue; fi
+                folder_mode="$ZDT_FOLDER_MODE"
+                folder_manual_name="$ZDT_FOLDER_MANUAL_NAME"
                 step=4
             elif [ "$step" -eq 4 ]; then
-                _print_menu_box "FORMAT OUTPUT" \
-                    "${GREEN}[1]${RESET} M4A  (Default, paling kompatibel, kualitas bagus)" \
-                    "${GREEN}[2]${RESET} MP3  (Universal, didukung semua perangkat lama)" \
-                    "${GREEN}[3]${RESET} FLAC (Lossless, kualitas tertinggi, ukuran besar)" \
-                    "${GREEN}[4]${RESET} WAV  (Uncompressed, untuk studio/editing)" \
-                    "${GREEN}[5]${RESET} OPUS (Modern, ukuran kecil, suara jernih)" \
-                    "${GREEN}[6]${RESET} OGG  (Open source, bagus untuk streaming/game)" \
-                    "DIVIDER" \
-                    "${RED}[0]${RESET} KEMBALI"
-                echo -e -n "  ${BOLD}[?] Pilihan [0-6]: ${RESET}"
-                read -r -n 1 format_pilih
-                echo ""
-                if [ "$format_pilih" = "0" ]; then
-                    if [ "$folder_mode" = "2" ]; then step=3; else step=2; fi
-                    continue
-                fi
+                if ! _ask_format_audio; then step=2; continue; fi
+                format_pilih="$ZDT_FORMAT_PILIH"
                 case $format_pilih in
                     2) spotdl_ext="mp3" ;;
                     3) spotdl_ext="flac" ;;
@@ -167,6 +134,27 @@ download_spotdl() {
     for link in "${links[@]}"; do
         echo -e "  ${GRAY}──────────────────────────────────────────────────${RESET}"
         echo -e "  ${YELLOW}${ICO_ARROW} Memproses:${RESET} $link"
+
+        # Duplicate Detector — cek DB apakah link ini sudah pernah didownload
+        local db_script="$_MODULES_DIR/zdt_db.py"
+        local db_path="$HOME/.config/zdt/zdt.db"
+        if [ -f "$db_script" ] && [ -n "$link" ]; then
+            local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
+            if [ "$is_dup" = "True" ]; then
+                if [ "${AUTO_MODE:-0}" = "1" ]; then
+                    # Auto/web mode: skip tanpa prompt
+                    echo -e "  ${YELLOW}${ICO_WARN} Tautan sudah ada di Database Statistik. Dilewati (auto mode).${RESET}"
+                    continue
+                fi
+                echo -e "  ${YELLOW}${ICO_WARN} Peringatan: Tautan ini sudah ada di Database Statistik!${RESET}"
+                echo -n -e "  ${CYAN}Apakah Anda yakin ingin mengunduh ulang? (y/N) ${RESET}"
+                read -r dup_confirm
+                if [[ ! "$dup_confirm" =~ ^[Yy]$ ]]; then
+                    echo -e "  ${GREEN}Dilewati.${RESET}"
+                    continue
+                fi
+            fi
+        fi
 
         local output_tpl
         local auto_folder_name=""
@@ -223,32 +211,13 @@ download_spotdl() {
             _log "WARN" "spotdl reported errors for: $link"
         fi
 
-        local scan_dir="."
-        if [ "$folder_mode" = "1" ] && [ -n "$auto_folder_name" ]; then
-            scan_dir="./$auto_folder_name"
-        elif [ "$folder_mode" = "2" ] && [ -n "$folder_manual_name" ]; then
-            scan_dir="./$folder_manual_name"
-        fi
+        local scan_dir
+        scan_dir=$(_resolve_scan_dir "$folder_mode" "$auto_folder_name" "$folder_manual_name")
 
-        if [[ "$pilih_kompres" =~ ^[Yy]$ ]]; then
-            echo -e "  ${CYAN}${ICO_ARROW} AUTO COMPRESS AUDIO${RESET}"
-            
-            local c_codec="aac"
-            local c_ext="m4a"
-            if [ "$spotdl_ext" = "mp3" ]; then
-                c_codec="libmp3lame"
-                c_ext="mp3"
-            fi
-            
-            while IFS= read -r file; do
-                _kompres_audio_file "$file" "$c_codec" "128k" "$c_ext"
-            done < <(find "$scan_dir" -type f -iname "*.$spotdl_ext" ! -name "*_temp.*" -mmin -60 2>/dev/null)
-        fi
+        # Record successful downloads to database immediately after download
+        _record_downloads "$scan_dir" "spotify" "$link"
 
-        echo -e "  ${CYAN}${ICO_ARROW} AUTO CLEAN NAMA FILE${RESET}"
-        while IFS= read -r file; do
-            _bersih_satu_nama "$file"
-        done < <(find "$scan_dir" -type f \( -iname "*.$spotdl_ext" -o -iname "*.m4a" -o -iname "*.lrc" \) -mmin -60 2>/dev/null)
+        _post_download_audio "$scan_dir" "$spotdl_ext" "$pilih_kompres"
     done
 
     _log "INFO" "Spotify download batch complete"

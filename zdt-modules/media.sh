@@ -320,14 +320,25 @@ hapus_vokal() {
         echo -e "  ${GREEN}${ICO_OK} Demucs berhasil diinstal!${RESET}\n"
     fi
 
+    # Auto-mode: jika AUTO_HAPUS_VOKAL_MODE di-set, proses semua file di storage dir tanpa interaktif
+    local auto_mode=${AUTO_HAPUS_VOKAL_MODE:-0}
+    AUTO_HAPUS_VOKAL_MODE=""
+
     local step=1
     local mode_proses=""
     local files_to_process=()
 
-    local target_dir="${STORAGE_DIR:-${TARGET_DIR:-${ROOT_DIR:-.}}}"
+    local target_dir="${AUTO_HAPUS_VOKAL_PATH:-${STORAGE_DIR:-${TARGET_DIR:-${ROOT_DIR:-.}}}}"
+    AUTO_HAPUS_VOKAL_PATH=""
     
     while true; do
         if [ "$step" -eq 1 ]; then
+            if [ "$auto_mode" = "1" ]; then
+                # Auto mode: proses semua file baru di storage dir
+                mode_proses="1"
+                step=2
+                continue
+            fi
             _print_menu_box "MODE PROSES" \
                 "${GREEN}[1]${RESET} Semua File di Storage (Baru Didownload)" \
                 "${GREEN}[2]${RESET} Per Folder Artis" \

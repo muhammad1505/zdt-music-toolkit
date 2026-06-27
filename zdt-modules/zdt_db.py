@@ -86,6 +86,11 @@ elif CMD == "add_download":
     size_bytes = int(sys.argv[6])
     c.execute("INSERT INTO downloads (filename, url, source, size_bytes) VALUES (?, ?, ?, ?)", (filename, url, source, size_bytes))
     conn.commit()
+    
+    # Keep only the latest 1000 download records to prevent unbounded DB growth
+    c.execute("""DELETE FROM downloads WHERE id NOT IN
+                 (SELECT id FROM downloads ORDER BY id DESC LIMIT 1000)""")
+    conn.commit()
 
 elif CMD == "get_stats":
     c.execute("SELECT COUNT(*), SUM(size_bytes) FROM downloads")

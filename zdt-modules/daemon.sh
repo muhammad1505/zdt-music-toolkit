@@ -266,6 +266,8 @@ update_zdt_script() {
             for util in install.sh Makefile README.md; do
                 curl -sL "${base_url}/${util}${cache_bust}" -o "${share_dir}/${util}" 2>/dev/null
             done
+            # Download AI prompt template
+            curl -sL "${base_url}/zdt-ai-prompt.txt${cache_bust}" -o "${share_dir}/zdt-ai-prompt.txt" 2>/dev/null
             # Download database helper
             curl -sL "${base_url}/zdt-modules/zdt_db.py${cache_bust}" -o "${mod_dir}/zdt_db.py" 2>/dev/null
             chmod +x "${share_dir}/install.sh" 2>/dev/null
@@ -275,6 +277,7 @@ update_zdt_script() {
             echo -e "  ${GREEN}   ✓ zdt.sh (main script)${RESET}"
             echo -e "  ${GREEN}   ✓ 8 shell modules${RESET}"
             echo -e "  ${GREEN}   ✓ 3 Python scripts (web, watch, telegram)${RESET}"
+            echo -e "  ${GREEN}   ✓ AI prompt template (zdt-ai-prompt.txt)${RESET}"
             echo -e "  ${GREEN}   ✓ Utility files (installer, readme)${RESET}"
             echo -e "  ${YELLOW}   Silakan jalankan ulang ZDT.${RESET}"
             _log "INFO" "OTA Update completed to version $new_version (full update)"

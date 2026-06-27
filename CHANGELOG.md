@@ -32,6 +32,78 @@ Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini
 
 
 
+## v4.3.0 (Current — Download Module Refactoring & Duplicate Detector)
+- **Feat(Spotify)**: **Duplicate Detector** — `download-spotify.sh` sekarang punya duplicate detector seperti YouTube. Cek DB sebelum download, skip link yang sudah ada (auto-mode silent, interactive tanya konfirmasi).
+- **Refactor(Download)**: **Shared Functions Extraction** — Ekstrak 4 fungsi shared ke `helpers.sh` (`_ask_folder_mode`, `_ask_format_audio`, `_post_download_audio`, `_resolve_scan_dir`). Eliminasi ~70 baris kode duplikat antara `download-spotify.sh` dan `download-youtube.sh`.
+- **Feat(OTA)**: **AI Prompt Included** — OTA updater (`daemon.sh`) dan installer (`setup.sh`, `install.sh`, `Makefile`) sekarang mendownload/menyalin `zdt-ai-prompt.txt` ke direktori instalasi.
+
+## v4.2.9 (Bug Audit & AI Prompt Unification)
+- **Feat(AI)**: **Shared AI Prompt System** — Created `zdt-ai-prompt.txt` sebagai single source of truth untuk Zaki-Bot (CLI + Telegram). Kedua sistem membaca file yang sama, masing-masing menambahkan format-specific instructions (JSON untuk CLI, `AUTO_ACTION` untuk Telegram).
+- **Fix(Core)**: **NET_PID Double Assignment** — Hapus `NET_PID=$!` duplikat di luar blok if-else di `zdt.sh`. PID network monitor sebelumnya di-overwrite oleh assignment kedua.
+- **Fix(Core)**: **Version Comment** — Update header `zdt.sh` dari "Version: 4.1.97" menjadi "4.2.9".
+- **Fix(Spotify)**: **Missing DB Recording** — `download-spotify.sh` sekarang memanggil `_record_downloads()` agar download Spotify tercatat di database statistik.
+- **Fix(Media)**: **AUTO_HAPUS_VOKAL_MODE** — `hapus_vokal()` sekarang membaca dan menghormati variable ini, skip menu interaktif di auto-mode.
+- **Fix(Playlist)**: **AUTO_MODE Support** — `sync_spotify_playlist()` skip `pilih_folder_target()` jika `AUTO_MODE=1`.
+- **Fix(Download)**: **Indentation Fix** — Rapikan struktur if-else di `download-youtube.sh` agar playlist detection code berada di dalam blok `then` dengan indentasi benar.
+- **Fix(Config)**: **File Permission** — `_config_set()` sekarang `chmod 600` setelah menulis config file.
+- **Fix(DB)**: **Unbounded Growth** — Tabel `downloads` di SQLite dibatasi 1000 record terakhir, mencegah file DB membesar tanpa batas.
+
+## v4.2.8 (Critical Bug Fixes — Batch 2)
+- **Fix(Core)**: **Zombie Network Monitor** — Cleanup NET_PID/NET_TMP sebelum `exit 0` di mode CLI. Ping interval 3s→30s. Validasi `mktemp` dengan fallback file creation (bukan string literal).
+- **Fix(Core)**: **Race Condition Config** — `_config_set`/`_config_unset` menggunakan `mktemp` untuk atomic write. Lock scope diperbaiki agar read-modify-write berada dalam satu lock.
+- **Fix(Core)**: **Ctrl+C Restart** — `_trap_ctrlc` sekarang `return 0` bukan `exec bash "$SCRIPT_PATH"`. Mencegah restart penuh aplikasi.
+- **Fix(Python)**: **Bare Excepts** — `except:` → `except Exception:` di `zdt-telegram.py`. Mencegah KeyboardInterrupt/SystemExit tertelan.
+- **Fix(Log)**: **Multi-Level Rotation** — Log rotation sekarang menyimpan 5 backup (.1.gz – .5.gz) dengan kompresi gzip.
+- **Fix(Daemon)**: **Stale Module Cleanup** — Hapus reference `download.sh` lama di OTA updater.
+
+## v4.2.7 (AI Model Updates)
+- **Fix(AI)**: **OpenRouter Model Refresh** — Update daftar model free-tier OpenRouter ke model yang masih berfungsi.
+- **Fix(AI)**: **CLI Prompt Shortened** — System prompt Zaki AI di CLI dipotong agar lebih akurat pada model gratis.
+- **Fix(AI)**: **Telegram AI Responses** — Perbaikan format respon AI di Telegram bot.
+
+## v4.2.5 – v4.2.6 (Version Rollover Fix)
+- **Fix**: Patch rollover versi di `.99` bukan `.9` (e.g. 4.1.99 → 4.2.0). Memperbaiki bug dimana 4.1.9 dianggap sebagai minor increment dari 4.1.89.
+- **Fix**: Koreksi versi retroaktif: 4.1.104 → 4.2.5, 4.1.105 → 4.2.5.
+- **Fix**: Inisialisasi `AUTO_MODE`/`AUTO_FORMAT_SPEC`/`AUTO_BITRATE` untuk mencegah `set -u` crash.
+
+## v4.1.98 (Web Dashboard Stability)
+- **Fix(Web)**: **Template Discovery** — `_find_templates_dir()` mencari di 5 lokasi instalasi berbeda. OTA update juga mendownload template dashboard.
+- **Fix(Web)**: **CSRF Safety** — `requires_csrf` skip safe HTTP methods (GET/HEAD/OPTIONS). Perbaiki HTML `divBitrate` dan mock method attribute di test.
+- **Fix(Web)**: **Timeout & Retry** — `csrfFetch` timeout 30 detik, auto-retry on 403, slow warning after 20s.
+- **Fix(Web)**: **Rate Limit** — Rate limit dinaikkan 30→120 request/menit. Polling interval diperpanjang: log 3s, scheduler 10s.
+- **Fix(Web)**: **Real Password** — Tampilkan password asli dari `config.env` di startup dashboard, bukan hardcoded "admin".
+- **Fix(Daemon)**: **Unbound Variable** — Perbaiki `local _actual_user` tanpa inisialisasi yang menyebabkan error `set -u`.
+- **Fix(CLI)**: **Web Mode Handler** — Tambah handler untuk `--web` di `main()` agar tidak langsung exit.
+- **Fix(Download)**: **Playlist Auto-Detect** — `download_video` auto-detect playlist URL di auto mode.
+- **Fix(Telegram)**: **Response Formatting** — Perbaiki newlines stripped, Markdown parse_mode, AI reasoning leakage.
+
+## v4.1.91 – v4.1.97 (Incremental Fixes)
+- **Fix(Web)**: **Duplicate Detector** — Skip di auto mode untuk mencegah prompt interaktif. Recursive file counting dan listing.
+- **Fix(Web)**: **Delete All** — Recursive cleanup dengan empty directory handling. Auto-detect playlist di auto mode.
+- **Fix(Web)**: **Template Copy** — Auto-copy dashboard template ke direktori yang benar jika tidak ditemukan.
+- **Fix(Telegram)**: **AI Model Upgrade** — Upgrade ke OpenRouter model yang masih aktif. Tes Gemini-only ditambahkan.
+- **Fix(Assistan)**: **JSON Injection** — Perbaiki payload JSON building pakai Python untuk mencegah injection dari special characters.
+- **Fix(Assistan)**: **OpenRouter Fallback Key** — Perbaiki logika fallback key saat Gemini gagal.
+- **Fix(Assistan)**: **Local Variable Scope** — Reset state variables tiap iterasi loop.
+- **Fix(Batch)**: **Auto-Mode Noninteractive** — `AUTO_MODE` skip semua wizard interaktif di download-spotify dan download-youtube.
+- **Fix(Batch)**: **Python Launcher** — `_run_python_script()` coba VENV python dulu baru global.
+- **Fix(Batch)**: **Watch Leak** — LRU eviction (max 1000 entries) dan size-stability check di watch daemon.
+- **Fix(Batch)**: **Kompres Scan** — Scan SEMUA format audio, tidak hanya ekstensi target (cross-conversion support).
+- **Fix(Batch)**: **Metadata Check** — Benar-benar cek output "SUCCESS" sebelum melaporkan keberhasilan.
+- **Fix(Batch)**: **Playlist URL** — Prepend URL lengkap jika yt-dlp return video ID saja.
+- **Feat(AI)**: **8 New AUTO_ACTION Handlers** — Tambah handler untuk `cari playlist`, `buka web`, `setup tools`, `update tools`, `start telegram`, `start watch`, `buka scheduler`, `ubah storage`.
+- **Feat(AI)**: **Knowledge Base Upgrade** — Zaki AI sekarang punya pengetahuan komprehensif tentang semua fitur ZDT.
+- **Feat(Web)**: **Scheduler UI** — Panel Auto-Sync Scheduler dengan daftar playlist, interval, dan kontrol stop/start.
+- **Feat(Web)**: **Notifikasi Telegram** — Panel konfigurasi token & chat ID, test notification, auto-notify task completion.
+- **Feat(Web)**: **System Daemon Status** — Live status untuk Watchdog & Telegram Bot (running/offline).
+- **Feat(Web)**: **Auto-Start Daemons** — Opsi untuk auto-start watch daemon dan scheduler via systemd timer.
+- **Test**: **CSRF Integration** — 54 test untuk CSRF token validation, expiry, dan bypass prevention.
+- **Test**: **Conftest Refactor** — Extract shared mock setup, hapus 80% fixture duplication.
+- **Test**: **Telegram AI Fallback** — OR→Gemini fallback test dengan URL-based routing mock.
+- **Test**: **AUTO_ACTION Handlers** — 8 unit test untuk semua handler baru.
+
+---
+
 ## v4.1.79 (Zaki AI UX Redesign — Conversational Flow)
 - **Refactor(AI)**: **Alur Percakapan Berkelanjutan** - Zaki AI tidak lagi `clear` layar & menggambar ulang menu tiap giliran. Header hanya tampil sekali; percakapan kini mengalir turn-demi-turn layaknya chat sungguhan (bukan menu).
 - **Refactor(AI)**: **Hapus `_pause` Pemutus Alur** - Menghilangkan prompt "Tekan tombol apa aja untuk kembali ke menu" setelah tiap jawaban/aksi/greeting/error. User bisa langsung lanjut mengetik.

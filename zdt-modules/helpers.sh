@@ -507,6 +507,112 @@ _record_downloads() {
 }
 
 # ==========================================
+# SHARED DOWNLOAD WIZARD: FOLDER MODE SELECTION
+# ==========================================
+# Menampilkan dialog folder management (Auto-Folder, Manual, Tanpa Folder)
+# Global output: ZDT_FOLDER_MODE, ZDT_FOLDER_MANUAL_NAME
+# Return: 0 (success), 1 (cancel)
+_ask_folder_mode() {
+    _print_menu_box "MANAJEMEN FOLDER OUTPUT" \
+        "${GREEN}[1]${RESET} Auto-Folder per Artis/Channel Utama" \
+        "${GREEN}[2]${RESET} Bikin 1 Folder Manual" \
+        "${GREEN}[3]${RESET} Tanpa folder baru" \
+        "DIVIDER" \
+        "${RED}[0]${RESET} KEMBALI"
+    echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
+    read -r -n 1 ZDT_FOLDER_MODE
+    echo ""
+    if [ "$ZDT_FOLDER_MODE" = "0" ]; then return 1; fi
+
+    ZDT_FOLDER_MANUAL_NAME=""
+    if [ "$ZDT_FOLDER_MODE" = "2" ]; then
+        echo -e -n "  ${BOLD}[?] Nama folder (0=Kembali): ${RESET}"
+        local nama_input
+        read -r nama_input
+        if [ "$nama_input" = "0" ]; then return 1; fi
+        if [ -z "$nama_input" ]; then
+            echo -e "  ${YELLOW}${ICO_WARN} Nama folder kosong! Otomatis download ke direktori saat ini.${RESET}"
+        else
+            ZDT_FOLDER_MANUAL_NAME="${nama_input// /-}"
+        fi
+    fi
+    return 0
+}
+
+# ==========================================
+# SHARED DOWNLOAD WIZARD: AUDIO FORMAT SELECTION
+# ==========================================
+# Menampilkan dialog pemilihan format audio (M4A, MP3, FLAC, WAV, OPUS, OGG)
+# Global output: ZDT_FORMAT_PILIH (1-6)
+# Return: 0 (success), 1 (cancel/back)
+_ask_format_audio() {
+    _print_menu_box "FORMAT OUTPUT" \
+        "${GREEN}[1]${RESET} M4A  (Default, paling kompatibel, kualitas bagus)" \
+        "${GREEN}[2]${RESET} MP3  (Universal, didukung semua perangkat lama)" \
+        "${GREEN}[3]${RESET} FLAC (Lossless, kualitas tertinggi, ukuran besar)" \
+        "${GREEN}[4]${RESET} WAV  (Uncompressed, untuk studio/editing)" \
+        "${GREEN}[5]${RESET} OPUS (Modern, ukuran kecil, suara jernih)" \
+        "${GREEN}[6]${RESET} OGG  (Open source, bagus untuk streaming/game)" \
+        "DIVIDER" \
+        "${RED}[0]${RESET} KEMBALI"
+    echo -e -n "  ${BOLD}[?] Pilihan [0-6]: ${RESET}"
+    read -r -n 1 ZDT_FORMAT_PILIH
+    echo ""
+    if [ -z "$ZDT_FORMAT_PILIH" ] || [ "$ZDT_FORMAT_PILIH" = "0" ]; then
+        ZDT_FORMAT_PILIH=""
+        return 1
+    fi
+    return 0
+}
+
+# ==========================================
+# SHARED POST-DOWNLOAD: AUDIO COMPRESS + CLEAN
+# ==========================================
+# Post-download processing: compress (if enabled) then clean file names
+# Arguments: scan_dir, extension, pilih_kompres(y/n)
+_post_download_audio() {
+    local scan_dir="$1"
+    local ext="$2"
+    local pilih_kompres="$3"
+
+    if [[ "$pilih_kompres" =~ ^[Yy]$ ]]; then
+        echo -e "  ${CYAN}${ICO_ARROW} AUTO COMPRESS AUDIO${RESET}"
+        local c_codec="aac"
+        local c_ext="m4a"
+        if [ "$ext" = "mp3" ]; then
+            c_codec="libmp3lame"
+            c_ext="mp3"
+        fi
+        while IFS= read -r file; do
+            _kompres_audio_file "$file" "$c_codec" "128k" "$c_ext"
+        done < <(find "$scan_dir" -type f -iname "*.$ext" ! -name "*_temp.*" -mmin -60 2>/dev/null)
+    fi
+
+    echo -e "  ${CYAN}${ICO_ARROW} AUTO CLEAN NAMA FILE${RESET}"
+    while IFS= read -r file; do
+        _bersih_satu_nama "$file"
+    done < <(find "$scan_dir" -type f \( -iname "*.$ext" -o -iname "*.m4a" -o -iname "*.lrc" \) -mmin -60 2>/dev/null)
+}
+
+# ==========================================
+# SHARED: RESOLVE SCAN DIR
+# ==========================================
+# Arguments: folder_mode, auto_folder_name, folder_manual_name
+# Echoes scan directory path
+_resolve_scan_dir() {
+    local folder_mode="$1"
+    local auto_name="$2"
+    local manual_name="$3"
+    if [ "$folder_mode" = "1" ] && [ -n "$auto_name" ]; then
+        echo "./$auto_name"
+    elif [ "$folder_mode" = "2" ] && [ -n "$manual_name" ]; then
+        echo "./$manual_name"
+    else
+        echo "."
+    fi
+}
+
+# ==========================================
 # HELPER: DOWNLOAD WITH AUTO-RETRY
 # ==========================================
 _download_with_retry() {

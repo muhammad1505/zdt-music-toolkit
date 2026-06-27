@@ -39,18 +39,18 @@ download_ytdlp() {
         pilih_chapter="n"
         pilih_lirik="n"
         pilih_kompres="n"
-    # Auto-detect playlist URLs — if URL contains list=, download full playlist
-    pilih_playlist="n"
-    for l in "${links[@]}"; do
-        if [[ "$l" == *"list="* ]]; then
-            pilih_playlist="y"
-            break
+        # Auto-detect playlist URLs — if URL contains list=, download full playlist
+        pilih_playlist="n"
+        for l in "${links[@]}"; do
+            if [[ "$l" == *"list="* ]]; then
+                pilih_playlist="y"
+                break
+            fi
+        done
+        if [ -z "$links" ] || [ -z "${links[*]}" ]; then
+            echo -e "  ${RED}${ICO_FAIL} URL kosong! Batal.${RESET}"
+            return 0
         fi
-    done
-    if [ -z "$links" ] || [ -z "${links[*]}" ]; then
-        echo -e "  ${RED}${ICO_FAIL} URL kosong! Batal.${RESET}"
-        return 0
-    fi
     else
         links=()
     fi
@@ -83,46 +83,13 @@ download_ytdlp() {
                 fi
                 step=2
             elif [ "$step" -eq 2 ]; then
-                _print_menu_box "MANAJEMEN FOLDER OUTPUT" \
-                    "${GREEN}[1]${RESET} Auto-Folder per Artis/Channel Utama" \
-                    "${GREEN}[2]${RESET} Bikin 1 Folder Manual" \
-                    "${GREEN}[3]${RESET} Tanpa folder baru" \
-                    "DIVIDER" \
-                    "${RED}[0]${RESET} KEMBALI"
-                echo -e -n "  ${BOLD}[?] Pilih Mode [0-3]: ${RESET}"
-                read -r -n 1 folder_mode
-                echo ""
-                if [ "$folder_mode" = "0" ]; then step=1; continue; fi
-                if [ "$folder_mode" = "2" ]; then step=3; else step=4; fi
-            elif [ "$step" -eq 3 ]; then
-                echo -e -n "  ${BOLD}[?] Nama folder (0=Kembali): ${RESET}"
-                local nama_folder_input
-                read -r nama_folder_input
-                if [ "$nama_folder_input" = "0" ]; then step=2; continue; fi
-                if [ -z "$nama_folder_input" ]; then
-                    echo -e "  ${YELLOW}${ICO_WARN} Nama folder kosong! Otomatis download ke direktori saat ini.${RESET}"
-                    folder_manual_name=""
-                else
-                    folder_manual_name="${nama_folder_input// /-}"
-                fi
+                if ! _ask_folder_mode; then step=1; continue; fi
+                folder_mode="$ZDT_FOLDER_MODE"
+                folder_manual_name="$ZDT_FOLDER_MANUAL_NAME"
                 step=4
             elif [ "$step" -eq 4 ]; then
-                _print_menu_box "FORMAT OUTPUT" \
-                    "${GREEN}[1]${RESET} M4A  (Default, paling kompatibel, kualitas bagus)" \
-                    "${GREEN}[2]${RESET} MP3  (Universal, didukung semua perangkat lama)" \
-                    "${GREEN}[3]${RESET} FLAC (Lossless, kualitas tertinggi, ukuran besar)" \
-                    "${GREEN}[4]${RESET} WAV  (Uncompressed, untuk studio/editing)" \
-                    "${GREEN}[5]${RESET} OPUS (Modern, ukuran kecil, suara jernih)" \
-                    "${GREEN}[6]${RESET} OGG  (Open source, bagus untuk streaming/game)" \
-                    "DIVIDER" \
-                    "${RED}[0]${RESET} KEMBALI"
-                echo -e -n "  ${BOLD}[?] Pilihan [0-6]: ${RESET}"
-                read -r -n 1 format_pilih
-                echo ""
-                if [ "$format_pilih" = "0" ]; then
-                    if [ "$folder_mode" = "2" ]; then step=3; else step=2; fi
-                    continue
-                fi
+                if ! _ask_format_audio; then step=2; continue; fi
+                format_pilih="$ZDT_FORMAT_PILIH"
                 case $format_pilih in
                     1) yt_ext="m4a" ;;
                     2) yt_ext="mp3" ;;
@@ -333,12 +300,8 @@ download_ytdlp() {
             _log "WARN" "yt-dlp reported errors for: $link (exit: $dl_status)"
         fi
 
-        local scan_dir="."
-        if [ "$folder_mode" = "1" ] && [ -n "$auto_folder_name" ]; then
-            scan_dir="./$auto_folder_name"
-        elif [ "$folder_mode" = "2" ] && [ -n "$folder_manual_name" ]; then
-            scan_dir="./$folder_manual_name"
-        fi
+        local scan_dir
+        scan_dir=$(_resolve_scan_dir "$folder_mode" "$auto_folder_name" "$folder_manual_name")
 
         # Record successful downloads to database
         local source_name="youtube"
@@ -367,25 +330,7 @@ download_ytdlp() {
             fi
         fi
 
-        if [[ "$pilih_kompres" =~ ^[Yy]$ && "$yt_ext" != "mp4" ]]; then
-            echo -e "  ${CYAN}${ICO_ARROW} AUTO COMPRESS AUDIO${RESET}"
-            
-            local c_codec="aac"
-            local c_ext="m4a"
-            if [ "$yt_ext" = "mp3" ]; then
-                c_codec="libmp3lame"
-                c_ext="mp3"
-            fi
-            
-            while IFS= read -r file; do
-                _kompres_audio_file "$file" "$c_codec" "128k" "$c_ext"
-            done < <(find "$scan_dir" -type f -iname "*.$yt_ext" ! -name "*_temp.*" -mmin -60 2>/dev/null)
-        fi
-
-        echo -e "  ${CYAN}${ICO_ARROW} AUTO CLEAN NAMA FILE${RESET}"
-        while IFS= read -r file; do
-            _bersih_satu_nama "$file"
-        done < <(find "$scan_dir" -type f \( -iname "*.$yt_ext" -o -iname "*.m4a" -o -iname "*.lrc" \) -mmin -60 2>/dev/null)
+        _post_download_audio "$scan_dir" "$yt_ext" "$pilih_kompres"
     done
 
     _log "INFO" "YouTube download batch complete"
