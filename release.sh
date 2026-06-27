@@ -4,14 +4,21 @@
 
 BUMP_TYPE=${1:-patch}
 
-# Ambil versi saat ini dari zdt.sh
-CURRENT_VERSION=$(grep '^readonly APP_VERSION=' zdt.sh | cut -d'"' -f2)
-
-if [ -z "$CURRENT_VERSION" ]; then
-    echo "Gagal menemukan APP_VERSION di zdt.sh!"
+# Ambil versi saat ini dari file VERSION (single source of truth)
+if [ ! -f "VERSION" ]; then
+    echo "File VERSION tidak ditemukan di project root!"
     exit 1
 fi
 
+CURRENT_VERSION=$(cat VERSION | tr -d '[:space:]')
+
+if [ -z "$CURRENT_VERSION" ]; then
+    echo "File VERSION kosong!"
+    exit 1
+fi
+
+# Hanya ambil 3 digit pertama (major.minor.patch) untuk dibump
+# Abaikan suffix seperti -rc1, -beta, dll
 IFS='.' read -ra VER <<< "$CURRENT_VERSION"
 
 MAJOR=${VER[0]}
@@ -44,15 +51,15 @@ echo "🚀 Bumping version: v$CURRENT_VERSION -> v$NEW_VERSION"
 # Update VERSION file (single source of truth)
 echo "$NEW_VERSION" > VERSION
 
-# Update fallback di zdt.sh (VERSION file is primary, fallback stays in sync)
-sed -i "s/readonly APP_VERSION=\"$CURRENT_VERSION\"/readonly APP_VERSION=\"$NEW_VERSION\"/" zdt.sh
+# Update fallback di zdt.sh (dynamic expression: ${_APP_VERSION:-X.X.X})
+sed -i "s/:-[0-9.]*}/:-$NEW_VERSION}/" zdt.sh
 
 # Replace di README.md (khusus baris instalasi)
 sed -i "s/ZDT (v$CURRENT_VERSION+)/ZDT (v$NEW_VERSION+)/" README.md
 
 # Terapkan juga ke instalasi lokal (binary + VERSION file share dir)
 if [ -f "$HOME/.local/bin/zdt" ]; then
-    sed -i "s/readonly APP_VERSION=\"$CURRENT_VERSION\"/readonly APP_VERSION=\"$NEW_VERSION\"/" "$HOME/.local/bin/zdt"
+    sed -i "s/:-[0-9.]*}/:-$NEW_VERSION}/" "$HOME/.local/bin/zdt"
 fi
 if command -v zdt >/dev/null 2>&1; then
     _share=$(dirname "$(dirname "$(command -v zdt)")")/share/zdt
