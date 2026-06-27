@@ -294,12 +294,47 @@ def get_stats():
         traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
 
+def _find_python():
+    """Find available python binary (venv first, then system)."""
+    venv_py = os.path.expanduser("~/.local/share/zdt/venv/bin/python")
+    if os.path.exists(venv_py):
+        return venv_py
+    for candidate in [sys.executable, shutil.which("python3"), shutil.which("python")]:
+        if candidate:
+            return candidate
+    return "python3"
+
 def is_process_running(script_name):
+    """Check if a daemon script is running. Uses pgrep first (fast), then ps aux with timeout."""
     try:
-        output = subprocess.check_output(["ps", "aux"]).decode()
+        # Try pgrep first — much faster than parsing ps aux
+        pgrep = shutil.which("pgrep")
+        if pgrep:
+            result = subprocess.run(
+                [pgrep, "-f", script_name],
+                capture_output=True, timeout=3
+            )
+            if result.returncode == 0:
+                # Verify it's a python process
+                for pid in result.stdout.decode().strip().split("\n"):
+                    if pid:
+                        try:
+                            comm = subprocess.run(
+                                ["ps", "-p", pid, "-o", "comm="],
+                                capture_output=True, text=True, timeout=2
+                            )
+                            if "python" in comm.stdout.lower():
+                                return True
+                        except Exception:
+                            pass
+        
+        # Fallback: ps aux with 5s timeout
+        output = subprocess.check_output(["ps", "aux"], timeout=5).decode()
         for line in output.split("\n"):
             if script_name in line and "python" in line and not "grep" in line:
                 return True
+        return False
+    except subprocess.TimeoutExpired:
         return False
     except Exception:
         return False
@@ -357,7 +392,9 @@ def manage_daemon():
     data = request.json
     service = data.get('service')
     action = data.get('action')
-    venv_python = os.path.expanduser("~/.local/share/zdt/venv/bin/python")
+    
+    if not service or not action:
+        return jsonify({"success": False, "message": "Parameter service dan action diperlukan."})
     
     # Try multiple locations for scripts
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -369,7 +406,7 @@ def manage_daemon():
             os.path.join(cwd, name),  # dev mode
         ]:
             if os.path.exists(p): return p
-        return os.path.join(script_dir, name)
+        return None
     script_map = {
         'watch': find_script('zdt-watch.py'),
         'telegram': find_script('zdt-telegram.py'),
@@ -377,37 +414,103 @@ def manage_daemon():
     }
     
     if service not in script_map:
-        return jsonify({"success": False, "message": "Unknown service."})
+        return jsonify({"success": False, "message": "Service tidak dikenal."})
         
     script_path = script_map[service]
+    if not script_path or not os.path.exists(script_path):
+        return jsonify({"success": False, "message": f"Script {service} tidak ditemukan."})
+    
+    script_basename = os.path.basename(script_path)
     
     if action == 'start':
-        if is_process_running(os.path.basename(script_path)):
-            return jsonify({"success": True, "message": f"{service.capitalize()} is already running."})
+        if is_process_running(script_basename):
+            return jsonify({"success": True, "message": f"{service.capitalize()} sudah berjalan."})
+        
+        # Find python binary (venv or system)
+        python_bin = _find_python()
+        if not os.path.exists(python_bin):
+            return jsonify({"success": False, "message": "Python tidak ditemukan. Jalankan Setup Tools dulu."})
+        
         # Pass target directory to watch daemon
         watch_args = []
         if service == 'watch':
             watch_args = [get_target_dir()]
-        # Use close_fds=True and stdin=DEVNULL to fully detach and prevent hanging the API request
-        subprocess.Popen([venv_python, script_path] + watch_args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
-        return jsonify({"success": True, "message": f"Started {service} daemon."})
+        
+        try:
+            subprocess.Popen(
+                [python_bin, script_path] + watch_args,
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True
+            )
+            return jsonify({"success": True, "message": f"{service.capitalize()} daemon dimulai."})
+        except FileNotFoundError as e:
+            return jsonify({"success": False, "message": f"Python/script tidak ditemukan: {e}"})
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Gagal start: {str(e)}"})
         
     elif action == 'stop':
         try:
-            output = subprocess.check_output(["ps", "aux"]).decode()
             killed = False
-            for line in output.split("\n"):
-                if os.path.basename(script_path) in line and "python" in line and not "grep" in line:
-                    pid = int(line.split()[1])
-                    import signal
-                    os.kill(pid, signal.SIGTERM)
-                    killed = True
+            # Try pgrep first (faster)
+            pgrep = shutil.which("pgrep")
+            if pgrep:
+                try:
+                    result = subprocess.run(
+                        [pgrep, "-f", script_basename],
+                        capture_output=True, timeout=5
+                    )
+                    if result.returncode == 0:
+                        for pid_str in result.stdout.decode().strip().split("\n"):
+                            pid = pid_str.strip()
+                            if not pid:
+                                continue
+                            import signal
+                            # SIGTERM first
+                            os.kill(int(pid), signal.SIGTERM)
+                            killed = True
+                        # Give processes time to terminate
+                        if killed:
+                            time.sleep(0.5)
+                except subprocess.TimeoutExpired:
+                    pass
+            
+            # Fallback: ps aux with timeout
+            if not killed:
+                try:
+                    output = subprocess.check_output(["ps", "aux"], timeout=5).decode()
+                    for line in output.split("\n"):
+                        if script_basename in line and "python" in line and not "grep" in line:
+                            parts = line.split()
+                            if len(parts) > 1:
+                                import signal
+                                os.kill(int(parts[1]), signal.SIGTERM)
+                                killed = True
+                except subprocess.TimeoutExpired:
+                    pass
+            
+            # If still running after SIGTERM, send SIGKILL
             if killed:
-                return jsonify({"success": True, "message": f"Stopped {service} daemon."})
+                time.sleep(1)
+                if is_process_running(script_basename):
+                    import signal
+                    try:
+                        pgrep = shutil.which("pgrep")
+                        if pgrep:
+                            result = subprocess.run(
+                                [pgrep, "-f", script_basename],
+                                capture_output=True, timeout=3
+                            )
+                            if result.returncode == 0:
+                                for pid_str in result.stdout.decode().strip().split("\n"):
+                                    if pid_str.strip():
+                                        os.kill(int(pid_str.strip()), signal.SIGKILL)
+                    except Exception:
+                        pass
+                return jsonify({"success": True, "message": f"{service.capitalize()} daemon dihentikan."})
             else:
-                return jsonify({"success": True, "message": f"{service.capitalize()} is not running."})
+                return jsonify({"success": True, "message": f"{service.capitalize()} tidak berjalan."})
         except Exception as e:
-            return jsonify({"success": False, "message": f"Failed to stop: {str(e)}"})
+            return jsonify({"success": False, "message": f"Gagal stop: {str(e)}"})
 
 @app.route('/api/csrf-token', methods=['GET'])
 @requires_auth
