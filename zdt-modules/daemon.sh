@@ -187,28 +187,45 @@ update_zdt_script() {
     
     # mktemp: nama file acak untuk cegah symlink attack saat OTA update
     local tmp_file
+    local tmp_file
     tmp_file=$(mktemp "${TMPDIR:-/tmp}/zdt_update_XXXXXX.sh" 2>/dev/null || echo "/tmp/zdt_update_$$.sh")
     # Get latest commit SHA to bypass GitHub CDN cache
     local latest_sha
+    local base_url="https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit"
     latest_sha=$(curl -sL "https://api.github.com/repos/muhammad1505/zdt-music-toolkit/commits/main" 2>/dev/null | grep -oP '"sha":\s*"\K[^"]+' | head -1)
     local dl_ref="${latest_sha:-main}"
-    if curl -sL "https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/${dl_ref}/zdt.sh" -o "$tmp_file"; then
+    local cache_bust="?v=$(date +%s)"
+    local gh_url="${base_url}/${dl_ref}"
+
+    # Step 1: Download VERSION file FIRST — single source of truth
+    local tmp_ver
+    tmp_ver=$(mktemp "${TMPDIR:-/tmp}/zdt_version_XXXXXX" 2>/dev/null || echo "/tmp/zdt_version_$$")
+    curl -sL "${gh_url}/VERSION${cache_bust}" -o "$tmp_ver" 2>/dev/null
+    local new_version
+    if [ -s "$tmp_ver" ]; then
+        new_version=$(cat "$tmp_ver" | tr -d '[:space:]')
+    fi
+    rm -f "$tmp_ver"
+
+    # Step 2: Download zdt.sh
+    if curl -sL "${gh_url}/zdt.sh${cache_bust}" -o "$tmp_file"; then
         if [ -s "$tmp_file" ] && grep -qE "APP_VERSION|Version :" "$tmp_file"; then
-            local new_version
-            # Parse APP_VERSION from zdt.sh: supports both old format APP_VERSION="4.4.3"
-            # and new format APP_VERSION="${_APP_VERSION:-4.4.3}"
-            local _raw_ver
-            _raw_ver=$(grep -oP 'APP_VERSION="\K[^"]+' "$tmp_file" 2>/dev/null || true)
-            if [ -z "$_raw_ver" ]; then
-                # Fallback: comment # Version : x.y.z (legacy)
-                new_version=$(grep -oP 'Version : \K[0-9.]+' "$tmp_file" 2>/dev/null || echo "unknown")
-            elif [[ "$_raw_ver" == *":-"* ]]; then
-                # New format: APP_VERSION="${_APP_VERSION:-x.y.z}" — extract fallback value
-                new_version=$(echo "$_raw_ver" | grep -oP '\K[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
-            else
-                # Old format: APP_VERSION="x.y.z"
-                new_version="$_raw_ver"
+            # Step 3: Parse version from VERSION file (primary) or zdt.sh (fallback)
+            if [ -z "${new_version:-}" ]; then
+                # Fallback: parse dari zdt.sh (old format: APP_VERSION="x.y.z")
+                local _raw_ver
+                _raw_ver=$(grep -oP 'APP_VERSION="\K[^"]+' "$tmp_file" 2>/dev/null || true)
+                if [ -z "$_raw_ver" ]; then
+                    new_version=$(grep -oP 'Version : \K[0-9.]+' "$tmp_file" 2>/dev/null || echo "unknown")
+                elif [[ "$_raw_ver" == *":-"* ]]; then
+                    # New format: APP_VERSION="${_APP_VERSION:-x.y.z}" — extract fallback value
+                    new_version=$(echo "$_raw_ver" | grep -oP '\K[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+                else
+                    new_version="$_raw_ver"
+                fi
             fi
+            # Fallback if version is still empty
+            [ -z "${new_version:-}" ] && new_version="unknown"
             echo -e "  ${GREEN}${ICO_OK} Versi $new_version berhasil didownload!${RESET}"
             
             local target_bin
@@ -217,11 +234,17 @@ update_zdt_script() {
                 target_bin="$0"
             fi
             
+            # Detect dev mode: jika SCRIPT_DIR punya zdt-modules, update juga di situ
+            local dev_mode=false
+            if [ -n "${SCRIPT_DIR:-}" ] && [ -d "$SCRIPT_DIR/zdt-modules" ]; then
+                dev_mode=true
+                echo -e "  ${CYAN}${ICO_ARROW} Dev mode detected — also updating repo modules...${RESET}"
+            fi
+            
             if cp "$tmp_file" "$target_bin" 2>/dev/null; then
                 chmod +x "$target_bin"
                 echo -e "  ${GREEN}   ✓ Main binary updated${RESET}"
             else
-                # Maybe need root for system directories
                 if command -v sudo >/dev/null 2>&1 && sudo cp "$tmp_file" "$target_bin" 2>/dev/null; then
                     sudo chmod +x "$target_bin"
                     echo -e "  ${GREEN}   ✓ Main binary updated (via sudo)${RESET}"
@@ -229,65 +252,64 @@ update_zdt_script() {
                     echo -e "  ${YELLOW}   ⚠ Gagal update $target_bin (butuh root). Copy manual:${RESET}"
                     echo -e "  ${YELLOW}     sudo cp $tmp_file $target_bin${RESET}"
                     echo -e "  ${YELLOW}     sudo chmod +x $target_bin${RESET}"
-                    # Continue anyway — at least modules are updated
                 fi
             fi
             
-            # Also update module files
+            # Step 4: Download modules & support files
             local share_dir
             share_dir=$(_get_share_dir)
-            # Use GitHub API (no CDN cache) instead of raw.githubusercontent (cached ~5min)
-            local base_url="https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main"
-            local api_url="https://api.github.com/repos/muhammad1505/zdt-music-toolkit/contents"
-            
-            # Get latest commit SHA for cache-busting
-            local latest_sha
-            latest_sha=$(curl -sL "https://api.github.com/repos/muhammad1505/zdt-music-toolkit/commits/main" 2>/dev/null | grep -oP '"sha":\s*"\K[^"]+' | head -1)
-            if [ -n "$latest_sha" ]; then
-                base_url="https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/${latest_sha}"
-            fi
-            local cache_bust="?v=$(date +%s)"
-            
-            # Download ALL shell modules
             local mod_dir="$share_dir/zdt-modules"
             mkdir -p "$mod_dir"
-            # Clean up any stale modules from previous versions
             rm -f "$mod_dir/download.sh" 2>/dev/null || true
+            
             echo -e "  ${CYAN}${ICO_ARROW} Mengupdate shell modules...${RESET}"
             for mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
-                curl -sL "${base_url}/zdt-modules/${mod}.sh${cache_bust}" -o "${mod_dir}/${mod}.sh" 2>/dev/null
+                curl -sL "${gh_url}/zdt-modules/${mod}.sh${cache_bust}" -o "${mod_dir}/${mod}.sh" 2>/dev/null
+                # If dev mode, also update repo modules
+                if [ "$dev_mode" = true ]; then
+                    cp "${mod_dir}/${mod}.sh" "$SCRIPT_DIR/zdt-modules/${mod}.sh" 2>/dev/null || true
+                fi
             done
             
-            # Download ALL Python scripts
             echo -e "  ${CYAN}${ICO_ARROW} Mengupdate Python scripts...${RESET}"
             for pyfile in zdt-web.py zdt-watch.py zdt-telegram.py; do
-                curl -sL "${base_url}/${pyfile}${cache_bust}" -o "${share_dir}/${pyfile}" 2>/dev/null
+                curl -sL "${gh_url}/${pyfile}${cache_bust}" -o "${share_dir}/${pyfile}" 2>/dev/null
+                if [ "$dev_mode" = true ]; then
+                    cp "${share_dir}/${pyfile}" "$SCRIPT_DIR/${pyfile}" 2>/dev/null || true
+                fi
             done
             
-            # Download templates
             echo -e "  ${CYAN}${ICO_ARROW} Mengupdate dashboard template...${RESET}"
             mkdir -p "$share_dir/templates"
-            curl -sL "${base_url}/templates/dashboard.html${cache_bust}" -o "$share_dir/templates/dashboard.html" 2>/dev/null
+            curl -sL "${gh_url}/templates/dashboard.html${cache_bust}" -o "$share_dir/templates/dashboard.html" 2>/dev/null
+            if [ "$dev_mode" = true ] && [ -d "$SCRIPT_DIR/templates" ]; then
+                cp "$share_dir/templates/dashboard.html" "$SCRIPT_DIR/templates/dashboard.html" 2>/dev/null || true
+            fi
             
-            # Download utility scripts + database helper
             echo -e "  ${CYAN}${ICO_ARROW} Mengupdate utility files...${RESET}"
             for util in install.sh Makefile README.md; do
-                curl -sL "${base_url}/${util}${cache_bust}" -o "${share_dir}/${util}" 2>/dev/null
+                curl -sL "${gh_url}/${util}${cache_bust}" -o "${share_dir}/${util}" 2>/dev/null
+                if [ "$dev_mode" = true ] && [ -f "$SCRIPT_DIR/${util}" ]; then
+                    cp "${share_dir}/${util}" "$SCRIPT_DIR/${util}" 2>/dev/null || true
+                fi
             done
-            # Download AI prompt template
-            curl -sL "${base_url}/zdt-ai-prompt.txt${cache_bust}" -o "${share_dir}/zdt-ai-prompt.txt" 2>/dev/null
-            # Download database helper
-            curl -sL "${base_url}/zdt-modules/zdt_db.py${cache_bust}" -o "${mod_dir}/zdt_db.py" 2>/dev/null
+            curl -sL "${gh_url}/zdt-ai-prompt.txt${cache_bust}" -o "${share_dir}/zdt-ai-prompt.txt" 2>/dev/null
+            curl -sL "${gh_url}/zdt-modules/zdt_db.py${cache_bust}" -o "${mod_dir}/zdt_db.py" 2>/dev/null
+            if [ "$dev_mode" = true ] && [ -d "$SCRIPT_DIR/zdt-modules" ]; then
+                cp "${mod_dir}/zdt_db.py" "$SCRIPT_DIR/zdt-modules/zdt_db.py" 2>/dev/null || true
+            fi
             chmod +x "${share_dir}/install.sh" 2>/dev/null
             
-            # Download VERSION file (single source of truth)
+            # Step 5: Write VERSION file everywhere
             echo -e "  ${CYAN}${ICO_ARROW} Mengupdate VERSION file...${RESET}"
-            curl -sL "${base_url}/VERSION${cache_bust}" -o "${share_dir}/VERSION" 2>/dev/null
-            # Also copy to installed binary directory for local reads
+            echo "$new_version" > "${share_dir}/VERSION"
             local _installed_bin_dir
             _installed_bin_dir=$(dirname "$target_bin" 2>/dev/null || true)
             if [ -n "$_installed_bin_dir" ] && [ -d "$_installed_bin_dir" ]; then
                 cp "${share_dir}/VERSION" "$_installed_bin_dir/VERSION" 2>/dev/null || true
+            fi
+            if [ "$dev_mode" = true ]; then
+                echo "$new_version" > "$SCRIPT_DIR/VERSION"
             fi
             
             rm -f "$tmp_file"
