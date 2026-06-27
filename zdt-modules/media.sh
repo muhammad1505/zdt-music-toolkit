@@ -287,8 +287,7 @@ _kompres_video_batch() {
 hapus_vokal() {
     print_header "HAPUS VOKAL (AI DEMUCS)"
 
-    local venv_dir="$HOME/.local/share/zdt/demucs_venv"
-    local demucs_bin="$venv_dir/bin/demucs"
+    local demucs_bin="${ZDT_DEMUCS_BIN:-$HOME/.local/share/zdt/demucs_venv/bin/demucs}"
 
     if [ ! -f "$demucs_bin" ]; then
         echo -e "  ${YELLOW}${ICO_WARN} Demucs AI belum terinstal.${RESET}"
@@ -304,16 +303,16 @@ hapus_vokal() {
         fi
 
         echo -e "\n  ${CYAN}${ICO_ARROW} Membuat Python Virtual Environment...${RESET}"
-        if ! python3 -m venv "$venv_dir"; then
+        if !        python3 -m venv "${ZDT_DEMUCS_VENV_DIR:-$HOME/.local/share/zdt/demucs_venv}"; then
             echo -e "  ${RED}${ICO_FAIL} Gagal membuat virtual environment. Pastikan paket python3-venv terinstal.${RESET}"
             sleep 2
             return 1
         fi
 
         echo -e "  ${CYAN}${ICO_ARROW} Mendownload & Menginstal Demucs (Ini butuh waktu cukup lama)...${RESET}"
-        if ! "$venv_dir/bin/pip" install -U pip setuptools demucs torchcodec; then
+        if ! "${ZDT_DEMUCS_VENV_DIR:-$HOME/.local/share/zdt/demucs_venv}/bin/pip" install -U pip setuptools demucs torchcodec; then
             echo -e "  ${RED}${ICO_FAIL} Gagal menginstal Demucs!${RESET}"
-            rm -rf "$venv_dir"
+            rm -rf "${ZDT_DEMUCS_VENV_DIR:-$HOME/.local/share/zdt/demucs_venv}"
             sleep 2
             return 1
         fi

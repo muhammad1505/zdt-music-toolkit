@@ -115,15 +115,14 @@ install_missing_tools() {
 
     # 4. Setup Demucs VENV (Opsional)
     echo -e "  ${CYAN}${ICO_ARROW} Mengecek komponen AI (Demucs Vocal Remover)...${RESET}"
-    local demucs_venv="$HOME/.local/share/zdt/demucs_venv"
-    if [ ! -f "$demucs_venv/bin/demucs" ]; then
+    if [ ! -f "$ZDT_DEMUCS_BIN" ]; then
         echo -e -n "  ${BOLD}[?] Komponen Demucs sangat besar (PyTorch ~2GB+). Instal sekarang? (y/N): ${RESET}"
         local ans
         read -r -n 1 ans; echo ""
         if [[ "$ans" =~ ^[Yy]$ ]]; then
             echo -e "  ${YELLOW}Sedang mengunduh & menginstal Demucs... (Harap bersabar)${RESET}"
-            python3 -m venv "$demucs_venv" >/dev/null 2>&1
-            if "$demucs_venv/bin/pip" install -U pip setuptools demucs torchcodec >/dev/null 2>&1; then
+            python3 -m venv "$ZDT_DEMUCS_VENV_DIR" >/dev/null 2>&1
+            if "$ZDT_DEMUCS_VENV_DIR/bin/pip" install -U pip setuptools demucs torchcodec >/dev/null 2>&1; then
                 echo -e "  ${GREEN}${ICO_OK} Demucs berhasil diinstal!${RESET}"
             else
                 echo -e "  ${RED}${ICO_FAIL} Gagal menginstal Demucs.${RESET}"
@@ -193,7 +192,7 @@ system_info() {
                 stat="${RED}Missing${RESET}"
             fi
         elif [ "$tool" = "demucs" ]; then
-            if [ -f "$HOME/.local/share/zdt/demucs_venv/bin/demucs" ]; then
+            if [ -f "$ZDT_DEMUCS_BIN" ]; then
                 stat="${GREEN}Installed${RESET} (AI VENV)"
             else
                 stat="${RED}Missing${RESET}"

@@ -586,7 +586,7 @@ _init_ui_cache() {
     _ZDT_CACHED_PYTHON3=$(command -v python3 >/dev/null 2>&1 && echo "1" || echo "0")
     _ZDT_CACHED_YTDLP=$(command -v yt-dlp >/dev/null 2>&1 && echo "1" || echo "0")
     _ZDT_CACHED_SPOTDL=$(command -v spotdl >/dev/null 2>&1 && echo "1" || echo "0")
-    _ZDT_CACHED_DEMUCS=$([ -f "$HOME/.local/share/zdt/demucs_venv/bin/demucs" ] && echo "1" || echo "0")
+    _ZDT_CACHED_DEMUCS=$([ -f "${ZDT_DEMUCS_BIN:-$HOME/.local/share/zdt/demucs_venv/bin/demucs}" ] && echo "1" || echo "0")
     # Mutagen check: cache result (heavy Python import)
     if [ -f "$HOME/.local/share/zdt/venv/bin/python" ]; then
         "$HOME/.local/share/zdt/venv/bin/python" -c "import mutagen" >/dev/null 2>&1 && _ZDT_CACHED_MUTAGEN="1" || _ZDT_CACHED_MUTAGEN="0"

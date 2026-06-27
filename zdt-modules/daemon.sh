@@ -309,10 +309,9 @@ update_tools() {
         echo -e "  ${YELLOW}${ICO_WARN} Update tools selesai dengan peringatan.${RESET}"
     fi
     
-    local demucs_venv="$HOME/.local/share/zdt/demucs_venv"
-    if [ -f "$demucs_venv/bin/demucs" ]; then
+    if [ -f "$ZDT_DEMUCS_BIN" ]; then
         echo -e "  ${CYAN}${ICO_ARROW} Memperbarui komponen AI Demucs...${RESET}"
-        if "$demucs_venv/bin/pip" install -U pip setuptools demucs torchcodec >/dev/null 2>&1; then
+        if "$ZDT_DEMUCS_VENV_DIR/bin/pip" install -U pip setuptools demucs torchcodec >/dev/null 2>&1; then
             echo -e "  ${GREEN}${ICO_OK} AI Demucs berhasil diperbarui!${RESET}"
         else
             echo -e "  ${YELLOW}${ICO_WARN} Update Demucs selesai dengan peringatan.${RESET}"
