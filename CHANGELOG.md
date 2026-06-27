@@ -2,6 +2,18 @@
 
 Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini.
 
+## v4.4.0 (Web UI Evolution — Dark/Light Mode, SSE Streaming, System Logs, Pagination)
+- **Feat(Web)**: **Dark/Light Mode Toggle** — Settings panel toggle + mobile More sheet. localStorage persistence + `prefers-color-scheme` auto-detection. Chart.js dynamic color update on theme switch.
+- **Feat(Web)**: **SSE Real-Time Log Streaming** — Replace polling 3s dengan EventSource. New `/api/logs/stream` endpoint (1s check interval, content change detection, `json.dumps()` proper escaping). Auto-reconnect + fallback polling 10s.
+- **Feat(Web)**: **Auto-Update Notification** — New `/api/update-check` endpoint cek GitHub `releases/latest`. Banner kuning "Update Tersedia!" + toast notification. Cek 5 detik setelah load, lalu setiap 30 menit.
+- **Feat(Web)**: **Search/Filter File List** — Search input di Metadata Editor & Tools panel dengan client-side real-time filter via `_allFilesCache`.
+- **Feat(Web)**: **System Logs Viewer** — New panel "Logs" di sidebar. Backend `/api/system/logs` dengan journalctl → syslog fallback. Table dengan sticky header, line count selector, error/warning level coloring.
+- **Feat(Web)**: **Pagination Riwayat Unduhan** — DB `get_stats` support limit/offset. Pagination UI: prev/next + page number buttons (max 7 + ellipsis).
+- **Feat(Core)**: **GitHub Actions Auto-Release** — New `.github/workflows/release.yml`. Trigger `v*` tag push, extract changelog entry, create GitHub Release via `softprops/action-gh-release`.
+- **Feat(Core)**: **Spotify Sync Duplicate Detector** — `playlist.sh` cek DB sebelum `spotdl download`. Auto-mode skip silent, interactive tanya konfirmasi `y/N`. Record playlist URL ke DB untuk tracking antar sesi.
+- **Fix(Web)**: **Version Fallback** — `zdt-web.py` APP_VERSION dari `4.1.91` → `4.4.0`.
+- **Test**: +3 unit test untuk shared functions (`_resolve_scan_dir` 5 kasus, cache vars, function signatures). Total 47 tests.
+
 ## v4.1.83 (True OR→Gemini Fallback)
 - **Feat(Telegram)**: **True OR→Gemini Fallback** - When all OpenRouter tiers fail (HTTP 429/connection errors), the Telegram bot now falls through to Gemini instead of returning the error immediately. Only returns on successful response.
 - **Fix(Telegram)**: **Error Fallback Message** - When OR fails and no Gemini key exists, user sees the actual API error instead of the generic "Maksud lu apa nih?" message.
