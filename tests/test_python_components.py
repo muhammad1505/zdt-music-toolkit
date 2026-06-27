@@ -264,3 +264,128 @@ class TestSharedPatterns:
                 compile(source, fname, "exec")
             except SyntaxError as e:
                 pytest.fail(f"Syntax error in {fname}: {e}")
+
+
+# ────────────────────────────────────────────
+# Tests: ZdtPaths (shared path module)
+# ────────────────────────────────────────────
+
+class TestZdtPaths:
+    """Tests for zdt_paths.py — single source of truth for all paths."""
+
+    @classmethod
+    def setup_class(cls):
+        """Ensure zdt-modules is in sys.path for imports."""
+        _modules_dir = os.path.join(PROJECT_DIR, "zdt-modules")
+        if _modules_dir not in sys.path:
+            sys.path.insert(0, _modules_dir)
+
+    def test_get_share_dir_default(self, monkeypatch):
+        from zdt_paths import ZdtPaths
+        monkeypatch.setattr(ZdtPaths, "SHARE_DIRS", ["/nonexistent/zdt"])
+        share = ZdtPaths.get_share_dir()
+        assert share == "/nonexistent/zdt"
+
+    def test_get_config_file(self):
+        from zdt_paths import ZdtPaths
+        cfg = ZdtPaths.get_config_file()
+        assert cfg == os.path.expanduser("~/.config/zdt/config.env")
+
+    def test_get_demucs_bin(self):
+        from zdt_paths import ZdtPaths
+        demucs = ZdtPaths.get_demucs_bin()
+        expected = os.path.expanduser("~/.local/share/zdt/demucs_venv/bin/demucs")
+        assert demucs == expected
+
+    def test_get_venv_python(self):
+        from zdt_paths import ZdtPaths
+        py = ZdtPaths.get_venv_python()
+        expected = os.path.expanduser("~/.local/share/zdt/venv/bin/python")
+        assert py == expected
+
+    def test_get_modules_dir(self, monkeypatch):
+        from zdt_paths import ZdtPaths
+        monkeypatch.setattr(ZdtPaths, "SHARE_DIRS", ["/test/share/zdt"])
+        mod = ZdtPaths.get_modules_dir()
+        assert mod == "/test/share/zdt/zdt-modules"
+
+    def test_get_templates_dir(self, monkeypatch):
+        from zdt_paths import ZdtPaths
+        monkeypatch.setattr(ZdtPaths, "SHARE_DIRS", ["/test/share/zdt"])
+        tmpl = ZdtPaths.get_templates_dir()
+        assert tmpl == "/test/share/zdt/templates"
+
+    def test_get_db_path(self):
+        from zdt_paths import ZdtPaths
+        db = ZdtPaths.get_db_path()
+        assert db == os.path.expanduser("~/.config/zdt/zdt.db")
+
+    def test_get_scheduler_path(self):
+        from zdt_paths import ZdtPaths
+        sched = ZdtPaths.get_scheduler_path()
+        assert sched == os.path.expanduser("~/.config/zdt/scheduler.json")
+
+    def test_get_telegram_token_path(self):
+        from zdt_paths import ZdtPaths
+        token = ZdtPaths.get_telegram_token_path()
+        assert token == os.path.expanduser("~/.config/zdt/telegram_token.txt")
+
+    def test_get_old_config_file(self, monkeypatch):
+        from zdt_paths import ZdtPaths
+        monkeypatch.setattr(os.path, "expanduser", lambda p: "/home/test/.config/zdt/config")
+        old = ZdtPaths.get_old_config_file()
+        assert old == "/home/test/.config/zdt/config"
+
+    def test_get_bin_path_no_install(self, monkeypatch):
+        from zdt_paths import ZdtPaths
+        monkeypatch.setattr(ZdtPaths, "BIN_PATHS", ["/nonexistent/zdt"])
+        import shutil
+        monkeypatch.setattr(shutil, "which", lambda cmd, **kw: None)
+        result = ZdtPaths.get_bin_path()
+        assert result == "zdt"
+
+    def test_find_script_no_install(self, monkeypatch):
+        from zdt_paths import ZdtPaths
+        monkeypatch.setattr(ZdtPaths, "SHARE_DIRS", ["/nonexistent/zdt"])
+        result = ZdtPaths.find_script("nonexistent_script.py", "/nonexistent")
+        assert result is None
+
+    def test_get_version_priority_file(self, monkeypatch):
+        """VERSION file in project root takes priority over env var."""
+        from zdt_paths import ZdtPaths
+        monkeypatch.setenv("ZDT_VERSION", "9.9.9")
+        ver = ZdtPaths.get_version()
+        # Project root VERSION file has 4.4.3 — should take priority
+        assert ver == "4.4.3"
+
+    def test_get_version_from_env(self, monkeypatch):
+        """Should read version from env var when VERSION file not found."""
+        from zdt_paths import ZdtPaths
+        monkeypatch.setenv("ZDT_VERSION", "5.0.0")
+        # Block ALL VERSION file discovery paths
+        monkeypatch.setattr(os, "getcwd", lambda: "/no/version/here")
+        monkeypatch.setattr(os.path, "abspath", lambda p: "/no/version/modules/zdt_paths.py" if "zdt_paths" in str(p) else p)
+        monkeypatch.setattr(ZdtPaths, "SHARE_DIRS", ["/nonexistent/zdt"])
+        monkeypatch.setattr(ZdtPaths, "_get_zdt_sh_candidates", lambda: [])
+        ver = ZdtPaths.get_version()
+        assert ver == "5.0.0"
+
+    def test_get_version_unknown(self, monkeypatch):
+        """Should return 'unknown' when nothing available."""
+        from zdt_paths import ZdtPaths
+        monkeypatch.delenv("ZDT_VERSION", raising=False)
+        monkeypatch.setattr(os, "getcwd", lambda: "/no/version/here")
+        monkeypatch.setattr(os.path, "abspath", lambda p: "/no/version/modules/zdt_paths.py" if "zdt_paths" in str(p) else p)
+        monkeypatch.setattr(ZdtPaths, "SHARE_DIRS", ["/nonexistent/zdt"])
+        monkeypatch.setattr(ZdtPaths, "_get_zdt_sh_candidates", lambda: [])
+        ver = ZdtPaths.get_version()
+        assert ver == "unknown"
+
+    def test_is_valid_version(self):
+        from zdt_paths import ZdtPaths
+        assert ZdtPaths._is_valid_version("4.4.3") is True
+        assert ZdtPaths._is_valid_version("0.1.0") is True
+        assert ZdtPaths._is_valid_version("1") is True
+        assert ZdtPaths._is_valid_version("") is False
+        assert ZdtPaths._is_valid_version("abc") is False
+        assert ZdtPaths._is_valid_version("v4.4.3") is False

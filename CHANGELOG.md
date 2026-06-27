@@ -2,6 +2,13 @@
 
 Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini.
 
+## v4.4.3 (Shared Path Unification — Demucs & VENV)
+- **Refactor(Bash)**: **Demucs Hardcode → Shared Vars** — Semua hardcoded path `$HOME/.local/share/zdt/demucs_venv` di `setup.sh`, `core.sh`, `daemon.sh`, `media.sh` diganti dengan `$ZDT_DEMUCS_VENV_DIR` / `$ZDT_DEMUCS_BIN` (dari `helpers.sh`).
+- **Refactor(Core)**: **ZDT_VENV_DIR Single Source** — Hapus `readonly ZDT_VENV_DIR` duplikat dari `core.sh` (sudah ada di `helpers.sh`). Fix mutagen check pake `${ZDT_VENV_DIR:-fallback}` karena `core.sh` di-source sebelum `helpers.sh`.
+- **Feat(Test)**: **ZdtPaths Unit Tests** — 16 test baru untuk `zdt_paths.py`: semua path resolver (`get_config_file`, `get_demucs_bin`, `get_venv_python`, dll), version resolution priority chain, fallback logic.
+- **Chore**: Hapus `readonly ZDT_CONFIG_FILE` duplikat di `core.sh`.
+- **Test**: 47 smoke + 16 unit = 63 tests passed.
+
 ## v4.4.2 (Path & Version Flexibility)
 - **Refactor(Python)**: **ZdtPaths Centralized** — New `zdt-modules/zdt_paths.py` sebagai single source of truth untuk semua path (share dir, bin, config, venv, demucs, templates, scripts). ~15 hardcoded paths di `zdt-web.py`, ~8 di `zdt-telegram.py`, dan sisanya di `zdt-watch.py` + `zdt-scheduler.py` diganti dengan `ZdtPaths.*()` calls.
 - **Refactor(Bash)**: **Shared Path Functions** — New `_get_share_dir()`, `_get_zdt_bin()`, `_find_script()`, `_find_module()` di `helpers.sh`. Semua for-loop path search di `daemon.sh` (4 fungsi), `setup.sh`, dan `assistant.sh` diganti dengan shared functions.

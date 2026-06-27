@@ -10,8 +10,8 @@
 # ==========================================
 # APP_VERSION is defined in the main zdt.sh entrypoint
 readonly APP_NAME="Zaki Downloader Tools"
-readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
-readonly ZDT_CONFIG_FILE="$HOME/.config/zdt/config.env"
+# ZDT_VENV_DIR dan ZDT_CONFIG_FILE didefinisikan di helpers.sh (di-source setelah core.sh)
+# Fallback pattern untuk akses sebelum helpers.sh: ${ZDT_VENV_DIR:-$HOME/.local/share/zdt/venv}
 CONF_AUDIO_CODEC="1"
 CONF_AUDIO_BITRATE="1"
 CONF_VIDEO_CODEC="2"
@@ -588,8 +588,9 @@ _init_ui_cache() {
     _ZDT_CACHED_SPOTDL=$(command -v spotdl >/dev/null 2>&1 && echo "1" || echo "0")
     _ZDT_CACHED_DEMUCS=$([ -f "${ZDT_DEMUCS_BIN:-$HOME/.local/share/zdt/demucs_venv/bin/demucs}" ] && echo "1" || echo "0")
     # Mutagen check: cache result (heavy Python import)
-    if [ -f "$HOME/.local/share/zdt/venv/bin/python" ]; then
-        "$HOME/.local/share/zdt/venv/bin/python" -c "import mutagen" >/dev/null 2>&1 && _ZDT_CACHED_MUTAGEN="1" || _ZDT_CACHED_MUTAGEN="0"
+    local _mutagen_python="${ZDT_VENV_DIR:-$HOME/.local/share/zdt/venv}/bin/python"
+    if [ -f "$_mutagen_python" ]; then
+        "$_mutagen_python" -c "import mutagen" >/dev/null 2>&1 && _ZDT_CACHED_MUTAGEN="1" || _ZDT_CACHED_MUTAGEN="0"
     else
         _ZDT_CACHED_MUTAGEN="0"
     fi
