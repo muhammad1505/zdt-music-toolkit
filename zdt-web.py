@@ -692,6 +692,60 @@ def get_logs():
     
     return jsonify({"log": log_content, "notify_sent": notify_sent})
 
+@app.route("/api/logs/stream", methods=["GET"])
+@requires_auth
+def stream_logs():
+    """SSE endpoint for real-time log streaming."""
+    import json as _json
+    import time as _time
+    log_file = WEB_TASK_LOG_PATH
+    
+    def generate():
+        last_size = 0
+        idle_count = 0
+        last_content_sent = ""
+        
+        while True:
+            log_content = ""
+            has_content = False
+            current_size = 0
+            
+            if os.path.exists(log_file):
+                try:
+                    current_size = os.path.getsize(log_file)
+                    if current_size != last_size:
+                        with open(log_file, "r") as f:
+                            lines = f.readlines()
+                            if lines:
+                                log_content = "".join(lines[-100:])
+                                has_content = True
+                except OSError:
+                    pass
+            
+            if has_content:
+                if log_content != last_content_sent:
+                    payload = _json.dumps({"log": log_content[-5000:], "active": True})
+                    yield f"data: {payload}\n\n"
+                    last_content_sent = log_content
+                last_size = current_size
+                idle_count = 0
+            else:
+                idle_count += 1
+                if idle_count >= 5:
+                    payload = _json.dumps({"log": "", "active": False})
+                    yield f"data: {payload}\n\n"
+                    last_content_sent = ""
+                    idle_count = 0
+                    last_size = 0
+            
+            _time.sleep(1)
+    
+    return Response(generate(), mimetype='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+    })
+
 @app.route("/api/logs/clear", methods=["POST"])
 @requires_auth
 @requires_csrf
