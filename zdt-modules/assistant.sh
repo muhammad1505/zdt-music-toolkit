@@ -1,10 +1,11 @@
 # ==========================================
-# ZDT Zaki AI Assistant Module v4.0
+# ZDT Zaki AI Assistant Module
 # ==========================================
 # Professional AI interface with conversation
 # memory, multi-tier model fallback, and
 # structured intent recognition
 # ==========================================
+# Version: ${APP_VERSION}
 
 # Conversation history (Database)
 readonly ZDT_DB_FILE="$HOME/.config/zdt/zdt_history.db"

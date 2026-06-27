@@ -45,6 +45,12 @@ fi
 cp zdt.sh "$BINDIR/zdt"
 chmod +x "$BINDIR/zdt"
 
+# Copy VERSION file (single source of truth)
+if [ -f "VERSION" ]; then
+    cp VERSION "$SHAREDIR/VERSION"
+    echo -e "${GREEN}Version:${NC} $(cat VERSION) installed."
+fi
+
 if [ -f "zdt-telegram.py" ]; then
     cp zdt-telegram.py "$SHAREDIR/"
     chmod +x "$SHAREDIR/zdt-telegram.py"

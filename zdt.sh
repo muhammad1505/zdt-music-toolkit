@@ -2,13 +2,28 @@
 export LC_ALL=C.UTF-8
 #
 # zdt.sh — Universal Music Toolkit (Modular Build)
-# Version : 4.4.2
+# Version : (dibaca dari file VERSION di project root)
 set -uo pipefail
-readonly APP_VERSION="4.4.2"
+
+# === Baca APP_VERSION dari VERSION file (single source of truth) ===
+_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+_APP_VERSION=""
+# Coba cari VERSION di repo root (dev mode) atau share dir (installed)
+if [ -f "$_SCRIPT_DIR/VERSION" ]; then
+    _APP_VERSION="$(cat "$_SCRIPT_DIR/VERSION" | tr -d '[:space:]')"
+else
+    for _share_check in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
+        if [ -f "$_share_check/VERSION" ]; then
+            _APP_VERSION="$(cat "$_share_check/VERSION" | tr -d '[:space:]')"
+            break
+        fi
+    done
+fi
+readonly APP_VERSION="${_APP_VERSION:-4.4.2}"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$_SCRIPT_DIR"
 ORIGINAL_ARGS=("$@")
 
 _MODULES_DIR="$SCRIPT_DIR/zdt-modules"

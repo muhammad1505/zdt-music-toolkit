@@ -41,19 +41,26 @@ NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 
 echo "🚀 Bumping version: v$CURRENT_VERSION -> v$NEW_VERSION"
 
-# Replace di zdt.sh
+# Update VERSION file (single source of truth)
+echo "$NEW_VERSION" > VERSION
+
+# Update fallback di zdt.sh (VERSION file is primary, fallback stays in sync)
 sed -i "s/readonly APP_VERSION=\"$CURRENT_VERSION\"/readonly APP_VERSION=\"$NEW_VERSION\"/" zdt.sh
 
 # Replace di README.md (khusus baris instalasi)
 sed -i "s/ZDT (v$CURRENT_VERSION+)/ZDT (v$NEW_VERSION+)/" README.md
 
-# Terapkan juga ke instalasi lokal
+# Terapkan juga ke instalasi lokal (binary + VERSION file share dir)
 if [ -f "$HOME/.local/bin/zdt" ]; then
     sed -i "s/readonly APP_VERSION=\"$CURRENT_VERSION\"/readonly APP_VERSION=\"$NEW_VERSION\"/" "$HOME/.local/bin/zdt"
 fi
+if command -v zdt >/dev/null 2>&1; then
+    _share=$(dirname "$(dirname "$(command -v zdt)")")/share/zdt
+    cp VERSION "$_share/VERSION" 2>/dev/null || true
+fi
 
 # Push ke GitHub
-git add zdt.sh README.md
+git add VERSION zdt.sh README.md
 git commit -m "Release: Version $NEW_VERSION"
 git push
 

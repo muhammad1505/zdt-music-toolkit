@@ -134,9 +134,23 @@ class ZdtPaths:
     @classmethod
     def get_version(cls):
         """Get ZDT version dynamically — no hardcoded fallback.
-        Priority: VERSION file (share dir) → ZDT_VERSION env var → parse zdt.sh → 'unknown'.
+        Priority: VERSION file (project root) → VERSION file (share dir) → 
+        ZDT_VERSION env var → parse zdt.sh → 'unknown'.
         """
-        # 1. VERSION file in share dir (written by zdt.sh on startup)
+        # 1. VERSION file in project root (committed to git, single source of truth)
+        for candidate in [
+            os.path.join(os.getcwd(), "VERSION"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "VERSION"),
+        ]:
+            try:
+                with open(os.path.normpath(candidate)) as f:
+                    ver = f.read().strip()
+                    if cls._is_valid_version(ver):
+                        return ver
+            except (OSError, IOError):
+                pass
+
+        # 2. VERSION file in share dir (written by zdt.sh on startup)
         version_file = os.path.join(cls.get_share_dir(), "VERSION")
         try:
             with open(version_file) as f:
@@ -146,12 +160,12 @@ class ZdtPaths:
         except (OSError, IOError):
             pass
 
-        # 2. Env var (set by zdt.sh: export ZDT_VERSION="$APP_VERSION")
+        # 3. Env var (set by zdt.sh: export ZDT_VERSION="$APP_VERSION")
         env_ver = os.environ.get("ZDT_VERSION")
         if env_ver and cls._is_valid_version(env_ver):
             return env_ver
 
-        # 3. Parse zdt.sh
+        # 4. Parse zdt.sh
         for candidate in cls._get_zdt_sh_candidates():
             ver = cls._parse_zdt_sh(candidate)
             if ver:
