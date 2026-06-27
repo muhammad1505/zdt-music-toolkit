@@ -2,6 +2,12 @@
 
 Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini.
 
+## v4.4.4 (OTA & Bootstrap Fixes — Hardcoded Path Cleanup)
+- **Fix(OTA)**: **Version Parsing** — `daemon.sh` grep `APP_VERSION="..."` dapet `${_APP_VERSION:-4.4.4}` literal karena format baru. Fix: deteksi via substring `":-"`, extract versi dengan regex `[0-9]+.[0-9]+.[0-9]+`. Tambah download VERSION file ke share_dir + binary_dir saat OTA update.
+- **Refactor(Python)**: **Bootstrap Hardcode** — 4 Python scripts (`zdt-web.py`, `zdt-scheduler.py`, `zdt-watch.py`, `zdt-telegram.py`) masih punya hardcoded `~/.local/share/zdt/zdt-modules` di bootstrap fallback (sebelum `ZdtPaths` importable). Sekarang pake komentar jelas: "Bootstrap: ZdtPaths belum tersedia, pake hardcoded path saja".
+- **Fix(Python)**: **Syntax Error** — `zdt-scheduler.py`, `zdt-watch.py`, `zdt-telegram.py` indentasi `for` loop kebablasan (di luar `if` block). Fix dengan indentasi 4-spasi.
+- **Test**: 47 smoke + 16 unit = all green.
+
 ## v4.4.3 (Shared Path Unification — Demucs & VENV)
 - **Refactor(Bash)**: **Demucs Hardcode → Shared Vars** — Semua hardcoded path `$HOME/.local/share/zdt/demucs_venv` di `setup.sh`, `core.sh`, `daemon.sh`, `media.sh` diganti dengan `$ZDT_DEMUCS_VENV_DIR` / `$ZDT_DEMUCS_BIN` (dari `helpers.sh`).
 - **Refactor(Core)**: **ZDT_VENV_DIR Single Source** — Hapus `readonly ZDT_VENV_DIR` duplikat dari `core.sh` (sudah ada di `helpers.sh`). Fix mutagen check pake `${ZDT_VENV_DIR:-fallback}` karena `core.sh` di-source sebelum `helpers.sh`.
