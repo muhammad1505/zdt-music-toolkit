@@ -17,12 +17,36 @@ if db_dir and not os.path.exists(db_dir):
     os.makedirs(db_dir, exist_ok=True)
 
 try:
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(DB_FILE, timeout=10)  # 10s timeout untuk WAL mode
     c = conn.cursor()
+    # Enable WAL mode for concurrent read/write access from multiple processes
+    c.execute("PRAGMA journal_mode=WAL;")
+    # Enable foreign keys (safety)
+    c.execute("PRAGMA foreign_keys=ON;")
     c.execute('''CREATE TABLE IF NOT EXISTS chat_history
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, content TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS downloads
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, url TEXT, source TEXT, size_bytes INTEGER, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    # Schema migration: add columns to existing tables for backward compatibility
+    for table_cols in [
+        ('chat_history', 'session_id', "TEXT DEFAULT 'default'"),
+        ('chat_history', 'created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+        ('downloads', 'status', "TEXT DEFAULT 'completed'"),
+        ('downloads', 'error', 'TEXT'),
+    ]:
+        try:
+            c.execute(f"ALTER TABLE {table_cols[0]} ADD COLUMN {table_cols[1]} {table_cols[2]}")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+    
+    c.execute('''CREATE TABLE IF NOT EXISTS tasks
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT, status TEXT DEFAULT 'pending', payload TEXT, result TEXT, started_at DATETIME, finished_at DATETIME, error TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS logs
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, level TEXT, component TEXT, message TEXT, metadata_json TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS preferences
+                 (key TEXT PRIMARY KEY, value TEXT, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS errors
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, error_type TEXT, component TEXT, stack_trace TEXT, context_json TEXT, count INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_seen DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     conn.commit()
 except Exception as e:
     print(f"Error initializing DB: {e}", file=sys.stderr)

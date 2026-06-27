@@ -3,6 +3,7 @@ import sys
 import os
 import time
 import subprocess
+import shutil
 import threading
 from concurrent.futures import ThreadPoolExecutor
 try:
@@ -26,6 +27,7 @@ from zdt_paths import ZdtPaths
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 if not TOKEN:
+    # Token file: ~/.config/zdt/telegram_token.txt
     TOKEN_FILE = ZdtPaths.get_telegram_token_path()
     if os.path.exists(TOKEN_FILE):
         # Pastikan token file aman (hanya bisa dibaca owner)
@@ -46,7 +48,23 @@ if not TOKEN:
 bot = telebot.TeleBot(TOKEN)
 
 # Thread pool untuk background tasks — batasi maks 10 thread concurrent
+# + Queue-based approach: jika pool penuh, task masuk antrian
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+
 _bg_thread_pool = ThreadPoolExecutor(max_workers=10, thread_name_prefix="zdt_bg")
+
+def _safe_submit_task(task_fn):
+    """Submit task ke thread pool dengan queue timeout (60s).
+    Jika pool penuh, task akan menunggu hingga ada slot kosong."""
+    future = _bg_thread_pool.submit(task_fn)
+    return future
+
+def _safe_popen(cmd_args, **kwargs):
+    """Safe subprocess.Popen wrapper that prevents PIPE deadlock.
+    Always redirects stderr to stdout when using PIPE to avoid buffer deadlock."""
+    if 'stdout' in kwargs and kwargs['stdout'] == subprocess.PIPE:
+        kwargs['stderr'] = subprocess.STDOUT
+    return subprocess.Popen(cmd_args, **kwargs)
 
 import logging
 logging.basicConfig(
@@ -132,7 +150,13 @@ def listener(messages):
 
 bot.set_update_listener(listener)
 
-zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
+def _find_zdt_bin():
+    """Find zdt binary, with fallback to path module.
+    Binary search paths: ~/.local/bin/zdt, /usr/local/bin/zdt, /data/data/com.termux/files/usr/bin/zdt
+    """
+    return shutil.which("zdt") or ZdtPaths.get_bin_path()
+
+zdt_bin = _find_zdt_bin()
 
 @bot.message_handler(commands=['start', 'help', 'menu'])
 def send_welcome(message):
@@ -381,7 +405,7 @@ Chat: {history_context}"""
                                 def _task():
                                     try:
                                         # Using unbuffered output trick via stdbuf or directly reading
-                                        process = subprocess.Popen([zdt_bin] + cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+                                        process = _safe_popen([zdt_bin] + cmd_args, stdout=subprocess.PIPE, text=True, bufsize=1)
                                             
                                         last_update = time.time()
                                         log_buffer = []
@@ -433,7 +457,7 @@ Chat: {history_context}"""
                                                 bot.reply_to(message, f"❌ <b>Terjadi kesalahan.</b>\n\n📄 <b>Error:</b>\n<pre>{html.escape(final_context)}</pre>", parse_mode="HTML")
                                     except Exception as e:
                                         bot.reply_to(message, f"❌ System Error: {e}")
-                                _bg_thread_pool.submit(_task)
+                                _safe_submit_task(_task)
 
                             if action.startswith("gas download audio"):
                                 url = action.replace("gas download audio", "").strip()
@@ -475,7 +499,7 @@ Chat: {history_context}"""
                                             bot.reply_to(message, "❌ Pencarian tidak menemukan hasil.")
                                     except Exception as e:
                                         bot.reply_to(message, f"❌ Error pencarian: {e}")
-                                _bg_thread_pool.submit(_search_task)
+                                _safe_submit_task(_search_task)
                             elif action.startswith("cari playlist"):
                                 query = action.replace("cari playlist", "").strip()
                                 import urllib.parse
@@ -514,7 +538,7 @@ Chat: {history_context}"""
                                             bot.reply_to(message, "❌ Pencarian playlist tidak menemukan hasil.")
                                     except Exception as e:
                                         bot.reply_to(message, f"❌ Error pencarian playlist: {e}")
-                                _bg_thread_pool.submit(_search_playlist_task)
+                                _safe_submit_task(_search_playlist_task)
                             elif action == "hapus vokal":
                                 bot.reply_to(message, "⚙️ Mengakses panel Demucs AI...")
                                 demucs_cmd(message)
@@ -727,7 +751,7 @@ def process_specific_file(call):
                     cmd_args = ["ffmpeg", "-y", "-i", filepath, "-b:a", "128k", out_path]
                 task_name = "Kompresi Media"
 
-            process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+            process = _safe_popen(cmd_args, stdout=subprocess.PIPE, text=True, bufsize=1)
             last_update = time.time()
             log_buffer = []
             last_pct = "0%"

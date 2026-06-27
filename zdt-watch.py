@@ -54,6 +54,7 @@ class ZDTFileHandler(PatternMatchingEventHandler):
             time.sleep(2)
         
         import shutil
+        # Binary search paths: ~/.local/bin/zdt, /usr/local/bin/zdt, /data/data/com.termux/files/usr/bin/zdt
         zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
             
         print(f"[{time.strftime('%H:%M:%S')}] Memulai auto-clean ZDT untuk file tersebut...")

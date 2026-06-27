@@ -7,6 +7,7 @@ import glob
 import tempfile
 import secrets
 import time
+import threading
 from collections import defaultdict
 from flask import Flask, request, render_template, render_template_string, jsonify, Response
 from functools import wraps
@@ -33,6 +34,9 @@ if _MODULES_DIR not in sys.path:
     sys.path.insert(0, _MODULES_DIR)
 from zdt_paths import ZdtPaths
 
+
+# Binary search paths for zdt executable
+# ZdtPaths.BIN_PATHS: ~/.local/bin/zdt, /usr/local/bin/zdt, /data/data/com.termux/files/usr/bin/zdt
 
 def _find_templates_dir():
     """Find templates directory across multiple possible install locations.
@@ -73,6 +77,14 @@ if os.path.exists(WEB_TASK_LOG_PATH):
 app = Flask(__name__, template_folder=_find_templates_dir())
 app.secret_key = secrets.token_hex(32)
 
+# ============================================
+# THREAD SAFETY: Global state protection
+# Flask is multi-threaded by default — all shared dicts must use Lock
+# ============================================
+_lock_csrf = threading.Lock()
+_lock_rate = threading.Lock()
+_lock_log_state = threading.Lock()
+
 # CSRF token store: dict[token, expiry_time]
 _csrf_tokens = {}
 _CSRF_TOKEN_TTL = 3600  # 1 hour
@@ -81,22 +93,25 @@ def _generate_csrf_token():
     """Generate and store a CSRF token with expiry."""
     _expire_old_csrf_tokens()
     token = secrets.token_urlsafe(32)
-    _csrf_tokens[token] = time.time() + _CSRF_TOKEN_TTL
+    with _lock_csrf:
+        _csrf_tokens[token] = time.time() + _CSRF_TOKEN_TTL
     return token
 
 def _expire_old_csrf_tokens():
     """Remove expired tokens to prevent memory leak."""
     now = time.time()
-    expired = [t for t, exp in _csrf_tokens.items() if now > exp]
-    for t in expired:
-        _csrf_tokens.pop(t, None)
+    with _lock_csrf:
+        expired = [t for t, exp in _csrf_tokens.items() if now > exp]
+        for t in expired:
+            _csrf_tokens.pop(t, None)
 
 def _validate_csrf_token(token):
     """Validate and consume a CSRF token."""
-    if token in _csrf_tokens:
-        expiry = _csrf_tokens.pop(token, 0)
-        if time.time() <= expiry:
-            return True
+    with _lock_csrf:
+        if token in _csrf_tokens:
+            expiry = _csrf_tokens.pop(token, 0)
+            if time.time() <= expiry:
+                return True
     return False
 
 def requires_csrf(f):
@@ -120,15 +135,16 @@ _rate_limit_store = defaultdict(list)
 def _rate_limit(ip, max_requests=120, window=60):
     """Return True if rate limited."""
     now = time.time()
-    _rate_limit_store[ip] = [t for t in _rate_limit_store[ip] if now - t < window]
-    if len(_rate_limit_store[ip]) >= max_requests:
-        return True
-    _rate_limit_store[ip].append(now)
+    with _lock_rate:
+        _rate_limit_store[ip] = [t for t in _rate_limit_store[ip] if now - t < window]
+        if len(_rate_limit_store[ip]) >= max_requests:
+            return True
+        _rate_limit_store[ip].append(now)
     return False
 
 @app.before_request
 def check_rate_limit():
-    ip = request.remote_addr
+    ip = request.remote_addr or request.headers.get("X-Forwarded-For", "unknown")
     if _rate_limit(ip):
         return jsonify({"error": "Too many requests. Slow down!"}), 429
 
@@ -759,12 +775,12 @@ def server_tools():
         return jsonify({"success": False, "message": str(e)})
 
 # Track previous log state for notification detection
-_last_log_state = {"active": False, "last_content": ""}
+# Thread-safe: all mutations use _lock_log_state
+_last_log_state = {"active": False, "last_content": "", "notified": False}
 
 @app.route("/api/logs", methods=["GET"])
 @requires_auth
 def get_logs():
-    global _last_log_state
     log_file = WEB_TASK_LOG_PATH
     log_content = "No active tasks."
     has_content = False
@@ -778,18 +794,18 @@ def get_logs():
     
     # Detect task completion: was active, now idle -> send notification
     notify_sent = False
-    if _last_log_state["active"] and not has_content and _last_log_state.get("notified", False) == False:
-        # Task just completed — send notification if configured
-        token, chat_id = _get_telegram_config()
-        if token and chat_id:
-            _send_telegram_message(token, chat_id, "✅ <b>ZDT Task Selesai!</b>\\nTask di web dashboard telah selesai dieksekusi.")
-        _last_log_state["notified"] = True
-        notify_sent = True
-    
-    _last_log_state["active"] = has_content
-    if has_content:
-        _last_log_state["last_content"] = log_content
-        _last_log_state["notified"] = False
+    with _lock_log_state:
+        if _last_log_state["active"] and not has_content and not _last_log_state.get("notified", False):
+            # Task just completed — send notification if configured
+            token, chat_id = _get_telegram_config()
+            if token and chat_id:
+                _send_telegram_message(token, chat_id, "✅ <b>ZDT Task Selesai!</b>\\nTask di web dashboard telah selesai dieksekusi.")
+            _last_log_state["notified"] = True
+            notify_sent = True
+        _last_log_state["active"] = has_content
+        if has_content:
+            _last_log_state["last_content"] = log_content
+            _last_log_state["notified"] = False
     
     return jsonify({"log": log_content, "notify_sent": notify_sent})
 
@@ -801,51 +817,85 @@ def stream_logs():
     import time as _time
     log_file = WEB_TASK_LOG_PATH
     
+# SSE connection limiter: max 20 concurrent SSE connections + track connected clients
+# Prevent file descriptor exhaustion from infinite reconnect loops
+_SSE_MAX_CONNECTIONS = 20
+_sse_active_count = 0
+_sse_active_lock = threading.Lock()
+
+@app.route("/api/logs/stream", methods=["GET"])
+@requires_auth
+def stream_logs():
+    """SSE endpoint for real-time log streaming with connection limit."""
+    import json as _json
+    import time as _time
+    log_file = WEB_TASK_LOG_PATH
+    
+    # Check if we've reached the connection limit
+    with _sse_active_lock:
+        if _sse_active_count >= _SSE_MAX_CONNECTIONS:
+            return jsonify({"error": "Too many SSE connections. Limit: " + str(_SSE_MAX_CONNECTIONS)}), 429
+        _sse_active_count += 1
+        my_id = _sse_active_count
+    
+    def cleanup():
+        global _sse_active_count
+        with _sse_active_lock:
+            _sse_active_count = max(0, _sse_active_count - 1)
+    
     def generate():
         last_size = 0
         idle_count = 0
         last_content_sent = ""
         
-        while True:
-            log_content = ""
-            has_content = False
-            current_size = 0
-            
-            if os.path.exists(log_file):
-                try:
-                    current_size = os.path.getsize(log_file)
-                    if current_size != last_size:
-                        with open(log_file, "r") as f:
-                            lines = f.readlines()
-                            if lines:
-                                log_content = "".join(lines[-100:])
-                                has_content = True
-                except OSError:
-                    pass
-            
-            if has_content:
-                if log_content != last_content_sent:
-                    payload = _json.dumps({"log": log_content[-5000:], "active": True})
-                    yield f"data: {payload}\n\n"
-                    last_content_sent = log_content
-                last_size = current_size
-                idle_count = 0
-            else:
-                idle_count += 1
-                if idle_count >= 5:
-                    payload = _json.dumps({"log": "", "active": False})
-                    yield f"data: {payload}\n\n"
-                    last_content_sent = ""
+        try:
+            while True:
+                log_content = ""
+                has_content = False
+                current_size = 0
+                
+                if os.path.exists(log_file):
+                    try:
+                        current_size = os.path.getsize(log_file)
+                        if current_size != last_size:
+                            with open(log_file, "r") as f:
+                                lines = f.readlines()
+                                if lines:
+                                    log_content = "".join(lines[-100:])
+                                    has_content = True
+                    except OSError:
+                        pass
+                
+                if has_content:
+                    if log_content != last_content_sent:
+                        payload = _json.dumps({"log": log_content[-5000:], "active": True})
+                        yield f"data: {payload}\n\n"
+                        last_content_sent = log_content
+                    last_size = current_size
                     idle_count = 0
-                    last_size = 0
-            
-            _time.sleep(1)
+                else:
+                    idle_count += 1
+                    if idle_count >= 5:
+                        payload = _json.dumps({"log": "", "active": False})
+                        yield f"data: {payload}\n\n"
+                        last_content_sent = ""
+                        idle_count = 0
+                        last_size = 0
+                
+                _time.sleep(1)
+        except GeneratorExit:
+            # Client disconnected — clean up
+            cleanup()
+        except Exception:
+            cleanup()
+            raise
     
-    return Response(generate(), mimetype='text/event-stream', headers={
+    response = Response(generate(), mimetype='text/event-stream', headers={
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
         'X-Accel-Buffering': 'no',
     })
+    return response
 
 @app.route("/api/logs/clear", methods=["POST"])
 @requires_auth
@@ -1115,6 +1165,16 @@ def scheduler_save_playlists():
     return jsonify({"success": True, "message": "Jadwal tersimpan!"})
 
 
+# ============================================
+# HEALTH CHECK ENDPOINT — untuk Docker/Kubernetes health probe
+# ============================================
+@app.route('/api/health', methods=['GET'])
+def health():
+    """Lightweight health check. Returns 200 when server is operational."""
+    return jsonify({"status": "ok", "version": APP_VERSION, "uptime": time.time() - _start_time})
+
+_start_time = time.time()
+
 if __name__ == '__main__':
     _ensure_password()
     # Always print credentials on every startup
@@ -1142,3 +1202,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(f"Memulai ZDT Enterprise Dashboard di {args.bind}:{args.port}...")
     app.run(host=args.bind, port=args.port, debug=False)
+
