@@ -171,13 +171,38 @@ sync_spotify_playlist() {
         echo "$playlist_url" > "$HOME/.config/zdt/spotify_playlist.txt"
     fi
 
+    # Duplicate Detector — cek DB apakah playlist ini sudah pernah di-sync
+    local db_script="$_MODULES_DIR/zdt_db.py"
+    local db_path="$HOME/.config/zdt/zdt.db"
+    if [ -f "$db_script" ] && [ -n "$playlist_url" ]; then
+        local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$playlist_url" 2>/dev/null)
+        if [ "$is_dup" = "True" ]; then
+            if [ -n "$AUTO_MODE" ]; then
+                echo -e "  ${YELLOW}${ICO_WARN} Playlist sudah pernah di-sync. Dilewati (auto mode).${RESET}"
+                _log "INFO" "Spotify Sync skipped (duplicate, auto mode): $playlist_url"
+                return 0
+            fi
+            echo -e "  ${YELLOW}${ICO_WARN} Playlist ini sudah pernah di-sinkronisasi sebelumnya!${RESET}"
+            echo -n -e "  ${CYAN}Tetap lanjutkan sinkronisasi? (y/N) ${RESET}"
+            local sync_confirm
+            read -r sync_confirm
+            if [[ ! "$sync_confirm" =~ ^[Yy]$ ]]; then
+                echo -e "  ${GREEN}Dilewati.${RESET}"
+                return 0
+            fi
+        fi
+    fi
+
     echo -e "  ${YELLOW}${ICO_ARROW} Memulai sinkronisasi playlist (Mencari lagu baru)...${RESET}"
     cd "$target_dir" || return 1
     
     spotdl download "$playlist_url" --m3u "sync_playlist.m3u" --save-errors "sync_errors.txt" --format m4a --bitrate 128k
     
-    # Record to database
+    # Record hasil download ke database
     _record_downloads "$target_dir" "spotify" "$playlist_url"
+    
+    # Juga record URL playlist secara eksplisit (tracking sync history)
+    python3 "$db_script" "$db_path" add_download "__playlist_sync__" "$playlist_url" "spotify_sync" "0" 2>/dev/null || true
     
     echo -e "  ${GREEN}${ICO_OK} Sinkronisasi Selesai!${RESET}"
     _log "INFO" "Spotify Sync Completed: $playlist_url"

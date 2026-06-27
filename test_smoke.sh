@@ -119,7 +119,70 @@ done
 pass "No hardcoded tokens found"
 echo ""
 
-# 9. File count summary
+# 9. Shared Functions Logic Test
+echo "▶ Shared Functions Logic Test"
+# Source helpers.sh with minimal setup to test _resolve_scan_dir
+(
+    # Minimal init for sourcing helpers.sh
+    NO_COLOR=1; NO_UNICODE=1
+    _setup_colors() { :; }; _setup_unicode() { :; }; _log() { :; }
+    GREEN='' RED='' YELLOW='' CYAN='' MAGENTA='' GRAY='' WHITE='' BOLD='' RESET=''
+    ICO_OK='' ICO_FAIL='' ICO_WARN='' ICO_ARROW='' ICO_CHECK_OK='' ICO_CHECK_FAIL='' ICO_CUT=''
+    ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
+    _print_menu_box() { :; }
+
+    source "$SCRIPT_DIR/zdt-modules/core.sh"
+    source "$SCRIPT_DIR/zdt-modules/helpers.sh"
+
+    # Test _resolve_scan_dir
+    r1=$(_resolve_scan_dir "1" "MyArtist" "")
+    [ "$r1" = "./MyArtist" ] && pass "_resolve_scan_dir mode=1 auto=MyArtist → ./MyArtist" || fail "_resolve_scan_dir mode=1: got '$r1'"
+
+    r2=$(_resolve_scan_dir "2" "" "MyFolder")
+    [ "$r2" = "./MyFolder" ] && pass "_resolve_scan_dir mode=2 manual=MyFolder → ./MyFolder" || fail "_resolve_scan_dir mode=2: got '$r2'"
+
+    r3=$(_resolve_scan_dir "3" "" "")
+    [ "$r3" = "." ] && pass "_resolve_scan_dir mode=3 (none) → ." || fail "_resolve_scan_dir mode=3: got '$r3'"
+
+    r4=$(_resolve_scan_dir "1" "" "")
+    [ "$r4" = "." ] && pass "_resolve_scan_dir mode=1 empty auto → ." || fail "_resolve_scan_dir mode=1 empty: got '$r4'"
+
+    r5=$(_resolve_scan_dir "2" "" "")
+    [ "$r5" = "." ] && pass "_resolve_scan_dir mode=2 empty manual → ." || fail "_resolve_scan_dir mode=2 empty: got '$r5'"
+
+    # Test _ui_cache initialization (without /proc/stat which may not exist in containers)
+    if declare -f _init_ui_cache >/dev/null 2>&1; then
+        pass "_init_ui_cache function is defined"
+    else
+        fail "_init_ui_cache function NOT defined"
+    fi
+
+    # Verify cache variables exist (use -v which is safe under set -u)
+    for cv in _ZDT_CACHED_RAM _ZDT_CACHED_CPU _ZDT_CACHED_FFMPEG _ZDT_CACHED_TOOLS_STR; do
+        if [ -v "$cv" ]; then
+            pass "Cache var $cv is accessible"
+        else
+            fail "Cache var $cv NOT accessible"
+        fi
+    done
+)
+echo ""
+
+# 10. Download shared functions verify (spotify + youtube have same signature)
+echo "▶ Download Module Function Signatures"
+# Verify both download modules define expected functions
+for func in download_spotdl download_ytdlp download_video; do
+    if grep -q "^${func}()" "$SCRIPT_DIR/zdt-modules/download-spotify.sh" 2>/dev/null || \
+       grep -q "^${func}()" "$SCRIPT_DIR/zdt-modules/download-youtube.sh" 2>/dev/null; then
+        pass "$func — defined"
+    else
+        fail "$func — MISSING from all modules!"
+    fi
+done
+
+echo ""
+
+# 11. File count summary
 echo "▶ File Summary"
 sh_count=$(find "$SCRIPT_DIR" -maxdepth 1 -name "*.sh" | wc -l)
 py_count=$(find "$SCRIPT_DIR" -maxdepth 1 -name "*.py" | wc -l)

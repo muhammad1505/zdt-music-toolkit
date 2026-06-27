@@ -227,7 +227,7 @@ def requires_auth(f):
             return authenticate()
         return f(*args, **kwargs)
     return decorated
-APP_VERSION = os.environ.get("ZDT_VERSION", "4.1.91")
+APP_VERSION = os.environ.get("ZDT_VERSION", "4.3.0")
 
 CONFIG_FILE = os.path.expanduser("~/.config/zdt/config.env")
 
