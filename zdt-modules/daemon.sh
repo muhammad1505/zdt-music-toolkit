@@ -216,8 +216,21 @@ update_zdt_script() {
                 target_bin="$0"
             fi
             
-            cp "$tmp_file" "$target_bin"
-            chmod +x "$target_bin"
+            if cp "$tmp_file" "$target_bin" 2>/dev/null; then
+                chmod +x "$target_bin"
+                echo -e "  ${GREEN}   ✓ Main binary updated${RESET}"
+            else
+                # Maybe need root for system directories
+                if command -v sudo >/dev/null 2>&1 && sudo cp "$tmp_file" "$target_bin" 2>/dev/null; then
+                    sudo chmod +x "$target_bin"
+                    echo -e "  ${GREEN}   ✓ Main binary updated (via sudo)${RESET}"
+                else
+                    echo -e "  ${YELLOW}   ⚠ Gagal update $target_bin (butuh root). Copy manual:${RESET}"
+                    echo -e "  ${YELLOW}     sudo cp $tmp_file $target_bin${RESET}"
+                    echo -e "  ${YELLOW}     sudo chmod +x $target_bin${RESET}"
+                    # Continue anyway — at least modules are updated
+                fi
+            fi
             
             # Also update module files
             local share_dir
