@@ -450,6 +450,7 @@
         <div class="nav-item nav-hide-mobile" onclick="switchTab('metadata', this)"><i class="fa-solid fa-tags"></i> Metadata</div>
         <div class="nav-item" onclick="switchTab('servertools', this)"><i class="fa-solid fa-toolbox"></i> Tools</div>
         <div class="nav-item nav-hide-mobile" onclick="switchTab('system', this)"><i class="fa-solid fa-server"></i> Daemons</div>
+        <div class="nav-item nav-hide-mobile" onclick="switchTab('logs', this)"><i class="fa-solid fa-list"></i> Logs</div>
         <div class="nav-item nav-hide-mobile" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i> Settings</div>
         <div class="nav-item nav-hide-mobile" onclick="switchTab('notifikasi', this)"><i class="fa-brands fa-telegram"></i> Notifikasi</div>
         <div class="nav-item nav-hide-mobile" onclick="switchTab('scheduler', this)"><i class="fa-solid fa-clock"></i> Scheduler</div>
@@ -460,6 +461,7 @@
         <div class="more-sheet-handle"></div>
         <div class="more-sheet-item" onclick="moreNav('metadata')"><i class="fa-solid fa-tags"></i> Metadata Editor</div>
         <div class="more-sheet-item" onclick="moreNav('system')"><i class="fa-solid fa-server"></i> System Daemons</div>
+        <div class="more-sheet-item" onclick="moreNav('logs')"><i class="fa-solid fa-list"></i> System Logs</div>
         <div class="more-sheet-item" onclick="moreNav('settings')"><i class="fa-solid fa-gear"></i> Pengaturan</div>
         <div class="more-sheet-item" onclick="moreNav('notifikasi')"><i class="fa-brands fa-telegram"></i> Notifikasi</div>
         <div class="more-sheet-item" onclick="moreNav('scheduler')"><i class="fa-solid fa-clock"></i> Penjadwalan</div>
@@ -560,7 +562,12 @@
                     <canvas id="statsChart" style="max-height: 250px;"></canvas>
                 </div>
                 <div style="flex:2; min-width:400px; background:var(--bg-card); border-radius:8px; border:1px solid var(--border-light); overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
-                    <h4 style="padding:15px; margin:0; border-bottom:1px solid var(--border-light);">10 Unduhan Terakhir</h4>
+                    <h4 style="padding:15px; margin:0; border-bottom:1px solid var(--border-light); display:flex; align-items:center; justify-content:space-between;">
+                        <span>Unduhan Terbaru</span>
+                        <span style="font-size:12px; color:var(--text-muted); font-weight:400;">
+                            <span id="statsPageInfo">Halaman 1</span>
+                        </span>
+                    </h4>
                     <div style="overflow-x:auto;">
                         <table style="width:100%; border-collapse:collapse; text-align:left; font-size:14px;">
                             <thead>
@@ -575,6 +582,11 @@
                                 <tr><td colspan="4" style="padding:15px; text-align:center; color:var(--text-muted);">Memuat data...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                    <div id="statsPagination" style="display:flex; justify-content:center; gap:8px; padding:15px; border-top:1px solid var(--border-light); align-items:center; flex-wrap:wrap;">
+                        <button class="btn btn-outline" style="width:auto; padding:6px 12px; font-size:12px;" onclick="changeStatsPage('prev')" id="statsPrevBtn"><i class="fa-solid fa-chevron-left"></i></button>
+                        <div id="statsPageNumbers" style="display:flex; gap:4px;"></div>
+                        <button class="btn btn-outline" style="width:auto; padding:6px 12px; font-size:12px;" onclick="changeStatsPage('next')" id="statsNextBtn"><i class="fa-solid fa-chevron-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -635,7 +647,11 @@
             <form id="formMeta">
                 <div class="form-group">
                     <label>Select Audio File</label>
-                    <select id="metaFile" required><option value="">Loading files...</option></select>
+                    <div style="position:relative; margin-bottom:8px;">
+                        <i class="fa-solid fa-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:14px; z-index:1;"></i>
+                        <input type="text" id="fileSearchMeta" placeholder="Cari file..." oninput="filterFileList('metaFile', this.value)" style="padding-left:38px;">
+                    </div>
+                    <select id="metaFile" required style="height:48px;"><option value="">Loading files...</option></select>
                 </div>
                 <div style="display:flex; gap:15px; flex-wrap:wrap;">
                     <div class="form-group" style="flex:1; min-width:140px;">
@@ -695,7 +711,11 @@
                 <div class="tool-card">
                     <div class="tool-title"><i class="fa-solid fa-microphone-slash"></i> Demucs AI Splitter</div>
                     <div class="tool-desc">Extract vocals and instruments into separate tracks using AI.</div>
-                    <select id="toolFileDemucs" style="margin-bottom: 15px;"></select>
+                    <div style="position:relative; margin-bottom:8px;">
+                        <i class="fa-solid fa-search" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:12px; z-index:1;"></i>
+                        <input type="text" id="fileSearchTools" placeholder="Cari file..." oninput="filterFileList('toolFileDemucs', this.value); filterFileList('toolFileCompress', this.value)" style="padding-left:30px; padding:10px 12px 10px 30px; font-size:13px; width:100%; box-sizing:border-box;">
+                    </div>
+                    <select id="toolFileDemucs" style="margin-bottom: 8px;"></select>
                     <button class="btn" style="background:#8b5cf6;" onclick="runTool('demucs')">Split Tracks</button>
                 </div>
                 <!-- Compress Audio -->
@@ -709,6 +729,42 @@
         </div>
 
         <!-- System & Daemons Panel -->
+        <!-- System Logs Panel -->
+        <div id="logs" class="panel">
+            <h3><i class="fa-solid fa-list"></i> System Logs</h3>
+            <p style="color:var(--text-muted); margin-bottom:20px; font-size:14px;">System journal dan log sistem untuk troubleshooting. Data diambil via journalctl atau syslog.</p>
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
+                <span style="font-size:13px; color:var(--text-muted);">Tampilkan</span>
+                <select id="syslogLines" style="width:auto; padding:8px 12px; font-size:13px;" onchange="loadSystemLogs()">
+                    <option value="30">30 baris</option>
+                    <option value="50" selected>50 baris</option>
+                    <option value="100">100 baris</option>
+                    <option value="200">200 baris</option>
+                </select>
+                <span id="syslogSource" style="font-size:12px; color:var(--text-muted);"></span>
+                <button class="btn btn-outline" style="width:auto; padding:8px 15px; font-size:12px; margin-left:auto;" onclick="loadSystemLogs()">
+                    <i class="fa-solid fa-rotate"></i> Refresh
+                </button>
+            </div>
+            <div style="background:var(--log-bg); border:1px solid var(--border-light); border-radius:8px; overflow:hidden; box-shadow:inset 0 2px 10px rgba(0,0,0,0.2);">
+                <div style="overflow-x:auto; max-height:500px; overflow-y:auto;" id="syslogContainer">
+                    <table style="width:100%; border-collapse:collapse; font-family:'JetBrains Mono','Courier New',monospace; font-size:12px;">
+                        <thead>
+                            <tr style="background:var(--switch-bg); position:sticky; top:0; z-index:1;">
+                                <th style="padding:10px 12px; border-bottom:1px solid var(--border-light); text-align:left; color:var(--text-muted); font-weight:500;">Waktu</th>
+                                <th style="padding:10px 12px; border-bottom:1px solid var(--border-light); text-align:left; color:var(--text-muted); font-weight:500;">Program</th>
+                                <th style="padding:10px 12px; border-bottom:1px solid var(--border-light); text-align:left; color:var(--text-muted); font-weight:500;">Pesan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="syslogTbody">
+                            <tr><td colspan="3" style="padding:20px; text-align:center; color:var(--text-muted);">Memuat log...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="syslogStatus" class="status-box"></div>
+        </div>
+
         <div id="system" class="panel">
             <h3><i class="fa-solid fa-server"></i> System Daemons</h3>
             <p style="color:var(--text-muted); margin-bottom:25px; font-size:14px;">Manage ZDT background services running on your server.</p>
@@ -913,6 +969,7 @@
                 'spotify': ['Spotify Synchronization', 'Keep your local library synced with Spotify'],
                 'metadata': ['Metadata Editor', 'Fix missing album art and ID3 tags'],
                 'servertools': ['Server Utility Tools', 'Batch process files directly on the server'],
+                'logs': ['System Logs', 'System journal dan log troubleshooting'],
                 'notifikasi': ['Notifikasi Telegram', 'Konfigurasi notifikasi otomatis ke Telegram'],
                 'scheduler': ['Auto-Sync Scheduler', 'Jadwalkan sinkronisasi Spotify otomatis'],
                 'system': ['System Daemons', 'Manage background automation services'],
@@ -922,6 +979,7 @@
             document.getElementById('pageSubtitle').innerText = titles[tabId][1];
             
             if(['metadata', 'servertools'].includes(tabId)) loadFiles();
+            if(tabId === 'logs') loadSystemLogs();
             if(tabId === 'notifikasi') loadNotifConfig();
             if(tabId === 'scheduler') { loadSchedulerStatus(); loadScheduledPlaylists(); }
             if(tabId === 'statistik') loadDbStats();
@@ -929,9 +987,61 @@
 
         let statsChartInstance = null;
 
+        // Pagination state
+        let _statsPage = 1;
+        let _statsTotalPages = 1;
+        
+        function renderStatsPagination() {
+            const pageNumbers = document.getElementById('statsPageNumbers');
+            const prevBtn = document.getElementById('statsPrevBtn');
+            const nextBtn = document.getElementById('statsNextBtn');
+            const pageInfo = document.getElementById('statsPageInfo');
+            
+            pageInfo.textContent = `Halaman ${_statsPage} dari ${_statsTotalPages}`;
+            prevBtn.disabled = _statsPage <= 1;
+            nextBtn.disabled = _statsPage >= _statsTotalPages;
+            
+            // Update button styles for disabled state
+            prevBtn.style.opacity = _statsPage <= 1 ? '0.4' : '1';
+            nextBtn.style.opacity = _statsPage >= _statsTotalPages ? '0.4' : '1';
+            
+            // Generate page number buttons (show max 7 pages)
+            pageNumbers.innerHTML = '';
+            const maxVisible = 7;
+            let start = Math.max(1, _statsPage - Math.floor(maxVisible / 2));
+            let end = Math.min(_statsTotalPages, start + maxVisible - 1);
+            if (end - start < maxVisible - 1) {
+                start = Math.max(1, end - maxVisible + 1);
+            }
+            
+            if (start > 1) {
+                pageNumbers.innerHTML += `<button class="btn btn-outline" style="width:auto; padding:4px 10px; font-size:11px;" onclick="changeStatsPage(1)">1</button>`;
+                if (start > 2) pageNumbers.innerHTML += `<span style="color:var(--text-muted); font-size:12px; padding:0 2px;">...</span>`;
+            }
+            for (let i = start; i <= end; i++) {
+                const active = i === _statsPage;
+                pageNumbers.innerHTML += `<button class="btn ${active ? '' : 'btn-outline'}" style="width:auto; padding:4px 10px; font-size:11px; ${active ? 'background:var(--primary);' : ''}" onclick="changeStatsPage(${i})">${i}</button>`;
+            }
+            if (end < _statsTotalPages) {
+                if (end < _statsTotalPages - 1) pageNumbers.innerHTML += `<span style="color:var(--text-muted); font-size:12px; padding:0 2px;">...</span>`;
+                pageNumbers.innerHTML += `<button class="btn btn-outline" style="width:auto; padding:4px 10px; font-size:11px;" onclick="changeStatsPage(${_statsTotalPages})">${_statsTotalPages}</button>`;
+            }
+        }
+        
+        function changeStatsPage(dirOrPage) {
+            if (dirOrPage === 'prev') {
+                if (_statsPage > 1) _statsPage--;
+            } else if (dirOrPage === 'next') {
+                if (_statsPage < _statsTotalPages) _statsPage++;
+            } else {
+                _statsPage = Math.max(1, Math.min(dirOrPage, _statsTotalPages));
+            }
+            loadDbStats();
+        }
+        
         async function loadDbStats() {
             try {
-                const res = await fetch('/api/stats');
+                const res = await fetch(`/api/stats?page=${_statsPage}`);
                 const data = await res.json();
                 if(data.success === false) return;
                 
@@ -941,6 +1051,10 @@
                 const ytCount = data.sources['youtube'] || 0;
                 document.getElementById('statSpotify').innerText = spCount;
                 document.getElementById('statYoutube').innerText = ytCount;
+                
+                _statsTotalPages = data.total_pages || 1;
+                _statsPage = data.page || 1;
+                renderStatsPagination();
                 
                 const ctx = document.getElementById('statsChart');
                 if(ctx) {
@@ -1188,10 +1302,26 @@
         // Refresh token periodically
         setInterval(refreshCsrfToken, 300000); // every 5 minutes
 
+        // File list cache for search filtering
+        let _allFilesCache = [];
+        
+        function filterFileList(selectId, query) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            const q = query.toLowerCase().trim();
+            sel.innerHTML = '<option value="">-- Select File --</option>';
+            _allFilesCache.forEach(f => {
+                if (!q || f.toLowerCase().includes(q)) {
+                    sel.innerHTML += `<option value="${f}">${f}</option>`;
+                }
+            });
+        }
+        
         async function loadFiles() {
             try {
                 const res = await fetch('/api/files');
                 const data = await res.json();
+                _allFilesCache = data.files || [];
                 const selMeta = document.getElementById('metaFile');
                 const selDem = document.getElementById('toolFileDemucs');
                 const selComp = document.getElementById('toolFileCompress');
@@ -1199,6 +1329,11 @@
                 data.files.forEach(f => {
                     const opt = `<option value="${f}">${f}</option>`;
                     selMeta.innerHTML += opt; selDem.innerHTML += opt; selComp.innerHTML += opt;
+                });
+                // Clear any search filters
+                ['fileSearchMeta', 'fileSearchTools'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
                 });
             } catch(e) {}
         }
@@ -1471,14 +1606,54 @@
             } catch(err) { showToast('Connection Error!', 'error'); }
         }
         
-        // Auto-notify: track task completion and send Telegram notification
-        let _notifPreviousLog = '';
-        let _notifTaskActive = false;
-        let _notifTimer = null;
+        // ============================================
+        // SYSTEM LOGS VIEWER
+        // ============================================
         
-        // Patch the existing log poller to detect task completion
-        const _origLogInterval = setInterval;
-        // We'll hook into the existing poller by monitoring when log goes from active to idle
+        async function loadSystemLogs() {
+            const lines = document.getElementById('syslogLines')?.value || '50';
+            const tbody = document.getElementById('syslogTbody');
+            const status = document.getElementById('syslogStatus');
+            const source = document.getElementById('syslogSource');
+            
+            tbody.innerHTML = '<tr><td colspan="3" style="padding:20px; text-align:center; color:var(--text-muted);">Memuat log...</td></tr>';
+            
+            try {
+                const res = await fetch(`/api/system/logs?lines=${lines}`);
+                const data = await res.json();
+                
+                if (data.source) {
+                    source.textContent = 'Sumber: ' + data.source;
+                } else {
+                    source.textContent = data.error || 'Log tidak tersedia';
+                }
+                
+                if (data.entries && data.entries.length > 0) {
+                    tbody.innerHTML = '';
+                    data.entries.slice().reverse().forEach(entry => {
+                        const tr = document.createElement('tr');
+                        const level = entry.message && (entry.message.toLowerCase().includes('error') || entry.message.toLowerCase().includes('fail')) 
+                            ? 'color:var(--danger);' 
+                            : entry.message && (entry.message.toLowerCase().includes('warn') || entry.message.toLowerCase().includes('timeout'))
+                            ? 'color:var(--warning);'
+                            : 'color:var(--log-color);';
+                        tr.innerHTML = `
+                            <td style="padding:6px 12px; border-bottom:1px solid rgba(255,255,255,0.03); white-space:nowrap; color:var(--text-muted); font-size:11px;">${entry.timestamp || '-'}</td>
+                            <td style="padding:6px 12px; border-bottom:1px solid rgba(255,255,255,0.03); white-space:nowrap;"><span style="background:var(--switch-bg); padding:2px 8px; border-radius:4px; font-size:11px;">${entry.program || '-'}</span></td>
+                            <td style="padding:6px 12px; border-bottom:1px solid rgba(255,255,255,0.03); ${level}">${entry.message || ''}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" style="padding:20px; text-align:center; color:var(--text-muted);">Tidak ada log yang ditemukan.</td></tr>';
+                }
+                status.className = 'status-box';
+            } catch(e) {
+                tbody.innerHTML = '<tr><td colspan="3" style="padding:20px; text-align:center; color:var(--danger);">Gagal memuat log: ' + e.message + '</td></tr>';
+                status.className = 'status-box error';
+                status.textContent = 'Koneksi error. Coba lagi.';
+            }
+        }
         
         // ============================================
         // END NOTIFICATION & SCHEDULER FUNCTIONS
@@ -1510,6 +1685,7 @@
             const titles = {
                 'metadata': ['Metadata Editor', 'Fix missing album art and ID3 tags'],
                 'system': ['System Daemons', 'Manage background automation services'],
+                'logs': ['System Logs', 'System journal dan log troubleshooting'],
                 'settings': ['Global Settings', 'Configure ZDT core behaviors']
             };
             if(titles[tabId]) {

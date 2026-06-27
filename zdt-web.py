@@ -270,9 +270,22 @@ def index():
 def get_stats():
     import json
     try:
+        page = request.args.get('page', '1')
+        per_page = request.args.get('per_page', '10')
+        try:
+            page = max(1, int(page))
+            per_page = max(5, min(int(per_page), 100))
+        except (ValueError, TypeError):
+            page = 1
+            per_page = 10
+        offset = (page - 1) * per_page
+        
         db_path = os.path.join(os.path.expanduser("~"), ".config", "zdt", "zdt.db")
         db_script = os.path.join(PROJECT_DIR, "zdt-modules", "zdt_db.py")
-        res = subprocess.run([sys.executable, db_script, db_path, "get_stats"], capture_output=True, text=True)
+        res = subprocess.run(
+            [sys.executable, db_script, db_path, "get_stats", str(per_page), str(offset)],
+            capture_output=True, text=True
+        )
         if res.returncode == 0:
             return jsonify(json.loads(res.stdout.strip()))
         return jsonify({"success": False, "message": res.stderr}), 500
@@ -918,6 +931,86 @@ def scheduler_get_playlists():
         with open(config_path, 'r') as f:
             return jsonify(_json.load(f))
     return jsonify({"playlists": []})
+
+@app.route('/api/system/logs', methods=['GET'])
+@requires_auth
+def system_logs():
+    """Read system logs (journalctl or syslog) with pagination."""
+    lines = request.args.get('lines', '50')
+    try:
+        lines = str(min(max(int(lines), 10), 500))
+    except (ValueError, TypeError):
+        lines = '50'
+    
+    # Try journalctl first (systemd systems)
+    journalctl = shutil.which("journalctl")
+    if journalctl:
+        try:
+            result = subprocess.run(
+                [journalctl, "--no-pager", "-n", lines, "--output", "short-iso", "--quiet"],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                log_lines = result.stdout.strip().split("\n")
+                # Parse structured entries
+                entries = []
+                for line in log_lines[-int(lines):]:
+                    # journalctl short-iso format: "2024-01-15T10:30:00+0700 host program[pid]: message"
+                    parts = line.split(" ", 3)
+                    if len(parts) >= 4:
+                        raw_ts = parts[0]
+                        # Strip timezone offset: 2024-01-15T10:30:00+0700 → 2024-01-15 10:30:00
+                        ts = raw_ts.replace("T", " ").split("+")[0]
+                        # Handle negative UTC offsets (e.g., -0500)
+                        if ts == raw_ts.replace("T", " ") and "-" in raw_ts[19:]:
+                            ts = raw_ts.replace("T", " ")[:19]
+                        program = parts[2].split("[")[0] if "[" in parts[2] else parts[2]
+                        message = parts[3]
+                    else:
+                        ts = ""
+                        program = ""
+                        message = line
+                    entries.append({
+                        "timestamp": ts[:25],
+                        "program": program[:20],
+                        "message": message[:300]
+                    })
+                return jsonify({"source": "journalctl", "entries": entries[-int(lines):]})
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+    
+    # Fallback: syslog file
+    for syslog_path in ["/var/log/syslog", "/var/log/messages", "/var/log/system.log"]:
+        if os.path.exists(syslog_path):
+            try:
+                with open(syslog_path, "r") as f:
+                    all_lines = f.readlines()
+                log_lines = all_lines[-int(lines):]
+                entries = []
+                for line in log_lines:
+                    entry = line.strip()
+                    if entry:
+                        # Parse syslog format
+                        parts = entry.split(" ", 4)
+                        if len(parts) >= 5:
+                            timestamp = " ".join(parts[:3])
+                            host = parts[3] if len(parts) > 3 else ""
+                            program = parts[4].split("[")[0].split(":")[0] if ":" in parts[4] else parts[4][:20]
+                            message = entry[len(timestamp) + len(host) + 2:] if len(parts) > 4 else entry
+                        else:
+                            timestamp = ""
+                            program = ""
+                            message = entry
+                        entries.append({
+                            "timestamp": timestamp[:25],
+                            "program": program[:20],
+                            "message": message[:300]
+                        })
+                return jsonify({"source": os.path.basename(syslog_path), "entries": entries})
+            except (OSError, IOError):
+                continue
+    
+    return jsonify({"source": None, "entries": [], "error": "Tidak ada system log yang bisa diakses. Butuh akses root untuk journalctl."})
 
 @app.route('/api/scheduler/playlists', methods=['POST'])
 @requires_auth

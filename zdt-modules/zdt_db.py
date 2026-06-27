@@ -101,14 +101,34 @@ elif CMD == "get_stats":
     c.execute("SELECT source, COUNT(*) FROM downloads GROUP BY source")
     sources = dict(c.fetchall())
     
-    c.execute("SELECT filename, source, size_bytes, timestamp FROM downloads ORDER BY id DESC LIMIT 10")
+    # Pagination support: accept limit and offset as optional args
+    limit = 10
+    offset = 0
+    if len(sys.argv) >= 4:
+        try:
+            limit = max(1, min(int(sys.argv[3]), 100))
+        except (ValueError, IndexError):
+            pass
+    if len(sys.argv) >= 5:
+        try:
+            offset = max(0, int(sys.argv[4]))
+        except (ValueError, IndexError):
+            pass
+    
+    total_pages = max(1, (total_count + limit - 1) // limit)
+    current_page = (offset // limit) + 1
+    
+    c.execute("SELECT filename, source, size_bytes, timestamp FROM downloads ORDER BY id DESC LIMIT ? OFFSET ?", (limit, offset))
     recent = [{"filename": r[0], "source": r[1], "size_bytes": r[2], "timestamp": r[3]} for r in c.fetchall()]
     
     print(json.dumps({
         "total_count": total_count,
         "total_size_bytes": total_size,
         "sources": sources,
-        "recent": recent
+        "recent": recent,
+        "page": current_page,
+        "per_page": limit,
+        "total_pages": total_pages
     }))
 
 elif CMD == "check_duplicate":
