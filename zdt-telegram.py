@@ -15,6 +15,7 @@ except ImportError:
 # Load shared path module
 _MODULES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zdt-modules")
 if not os.path.isdir(_MODULES_DIR):
+    # Bootstrap: ZdtPaths belum tersedia, pake hardcoded path saja
     for _d in [os.path.expanduser("~/.local/share/zdt/zdt-modules"), "/usr/local/share/zdt/zdt-modules"]:
         if os.path.isdir(_d):
             _MODULES_DIR = _d

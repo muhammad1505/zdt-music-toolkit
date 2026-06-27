@@ -24,13 +24,11 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODULES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zdt-modules")
 if not os.path.isdir(_MODULES_DIR):
     # Try installed location via share dir
-    _share = os.path.expanduser("~/.local/share/zdt/zdt-modules")
-    if os.path.isdir(_share):
-        _MODULES_DIR = _share
-    else:
-        _sys = "/usr/local/share/zdt/zdt-modules"
-        if os.path.isdir(_sys):
-            _MODULES_DIR = _sys
+    # Bootstrap: ZdtPaths belum tersedia, pake hardcoded path saja
+    for _d in [os.path.expanduser("~/.local/share/zdt/zdt-modules"), "/usr/local/share/zdt/zdt-modules"]:
+        if os.path.isdir(_d):
+            _MODULES_DIR = _d
+            break
 if _MODULES_DIR not in sys.path:
     sys.path.insert(0, _MODULES_DIR)
 from zdt_paths import ZdtPaths
