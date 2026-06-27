@@ -2,6 +2,11 @@
 
 Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini.
 
+## v4.4.1 (Patch — Daemon Web UI Fix & OTA Update Fix)
+- **Fix(Web)**: **Daemon Start/Stop Macet** — `is_process_running()` sekarang pake `pgrep -f` dulu (cepat), fallback `ps aux` dengan **5s timeout**. Start daemon pake `_find_python()` (cari VENV/system python). Stop daemon pake SIGTERM → 1s → SIGKILL escalation.
+- **Fix(OTA)**: **Update Gagal Silent** — `update_zdt_script()` sekarang cek hasil `cp`, coba `sudo cp` kalau gagal, tampilkan instruksi manual jika semua gagal. Modules tetap terdownload meski binary gagal di-copy.
+- **Chore**: Tambah `_find_python()` helper, validasi script path sebelum start/stop, error handling di semua subprocess call.
+
 ## v4.4.0 (Web UI Evolution — Dark/Light Mode, SSE Streaming, System Logs, Pagination)
 - **Feat(Web)**: **Dark/Light Mode Toggle** — Settings panel toggle + mobile More sheet. localStorage persistence + `prefers-color-scheme` auto-detection. Chart.js dynamic color update on theme switch.
 - **Feat(Web)**: **SSE Real-Time Log Streaming** — Replace polling 3s dengan EventSource. New `/api/logs/stream` endpoint (1s check interval, content change detection, `json.dumps()` proper escaping). Auto-reconnect + fallback polling 10s.
