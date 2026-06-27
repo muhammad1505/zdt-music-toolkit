@@ -376,7 +376,7 @@ install_global() {
         target_share="/usr/local/share/zdt"
     else
         target_bin="$HOME/.local/bin/zdt"
-        target_share="$HOME/.local/share/zdt"
+        target_share=$(_get_share_dir)
     fi
 
     echo -e "  ${CYAN}${ICO_ARROW} Menginstal ZDT ke: ${YELLOW}$target_bin${RESET}"

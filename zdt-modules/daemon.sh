@@ -32,10 +32,8 @@ start_watch_daemon() {
     print_header "ZDT AUTO-WATCH DAEMON"
     if ! _ensure_python_tool "watchdog" "Watchdog" 1; then return 1; fi
     
-    local watch_script=""
-    for dir in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
-        if [ -f "$dir/zdt-watch.py" ]; then watch_script="$dir/zdt-watch.py"; break; fi
-    done
+    local watch_script
+    watch_script=$(_find_script "zdt-watch.py")
 
     if pgrep -f "zdt-watch.py" > /dev/null; then
         echo -e "  ${RED}${ICO_FAIL} Watcher Daemon sudah berjalan di background!${RESET}"
@@ -71,10 +69,8 @@ start_telegram_bot() {
         fi
     fi
     
-    local tele_script=""
-    for dir in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
-        if [ -f "$dir/zdt-telegram.py" ]; then tele_script="$dir/zdt-telegram.py"; break; fi
-    done
+    local tele_script
+    tele_script=$(_find_script "zdt-telegram.py")
 
     if pgrep -f "zdt-telegram.py" > /dev/null; then
         echo -e "  ${RED}${ICO_FAIL} Telegram Bot sudah berjalan di background!${RESET}"
@@ -126,10 +122,8 @@ start_web_dashboard() {
     
     if ! _ensure_python_tool "flask" "Flask" 1; then return 1; fi
     
-    local web_script=""
-    for dir in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
-        if [ -f "$dir/zdt-web.py" ]; then web_script="$dir/zdt-web.py"; break; fi
-    done
+    local web_script
+    web_script=$(_find_script "zdt-web.py")
 
     if [ -z "$web_script" ]; then
         echo -e "  ${RED}${ICO_FAIL} Script zdt-web.py tidak ditemukan!${RESET}"
@@ -206,13 +200,8 @@ update_zdt_script() {
             echo -e "  ${GREEN}${ICO_OK} Versi $new_version berhasil didownload!${RESET}"
             
             local target_bin
-            if [ -f "$HOME/.local/bin/zdt" ]; then
-                target_bin="$HOME/.local/bin/zdt"
-            elif [ -f "/usr/local/bin/zdt" ]; then
-                target_bin="/usr/local/bin/zdt"
-            elif [ -f "/data/data/com.termux/files/usr/bin/zdt" ]; then
-                target_bin="/data/data/com.termux/files/usr/bin/zdt"
-            else
+            target_bin=$(_get_zdt_bin)
+            if [ "$target_bin" = "zdt" ]; then
                 target_bin="$0"
             fi
             
@@ -234,13 +223,7 @@ update_zdt_script() {
             
             # Also update module files
             local share_dir
-            if [[ "$target_bin" == *"local/bin"* ]]; then
-                share_dir="$HOME/.local/share/zdt"
-            elif [[ "$target_bin" == *"termux"* ]]; then
-                share_dir="/data/data/com.termux/files/usr/share/zdt"
-            else
-                share_dir="/usr/local/share/zdt"
-            fi
+            share_dir=$(_get_share_dir)
             # Use GitHub API (no CDN cache) instead of raw.githubusercontent (cached ~5min)
             local base_url="https://raw.githubusercontent.com/muhammad1505/zdt-music-toolkit/main"
             local api_url="https://api.github.com/repos/muhammad1505/zdt-music-toolkit/contents"

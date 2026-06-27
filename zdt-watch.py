@@ -7,6 +7,17 @@ from collections import OrderedDict
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
+# Load shared path module
+_MODULES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zdt-modules")
+if not os.path.isdir(_MODULES_DIR):
+    for _d in [os.path.expanduser("~/.local/share/zdt/zdt-modules"), "/usr/local/share/zdt/zdt-modules"]:
+        if os.path.isdir(_d):
+            _MODULES_DIR = _d
+            break
+if _MODULES_DIR not in sys.path:
+    sys.path.insert(0, _MODULES_DIR)
+from zdt_paths import ZdtPaths
+
 class ZDTFileHandler(PatternMatchingEventHandler):
     def __init__(self):
         super().__init__(patterns=["*.mp3", "*.m4a", "*.mp4", "*.mkv", "*.webm", "*.flac"],
@@ -42,18 +53,7 @@ class ZDTFileHandler(PatternMatchingEventHandler):
             time.sleep(2)
         
         import shutil
-        zdt_bin = shutil.which("zdt")
-        if not zdt_bin:
-            for path in [
-                os.path.expanduser("~/.local/bin/zdt"),
-                "/usr/local/bin/zdt",
-                "/data/data/com.termux/files/usr/bin/zdt"
-            ]:
-                if os.path.exists(path):
-                    zdt_bin = path
-                    break
-        if not zdt_bin:
-            zdt_bin = "zdt"
+        zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
             
         print(f"[{time.strftime('%H:%M:%S')}] Memulai auto-clean ZDT untuk file tersebut...")
         subprocess.run([zdt_bin, "--clean-file", filepath])

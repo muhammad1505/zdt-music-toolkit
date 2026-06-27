@@ -20,33 +20,41 @@ except ImportError:
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Load shared path module (zdt-modules/zdt_paths.py)
+_MODULES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zdt-modules")
+if not os.path.isdir(_MODULES_DIR):
+    # Try installed location via share dir
+    _share = os.path.expanduser("~/.local/share/zdt/zdt-modules")
+    if os.path.isdir(_share):
+        _MODULES_DIR = _share
+    else:
+        _sys = "/usr/local/share/zdt/zdt-modules"
+        if os.path.isdir(_sys):
+            _MODULES_DIR = _sys
+if _MODULES_DIR not in sys.path:
+    sys.path.insert(0, _MODULES_DIR)
+from zdt_paths import ZdtPaths
+
+
 def _find_templates_dir():
     """Find templates directory across multiple possible install locations.
     If not found, auto-create and copy from known sources."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    cwd = os.getcwd()
-    candidates = [
-        os.path.join(script_dir, 'templates'),
-        os.path.join(os.path.dirname(script_dir), 'templates'),
-        os.path.expanduser('~/.local/share/zdt/templates'),
-        '/usr/local/share/zdt/templates',
-        os.path.expanduser('~/zdt-music-toolkit/templates'),
-        os.path.join(cwd, 'templates'),  # dev mode: running from project dir
-    ]
+    candidates = ZdtPaths.find_template_candidates(script_dir)
     for candidate in candidates:
         if os.path.isdir(candidate):
             return candidate
     # Auto-create templates dir at the installed location
-    target_dir = os.path.expanduser('~/.local/share/zdt/templates')
+    target_dir = ZdtPaths.get_templates_dir()
     target_file = os.path.join(target_dir, 'dashboard.html')
     # Search for source template in various locations
-    source_candidates = [
-        os.path.join(script_dir, 'templates', 'dashboard.html'),
-        os.path.join(os.path.dirname(script_dir), 'templates', 'dashboard.html'),
-        os.path.expanduser('~/zdt-music-toolkit/templates/dashboard.html'),
-        os.path.join(PROJECT_DIR, 'templates', 'dashboard.html'),
-        os.path.join(cwd, 'templates', 'dashboard.html'),  # dev mode
-    ]
+    source_candidates = []
+    if script_dir:
+        source_candidates.append(os.path.join(script_dir, 'templates', 'dashboard.html'))
+        source_candidates.append(os.path.join(os.path.dirname(script_dir), 'templates', 'dashboard.html'))
+    source_candidates.append(os.path.expanduser('~/zdt-music-toolkit/templates/dashboard.html'))
+    source_candidates.append(os.path.join(PROJECT_DIR, 'templates', 'dashboard.html'))
+    source_candidates.append(os.path.join(os.getcwd(), 'templates', 'dashboard.html'))
     for src in source_candidates:
         if os.path.exists(src):
             os.makedirs(target_dir, exist_ok=True)
@@ -229,7 +237,7 @@ def requires_auth(f):
     return decorated
 APP_VERSION = os.environ.get("ZDT_VERSION", "4.3.0")
 
-CONFIG_FILE = os.path.expanduser("~/.config/zdt/config.env")
+CONFIG_FILE = ZdtPaths.get_config_file()
 
 def get_target_dir():
     target_dir = os.path.expanduser("~/Music/ZDT_Downloads")
@@ -242,7 +250,7 @@ def get_target_dir():
                     if val and val != ".":
                         target_dir = os.path.expanduser(val)
     # Fallback: old config file for backward compatibility
-    old_conf = os.path.expanduser("~/.config/zdt/config")
+    old_conf = ZdtPaths.get_old_config_file()
     if target_dir == os.path.expanduser("~/Music/ZDT_Downloads") and os.path.exists(old_conf):
         with open(old_conf, "r") as f:
             for line in f:
@@ -280,7 +288,7 @@ def get_stats():
             per_page = 10
         offset = (page - 1) * per_page
         
-        db_path = os.path.join(os.path.expanduser("~"), ".config", "zdt", "zdt.db")
+        db_path = ZdtPaths.get_db_path()
         db_script = os.path.join(PROJECT_DIR, "zdt-modules", "zdt_db.py")
         res = subprocess.run(
             [sys.executable, db_script, db_path, "get_stats", str(per_page), str(offset)],
@@ -296,7 +304,7 @@ def get_stats():
 
 def _find_python():
     """Find available python binary (venv first, then system)."""
-    venv_py = os.path.expanduser("~/.local/share/zdt/venv/bin/python")
+    venv_py = ZdtPaths.get_venv_python()
     if os.path.exists(venv_py):
         return venv_py
     for candidate in [sys.executable, shutil.which("python3"), shutil.which("python")]:
@@ -398,19 +406,10 @@ def manage_daemon():
     
     # Try multiple locations for scripts
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    cwd = os.getcwd()
-    def find_script(name):
-        for p in [
-            os.path.join(script_dir, name),
-            os.path.expanduser(f"~/.local/share/zdt/{name}"),
-            os.path.join(cwd, name),  # dev mode
-        ]:
-            if os.path.exists(p): return p
-        return None
     script_map = {
-        'watch': find_script('zdt-watch.py'),
-        'telegram': find_script('zdt-telegram.py'),
-        'scheduler': find_script('zdt-scheduler.py')
+        'watch': ZdtPaths.find_script('zdt-watch.py', script_dir),
+        'telegram': ZdtPaths.find_script('zdt-telegram.py', script_dir),
+        'scheduler': ZdtPaths.find_script('zdt-scheduler.py', script_dir)
     }
     
     if service not in script_map:
@@ -548,7 +547,7 @@ def update_storage():
     with open(CONFIG_FILE, "w") as f: f.writelines(lines)
     
     # Sync to old config format (backward compatibility)
-    old_conf = os.path.expanduser("~/.config/zdt/config")
+    old_conf = ZdtPaths.get_old_config_file()
     if os.path.exists(old_conf):
         olines = []
         with open(old_conf, "r") as f: olines = f.readlines()
@@ -575,11 +574,7 @@ def trigger_download():
     bitrate = data.get('bitrate')
     if not url: return jsonify({"success": False, "message": "URL tidak boleh kosong!"})
     
-    zdt_bin = shutil.which("zdt")
-    if not zdt_bin:
-        for path in [os.path.expanduser("~/.local/bin/zdt"), "/usr/local/bin/zdt", "/data/data/com.termux/files/usr/bin/zdt"]:
-            if os.path.exists(path): zdt_bin = path; break
-    if not zdt_bin: zdt_bin = "zdt"
+    zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
     
     cmd = []
     if "spotify.com" in url:
@@ -604,11 +599,7 @@ def trigger_spotify_sync():
     url = request.json.get('url')
     if not url: return jsonify({"success": False, "message": "URL tidak boleh kosong!"})
     
-    zdt_bin = shutil.which("zdt")
-    if not zdt_bin:
-        for path in [os.path.expanduser("~/.local/bin/zdt"), "/usr/local/bin/zdt", "/data/data/com.termux/files/usr/bin/zdt"]:
-            if os.path.exists(path): zdt_bin = path; break
-    if not zdt_bin: zdt_bin = "zdt"
+    zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
     
     with open(WEB_TASK_LOG_PATH, "w") as log_file:
         subprocess.Popen([zdt_bin, "--spotify-sync", url], stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True)
@@ -682,11 +673,7 @@ def server_tools():
         if filename not in allowed_files and filename not in allowed_basenames:
             return jsonify({"success": False, "message": "File tidak valid atau di luar direktori yang diizinkan."})
     
-    zdt_bin = shutil.which("zdt")
-    if not zdt_bin:
-        for path in [os.path.expanduser("~/.local/bin/zdt"), "/usr/local/bin/zdt", "/data/data/com.termux/files/usr/bin/zdt"]:
-            if os.path.exists(path): zdt_bin = path; break
-    if not zdt_bin: zdt_bin = "zdt"
+    zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
 
     try:
         if action == 'clean':
@@ -743,7 +730,7 @@ def server_tools():
             filepath = os.path.realpath(os.path.join(target, filename))
             if not filepath.startswith(os.path.realpath(target) + os.sep):
                 return jsonify({"success": False, "message": "Akses ditolak."})
-            demucs_bin = os.path.expanduser("~/.local/share/zdt/demucs_venv/bin/demucs")
+            demucs_bin = ZdtPaths.get_demucs_bin()
             if not os.path.exists(demucs_bin): demucs_bin = shutil.which("demucs")
             if not demucs_bin: return jsonify({"success": False, "message": "Demucs AI belum terinstal."})
             
@@ -903,7 +890,7 @@ def _send_telegram_message(bot_token, chat_id, message):
 
 def _get_telegram_config():
     """Get Telegram notification config from config file."""
-    config_path = os.path.expanduser("~/.config/zdt/config.env")
+    config_path = ZdtPaths.get_config_file()
     token = ""
     chat_id = ""
     if os.path.exists(config_path):
@@ -972,8 +959,8 @@ def notify_config():
     data = request.json
     token = data.get('token', '')
     chat_id = data.get('chat_id', '')
-    config_path = os.path.expanduser("~/.config/zdt/config.env")
-    config_dir = os.path.dirname(config_path)
+    config_path = ZdtPaths.get_config_file()
+    config_dir = ZdtPaths.get_config_dir()
     os.makedirs(config_dir, exist_ok=True)
     
     lines = []
@@ -1028,7 +1015,7 @@ def scheduler_status():
 @requires_auth
 def scheduler_get_playlists():
     """Get scheduled playlist config."""
-    config_path = os.path.expanduser("~/.config/zdt/scheduler.json")
+    config_path = ZdtPaths.get_scheduler_path()
     if os.path.exists(config_path):
         import json as _json
         with open(config_path, 'r') as f:
@@ -1121,8 +1108,8 @@ def system_logs():
 def scheduler_save_playlists():
     """Save playlist schedule config."""
     data = request.json
-    config_path = os.path.expanduser("~/.config/zdt/scheduler.json")
-    config_dir = os.path.dirname(config_path)
+    config_path = ZdtPaths.get_scheduler_path()
+    config_dir = ZdtPaths.get_config_dir()
     os.makedirs(config_dir, exist_ok=True)
     import json as _json
     with open(config_path, 'w') as f:
@@ -1136,18 +1123,10 @@ if __name__ == '__main__':
     _print_credentials()
     # Auto-start scheduler daemon in background if configured
     try:
-        scheduler_config = os.path.expanduser("~/.config/zdt/scheduler.json")
+        scheduler_config = ZdtPaths.get_scheduler_path()
         if os.path.exists(scheduler_config):
             # Search for scheduler script in multiple locations
-            cwd = os.getcwd()
-            scheduler_script = next(
-                (p for p in [
-                    os.path.join(PROJECT_DIR, "zdt-scheduler.py"),
-                    os.path.expanduser("~/.local/share/zdt/zdt-scheduler.py"),
-                    os.path.join(cwd, "zdt-scheduler.py"),
-                ] if os.path.exists(p)),
-                None
-            )
+            scheduler_script = ZdtPaths.find_script("zdt-scheduler.py", PROJECT_DIR)
             if scheduler_script and os.path.exists(scheduler_script):
                 scheduler_python = os.environ.get("ZDT_VENV_PYTHON", sys.executable)
                 subprocess.Popen(

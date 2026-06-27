@@ -6,6 +6,80 @@
 # ==========================================
 
 # ==========================================
+# SHARED PATH RESOLUTION (Single Source of Truth)
+# All shell modules should use these instead of hardcoding paths.
+# ==========================================
+
+# Resolve share directory (first existing wins, fallback to local)
+_get_share_dir() {
+    for _d in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
+        if [ -d "$_d" ]; then
+            echo "$_d"
+            return 0
+        fi
+    done
+    echo "$HOME/.local/share/zdt"
+}
+
+# Resolve zdt binary path (first existing wins, fallback to bare name)
+_get_zdt_bin() {
+    for _f in "$HOME/.local/bin/zdt" "/usr/local/bin/zdt" "/data/data/com.termux/files/usr/bin/zdt"; do
+        if [ -f "$_f" ]; then
+            echo "$_f"
+            return 0
+        fi
+    done
+    # Also try PATH
+    local _which
+    _which=$(command -v zdt 2>/dev/null)
+    if [ -n "$_which" ]; then
+        echo "$_which"
+        return 0
+    fi
+    echo "zdt"
+}
+
+# Find a script file across all locations
+_find_script() {
+    local _name="$1"
+    local _share
+    _share=$(_get_share_dir)
+    for _f in "${SCRIPT_DIR:-.}/$_name" "$_share/$_name" "$(pwd)/$_name"; do
+        if [ -f "$_f" ]; then
+            echo "$_f"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Find a module file across all locations
+_find_module() {
+    local _name="$1"
+    local _share
+    _share=$(_get_share_dir)
+    for _f in "${_MODULES_DIR:-.}/$_name" "$_share/zdt-modules/$_name" "$(pwd)/zdt-modules/$_name"; do
+        if [ -f "$_f" ]; then
+            echo "$_f"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Shared config directory (guard against re-source with [ -z ])
+[ -z "${ZDT_CONFIG_DIR:-}" ] && readonly ZDT_CONFIG_DIR="$HOME/.config/zdt"
+[ -z "${ZDT_CONFIG_FILE:-}" ] && readonly ZDT_CONFIG_FILE="$ZDT_CONFIG_DIR/config.env"
+[ -z "${ZDT_DB_PATH:-}" ] && readonly ZDT_DB_PATH="$ZDT_CONFIG_DIR/zdt.db"
+[ -z "${ZDT_SCHEDULER_PATH:-}" ] && readonly ZDT_SCHEDULER_PATH="$ZDT_CONFIG_DIR/scheduler.json"
+[ -z "${ZDT_HISTORY_DB:-}" ] && readonly ZDT_HISTORY_DB="$ZDT_CONFIG_DIR/zdt_history.db"
+
+# Shared VENV paths
+[ -z "${ZDT_VENV_DIR:-}" ] && readonly ZDT_VENV_DIR="$HOME/.local/share/zdt/venv"
+[ -z "${ZDT_DEMUCS_VENV_DIR:-}" ] && readonly ZDT_DEMUCS_VENV_DIR="$HOME/.local/share/zdt/demucs_venv"
+[ -z "${ZDT_DEMUCS_BIN:-}" ] && readonly ZDT_DEMUCS_BIN="$ZDT_DEMUCS_VENV_DIR/bin/demucs"
+
+# ==========================================
 # HELPER: VALIDASI DEPENDENCY
 # ==========================================
 _check_dependency() {

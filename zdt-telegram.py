@@ -12,9 +12,20 @@ except ImportError:
     print("Modul pyTelegramBotAPI (telebot) belum terinstall!")
     sys.exit(1)
 
+# Load shared path module
+_MODULES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zdt-modules")
+if not os.path.isdir(_MODULES_DIR):
+    for _d in [os.path.expanduser("~/.local/share/zdt/zdt-modules"), "/usr/local/share/zdt/zdt-modules"]:
+        if os.path.isdir(_d):
+            _MODULES_DIR = _d
+            break
+if _MODULES_DIR not in sys.path:
+    sys.path.insert(0, _MODULES_DIR)
+from zdt_paths import ZdtPaths
+
 TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 if not TOKEN:
-    TOKEN_FILE = os.path.expanduser("~/.config/zdt/telegram_token.txt")
+    TOKEN_FILE = ZdtPaths.get_telegram_token_path()
     if os.path.exists(TOKEN_FILE):
         # Pastikan token file aman (hanya bisa dibaca owner)
         try:
@@ -67,13 +78,8 @@ def _format_tg(text):
 # ============================================
 def _load_ai_prompt():
     """Load shared AI prompt template from file, with fallback."""
-    import os
-    search_dirs = [
-        os.path.dirname(os.path.abspath(__file__)),  # Same dir as this script
-        os.path.expanduser("~/.local/share/zdt"),
-        "/usr/local/share/zdt",
-        "/data/data/com.termux/files/usr/share/zdt",
-    ]
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    search_dirs = [script_dir] + ZdtPaths.SHARE_DIRS
     for d in search_dirs:
         prompt_file = os.path.join(d, "zdt-ai-prompt.txt")
         if os.path.exists(prompt_file):
@@ -125,19 +131,7 @@ def listener(messages):
 
 bot.set_update_listener(listener)
 
-import shutil
-zdt_bin = shutil.which("zdt")
-if not zdt_bin:
-    for path in [
-        os.path.expanduser("~/.local/bin/zdt"),
-        "/usr/local/bin/zdt",
-        "/data/data/com.termux/files/usr/bin/zdt"
-    ]:
-        if os.path.exists(path):
-            zdt_bin = path
-            break
-if not zdt_bin:
-    zdt_bin = "zdt"  # Fallback
+zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
 
 @bot.message_handler(commands=['start', 'help', 'menu'])
 def send_welcome(message):
@@ -193,8 +187,8 @@ def ping_bot(message):
 
 def get_target_dir():
     target_dir = os.path.expanduser("~/Music/ZDT_Downloads")
-    conf_file = os.path.expanduser("~/.config/zdt/config.env")
-    old_conf = os.path.expanduser("~/.config/zdt/config")
+    conf_file = ZdtPaths.get_config_file()
+    old_conf = ZdtPaths.get_old_config_file()
     for cf in [conf_file, old_conf]:
         if os.path.exists(cf):
             with open(cf, 'r') as f:
@@ -207,8 +201,8 @@ def get_target_dir():
 
 def get_config_value(key, default=""):
     """Baca satu value dari config.env (single source of truth)."""
-    conf_file = os.path.expanduser("~/.config/zdt/config.env")
-    old_conf = os.path.expanduser("~/.config/zdt/config")
+    conf_file = ZdtPaths.get_config_file()
+    old_conf = ZdtPaths.get_old_config_file()
     for cf in [conf_file, old_conf]:
         if os.path.exists(cf):
             with open(cf, 'r') as f:
@@ -289,8 +283,8 @@ def download_audio_cmd(message):
 def auto_download_audio(message):
     text = message.text
     if "http" not in text:
-        gemini_key_file = os.path.expanduser("~/.config/zdt/gemini_key")
-        openrouter_key_file = os.path.expanduser("~/.config/zdt/openrouter_key")
+        gemini_key_file = ZdtPaths.get_key_path("gemini_key")
+        openrouter_key_file = ZdtPaths.get_key_path("openrouter_key")
         gemini_key = ""
         openrouter_key = ""
         if os.path.exists(gemini_key_file):
@@ -715,7 +709,7 @@ def process_specific_file(call):
             target_dir = os.path.dirname(filepath)
             
             if cmd_type == "do_demucs":
-                demucs_bin = os.path.expanduser("~/.local/share/zdt/demucs_venv/bin/demucs")
+                demucs_bin = ZdtPaths.get_demucs_bin()
                 if not os.path.exists(demucs_bin): demucs_bin = shutil.which("demucs")
                 if not demucs_bin:
                     bot.edit_message_text("❌ Demucs AI belum terinstal.", chat_id=msg.chat.id, message_id=msg.message_id)

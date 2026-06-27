@@ -53,13 +53,18 @@ print(json.dumps([{'role': 'system', 'content': sys.argv[1]}]))
 # ==========================================
 _load_ai_base_prompt() {
     local prompt_file
-    # Cari di berbagai lokasi (sama seperti script lainnya)
-    for dir in "$SCRIPT_DIR" "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
-        if [ -f "$dir/zdt-ai-prompt.txt" ]; then
-            prompt_file="$dir/zdt-ai-prompt.txt"
+    # Cari di berbagai lokasi via shared path resolver
+    for _dir in "$SCRIPT_DIR" $(_get_share_dir); do
+        if [ -f "$_dir/zdt-ai-prompt.txt" ]; then
+            prompt_file="$_dir/zdt-ai-prompt.txt"
             break
         fi
     done
+    # Also try Termux-specific path
+    if [ -z "$prompt_file" ] && [ -n "${TERMUX_VERSION:-}" ]; then
+        local _termux_prompt="/data/data/com.termux/files/usr/share/zdt/zdt-ai-prompt.txt"
+        [ -f "$_termux_prompt" ] && prompt_file="$_termux_prompt"
+    fi
 
     if [ -n "$prompt_file" ] && [ -f "$prompt_file" ]; then
         # Baca file dan substitusi placeholder

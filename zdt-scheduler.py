@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ZDT Scheduler Daemon — Periodically sync Spotify playlists.
-Reads schedule from ~/.config/zdt/scheduler.json
+Reads schedule from scheduler.json in config dir.
 """
 
 import os
@@ -12,22 +12,23 @@ import subprocess
 import shutil
 from datetime import datetime, timezone
 
-SCHEDULER_FILE = os.path.expanduser("~/.config/zdt/scheduler.json")
+# Load shared path module
+_MODULES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zdt-modules")
+if not os.path.isdir(_MODULES_DIR):
+    for _d in [os.path.expanduser("~/.local/share/zdt/zdt-modules"), "/usr/local/share/zdt/zdt-modules"]:
+        if os.path.isdir(_d):
+            _MODULES_DIR = _d
+            break
+if _MODULES_DIR not in sys.path:
+    sys.path.insert(0, _MODULES_DIR)
+from zdt_paths import ZdtPaths
+
+SCHEDULER_FILE = ZdtPaths.get_scheduler_path()
 CHECK_INTERVAL = 3600  # Check every hour
 
 def find_zdt_bin():
     """Find the zdt binary."""
-    zdt_bin = shutil.which("zdt")
-    if zdt_bin:
-        return zdt_bin
-    for path in [
-        os.path.expanduser("~/.local/bin/zdt"),
-        "/usr/local/bin/zdt",
-        "/data/data/com.termux/files/usr/bin/zdt"
-    ]:
-        if os.path.exists(path):
-            return path
-    return "zdt"
+    return shutil.which("zdt") or ZdtPaths.get_bin_path()
 
 
 def load_schedule():
@@ -43,7 +44,7 @@ def load_schedule():
 
 def save_schedule(schedule):
     """Save schedule to JSON file."""
-    config_dir = os.path.dirname(SCHEDULER_FILE)
+    config_dir = ZdtPaths.get_config_dir()
     os.makedirs(config_dir, exist_ok=True)
     with open(SCHEDULER_FILE, "w") as f:
         json.dump(schedule, f, indent=2)
@@ -51,7 +52,7 @@ def save_schedule(schedule):
 
 def send_telegram_notification(message):
     """Send notification via Telegram if configured."""
-    config_path = os.path.expanduser("~/.config/zdt/config.env")
+    config_path = ZdtPaths.get_config_file()
     token = ""
     chat_id = ""
     if os.path.exists(config_path):
