@@ -368,7 +368,28 @@ download_video() {
                 break
             fi
         done
-        step=2
+        if [ "${AUTO_MODE:-0}" = "1" ]; then
+            # Web/auto mode: skip semua interactive prompts, pakai default
+            kualitas_pilih="${AUTO_VIDEO_QUALITY:-1}"
+            format_pilih="${AUTO_VIDEO_FORMAT:-1}"
+            case $format_pilih in
+                2) merge_format="mkv";  ext_video="mkv"  ;;
+                3) merge_format="webm"; ext_video="webm" ;;
+                4) merge_format="avi";  ext_video="avi"  ;;
+                5) merge_format="mov";  ext_video="mov"  ;;
+                6) merge_format="mpegts"; ext_video="ts"  ;;
+                *) merge_format="mp4";  ext_video="mp4"  ;;
+            esac
+            codec_pilih="${AUTO_VIDEO_CODEC:-1}"
+            sub_pilih="4"
+            sub_args=()
+            folder_mode="3"
+            pilih_archive="n"
+            pilih_chapter="n"
+            step=10
+        else
+            step=2
+        fi
     fi
         while true; do
             if [ "$step" -eq 1 ]; then

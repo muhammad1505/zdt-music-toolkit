@@ -641,10 +641,17 @@ def trigger_download():
         if bitrate: cmd.extend(["--bitrate", str(bitrate)])
     else:
         cmd = [zdt_bin, "--download-video", url]
-        if spec: cmd.extend(["--format-spec", str(spec)])
         
+    env = os.environ.copy()
+    env["AUTO_MODE"] = "1"
+    if fmt == "video" and spec:
+        env["AUTO_VIDEO_FORMAT"] = str(spec)
+    elif fmt == "audio":
+        if spec: cmd.extend(["--format-spec", str(spec)])
+        if bitrate: cmd.extend(["--bitrate", str(bitrate)])
+
     with open(WEB_TASK_LOG_PATH, "w") as log_file:
-        subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True)
+        subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True, env=env)
         
     return jsonify({"success": True, "message": "Proses download sedang berjalan di background!"})
 
