@@ -76,22 +76,31 @@ _save_config() {
 # Deteksi environment
 _detect_environment() {
     # Termux native: env vars
-    if [ -n "${TERMUX_VERSION:-}" ] || { [ -n "${PREFIX:-}" ] && [[ "${PREFIX:-}" == */com.termux/* ]]; }; then
+    if [ -n "${TERMUX_VERSION:-}" ]; then echo "termux"; return; fi
+    if [ -n "${PREFIX:-}" ] && [[ "${PREFIX:-}" == */com.termux/* ]]; then echo "termux"; return; fi
+
+    # Proot: executable path (readlink /proc/self/exe menunjukkan path Termux asli)
+    if [ -L /proc/self/exe ] 2>/dev/null; then
+        local _exe
+        _exe=$(readlink /proc/self/exe 2>/dev/null)
+        if [[ "$_exe" == */com.termux/* ]] || [[ "$_exe" == */data/data/* ]]; then
+            echo "termux"; return
+        fi
+    fi
+
+    # Android kernel: Termux native + proot
+    if grep -qi 'android' /proc/version 2>/dev/null || uname -a | grep -qi 'android' 2>/dev/null; then
         echo "termux"; return
     fi
-    # Proot / Android kernel: Termux proot distro (Debian/Ubuntu etc)
-    if grep -qi 'android' /proc/version 2>/dev/null || uname -a | grep -qi 'android'; then
+    # Android system paths (bind-mounted di proot)
+    if [ -d /system/app ] || [ -f /system/build.prop ]; then
         echo "termux"; return
     fi
-    if [ -f /etc/alpine-release ]; then
-        echo "alpine"; return
-    fi
-    if grep -qi microsoft /proc/version 2>/dev/null; then
-        echo "wsl"; return
-    fi
-    if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
-        echo "container"; return
-    fi
+
+    if [ -f /etc/alpine-release ]; then echo "alpine"; return; fi
+    if grep -qi microsoft /proc/version 2>/dev/null; then echo "wsl"; return; fi
+    if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then echo "container"; return; fi
+
     echo "linux"
 }
 
