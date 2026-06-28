@@ -1213,6 +1213,88 @@ def scheduler_save_playlists():
 # ============================================
 # HEALTH CHECK ENDPOINT — untuk Docker/Kubernetes health probe
 # ============================================
+@app.route('/api/playlist/items', methods=['POST'])
+@requires_auth
+@requires_csrf
+def playlist_items():
+    """Fetch playlist contents using yt-dlp --flat-playlist --dump-json.
+    Returns list of {id, title, artist, url} items."""
+    data = request.json
+    url = data.get('url', '')
+    if not url:
+        return jsonify({"success": False, "message": "URL kosong!"})
+
+    try:
+        result = subprocess.run(
+            ['yt-dlp', '--flat-playlist', '--dump-json', '--no-warnings', url],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode != 0:
+            return jsonify({"success": False, "message": "Gagal fetch playlist: " + result.stderr[:200]})
+
+        items = []
+        for line in result.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            try:
+                import json as _j
+                entry = _j.loads(line)
+                items.append({
+                    "id": entry.get("id", ""),
+                    "title": entry.get("title", ""),
+                    "artist": entry.get("uploader", entry.get("channel", entry.get("creator", "Unknown"))),
+                    "url": f"https://youtube.com/watch?v={entry.get('id', '')}",
+                    "duration": entry.get("duration", 0),
+                    "index": entry.get("playlist_index", 0)
+                })
+            except _j.JSONDecodeError:
+                continue
+
+        return jsonify({"success": True, "items": items, "count": len(items)})
+    except subprocess.TimeoutExpired:
+        return jsonify({"success": False, "message": "Timeout: playlist terlalu besar atau yt-dlp lambat."})
+    except FileNotFoundError:
+        return jsonify({"success": False, "message": "yt-dlp tidak ditemukan di sistem!"})
+
+@app.route('/api/download-selected', methods=['POST'])
+@requires_auth
+@requires_csrf
+def download_selected():
+    """Download multiple URLs sequentially in a background thread."""
+    data = request.json
+    urls = data.get('urls', [])
+    fmt = data.get('format', 'audio')
+    if not urls:
+        return jsonify({"success": False, "message": "Tidak ada URL dipilih!"})
+
+    zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
+    log_path = WEB_TASK_LOG_PATH
+    is_video = fmt == "video"
+
+    def _run_batch():
+        with open(log_path, "w") as f:
+            f.write(f"[ZDT] Memproses {len(urls)} antrean...\n")
+        for i, url in enumerate(urls):
+            with open(log_path, "a") as f:
+                f.write(f"\n[{i+1}/{len(urls)}] {url}\n")
+            cmd = [zdt_bin, "--download-video" if is_video else "--download-audio", url]
+            env = os.environ.copy()
+            env["AUTO_MODE"] = "1"
+            if fmt == "video":
+                env["AUTO_VIDEO_FORMAT"] = data.get("spec", "1")
+            else:
+                if data.get("spec"): env["AUTO_FORMAT_SPEC"] = str(data["spec"])
+                if data.get("bitrate"): env["AUTO_BITRATE"] = str(data["bitrate"])
+            with open(log_path, "a") as f:
+                subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, env=env, timeout=600)
+            with open(log_path, "a") as f:
+                f.write(f"[{i+1}/{len(urls)}] Selesai\n")
+        with open(log_path, "a") as f:
+            f.write(f"\n[ZDT] Batch {len(urls)} antrean selesai!\n")
+
+    threading.Thread(target=_run_batch, daemon=True).start()
+    return jsonify({"success": True, "message": f"Memproses {len(urls)} video... Cek tab Log untuk progres!"})
+
 @app.route('/api/health', methods=['GET'])
 def health():
     """Lightweight health check. Returns 200 when server is operational."""
