@@ -48,6 +48,19 @@ if [ ! -d "$_MODULES_DIR" ]; then
 fi
 
 if [ -d "$_MODULES_DIR" ]; then
+    # === Resolve canonical _MODULES_DIR path BEFORE source ===
+    # This ensures readonly variables (ZDT_DB_HELPER) capture the correct path
+    if command -v _get_share_dir >/dev/null 2>&1; then
+        _CACHED_SHARE_DIR="$(_get_share_dir)"
+        _mods_candidate="$_CACHED_SHARE_DIR/zdt-modules"
+        # Only override _MODULES_DIR if the canonical share dir actually has modules
+        if [ -d "$_mods_candidate" ]; then
+            _MODULES_DIR="$_mods_candidate"
+        fi
+        # Write VERSION file to share dir (single source of truth for Python scripts)
+        echo "$APP_VERSION" > "$_CACHED_SHARE_DIR/VERSION" 2>/dev/null || true
+    fi
+
     for _mod in core helpers download-spotify download-youtube media playlist daemon setup assistant; do
         if [ -f "$_MODULES_DIR/${_mod}.sh" ]; then
             source "$_MODULES_DIR/${_mod}.sh"
@@ -58,14 +71,9 @@ else
     exit 1
 fi
 
-# === Post-init: re-resolve paths using loaded modules ===
-# helpers.sh (loaded above) provides _get_share_dir, _get_zdt_bin, _find_script, etc.
-# Re-resolve _MODULES_DIR to canonical path using shared functions
+# === Post-source: refresh VERSION in case _get_share_dir wasn't available earlier ===
 if command -v _get_share_dir >/dev/null 2>&1; then
-    _CACHED_SHARE_DIR="$(_get_share_dir)"
-    _MODULES_DIR="$_CACHED_SHARE_DIR/zdt-modules"
-    # Write VERSION file to share dir (single source of truth for Python scripts)
-    echo "$APP_VERSION" > "$_CACHED_SHARE_DIR/VERSION" 2>/dev/null || true
+    echo "$APP_VERSION" > "$(_get_share_dir)/VERSION" 2>/dev/null || true
 fi
 
 MAIN_MODE=""

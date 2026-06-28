@@ -157,13 +157,14 @@ def listener(messages):
 
 bot.set_update_listener(listener)
 
-def _find_zdt_bin():
-    """Find zdt binary, with fallback to path module.
-    Binary search paths: ~/.local/bin/zdt, /usr/local/bin/zdt, /data/data/com.termux/files/usr/bin/zdt
+# Don't cache at module level — resolve at runtime to accommodate PATH changes
+# Use function wrapper for lazy resolution
+def get_zdt_bin():
+    """Resolve zdt binary at call time, not import time.
+    Searches PATH first, then falls back to known install locations:
+    ~/.local/bin/zdt, /usr/local/bin/zdt, /data/data/com.termux/files/usr/bin/zdt
     """
     return shutil.which("zdt") or ZdtPaths.get_bin_path()
-
-zdt_bin = _find_zdt_bin()
 
 @bot.message_handler(commands=['start', 'help', 'menu'])
 def send_welcome(message):
@@ -292,7 +293,7 @@ def download_video(message):
     
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.Popen([zdt_bin, "--download-video", url], stdout=devnull, stderr=devnull, start_new_session=True)
+            subprocess.Popen([get_zdt_bin(), "--download-video", url], stdout=devnull, stderr=devnull, start_new_session=True)
     except Exception as e:
         bot.reply_to(message, f"❌ Terjadi kesalahan: {str(e)}")
 
@@ -309,7 +310,7 @@ def download_audio_cmd(message):
     
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.Popen([zdt_bin, "--download-audio", url], stdout=devnull, stderr=devnull, start_new_session=True)
+            subprocess.Popen([get_zdt_bin(), "--download-audio", url], stdout=devnull, stderr=devnull, start_new_session=True)
     except Exception as e:
         bot.reply_to(message, f"❌ Terjadi kesalahan: {str(e)}")
 
@@ -494,7 +495,7 @@ Chat: {history_context}"""
                                 def _task():
                                     try:
                                         # Using unbuffered output trick via stdbuf or directly reading
-                                        process = _safe_popen([zdt_bin] + cmd_args, stdout=subprocess.PIPE, text=True, bufsize=1)
+                                        process = _safe_popen([get_zdt_bin()] + cmd_args, stdout=subprocess.PIPE, text=True, bufsize=1)
                                             
                                         last_update = time.time()
                                         log_buffer = []
@@ -662,14 +663,14 @@ Chat: {history_context}"""
                                 bot.reply_to(message, "⚙️ Menjalankan Setup Tools...")
                                 try:
                                     with open(os.devnull, 'w') as devnull:
-                                        subprocess.Popen([zdt_bin, "--setup"], stdout=devnull, stderr=devnull, start_new_session=True)
+                                        subprocess.Popen([get_zdt_bin(), "--setup"], stdout=devnull, stderr=devnull, start_new_session=True)
                                 except Exception as e:
                                     bot.reply_to(message, f"❌ Error: {e}")
                             elif action == "update tools":
                                 bot.reply_to(message, "🔄 Menjalankan Update ZDT...")
                                 try:
                                     with open(os.devnull, 'w') as devnull:
-                                        subprocess.Popen([zdt_bin, "--update"], stdout=devnull, stderr=devnull, start_new_session=True)
+                                        subprocess.Popen([get_zdt_bin(), "--update"], stdout=devnull, stderr=devnull, start_new_session=True)
                                 except Exception as e:
                                     bot.reply_to(message, f"❌ Error: {e}")
                             elif action == "start telegram":
@@ -749,7 +750,7 @@ Chat: {history_context}"""
     
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.Popen([zdt_bin, "--download-audio", url], stdout=devnull, stderr=devnull, start_new_session=True)
+            subprocess.Popen([get_zdt_bin(), "--download-audio", url], stdout=devnull, stderr=devnull, start_new_session=True)
     except Exception as e:
         bot.reply_to(message, f"❌ Terjadi kesalahan: {str(e)}")
 
@@ -787,7 +788,7 @@ def callback_query(call):
     
     try:
         with open(os.devnull, 'w') as devnull:
-            subprocess.Popen([zdt_bin, bash_flag], stdout=devnull, stderr=devnull, start_new_session=True)
+            subprocess.Popen([get_zdt_bin(), bash_flag], stdout=devnull, stderr=devnull, start_new_session=True)
     except Exception as e:
         bot.send_message(call.message.chat.id, f"❌ Terjadi kesalahan: {str(e)}")
 

@@ -540,10 +540,11 @@ NET_PID=""
 # values that don't change frequently.
 # ==========================================
 
-# UI Cache timestamps
-_ZDT_CACHE_TIME_STATS=0
-_ZDT_CACHE_TIME_TOOLS=0
-_ZDT_CACHE_TIME_SYS=0
+# UI Cache timestamps — separate per metric to prevent timer starvation
+_ZDT_CACHE_TIME_STATS=0    # CPU & Load (3s interval)
+_ZDT_CACHE_TIME_SYS=0      # System info (static, refresh once)
+_ZDT_CACHE_TIME_RAM=0      # RAM, Uptime, Storage (5s interval)
+_ZDT_CACHE_TIME_TOOLS=0    # Tools status (not used dynamically)
 
 # Cached values
 _ZDT_CACHED_RAM=""
@@ -569,12 +570,13 @@ _ZDT_CACHED_TOOLS_STR=""
 _init_ui_cache() {
     local now=${EPOCHSECONDS:-$(date +%s 2>/dev/null || echo 0)}
 
-    # Refresh all caches
-    _ZDT_CACHE_TIME_STATS=$now
+    # Refresh all caches with separate timestamps
+    _ZDT_CACHE_TIME_RAM=$now
     _ZDT_CACHED_RAM=$(_get_ram_percent)
     _ZDT_CACHED_UPTIME=$(_get_uptime)
     _ZDT_CACHED_STORAGE=$(_get_storage_percent)
 
+    _ZDT_CACHE_TIME_STATS=$now
     _ZDT_CACHE_TIME_SYS=$now
     _ZDT_CACHED_OS_NAME=$(_get_os_name)
     _ZDT_CACHED_KERNEL=$(uname -r 2>/dev/null | cut -d'-' -f1,2 || echo "N/A")
@@ -617,17 +619,19 @@ _init_ui_cache() {
 # All metrics use TTL to avoid forking on every menu loop
 _refresh_stats_cache() {
     local now=${EPOCHSECONDS:-$(date +%s 2>/dev/null || echo 0)}
-    local elapsed=$(( now - _ZDT_CACHE_TIME_STATS ))
+    local elapsed_ram=$(( now - _ZDT_CACHE_TIME_RAM ))
+    local elapsed_cpu=$(( now - _ZDT_CACHE_TIME_STATS ))
 
-    # RAM, uptime, storage — refresh max every 5 seconds (save fork)
-    if [ "$elapsed" -ge 5 ] || [ "$_ZDT_CACHE_TIME_STATS" -eq 0 ]; then
+    # RAM, uptime, storage — refresh max every 5 seconds (independent timer)
+    if [ "$elapsed_ram" -ge 5 ] || [ "$_ZDT_CACHE_TIME_RAM" -eq 0 ]; then
         _ZDT_CACHED_RAM=$(_get_ram_percent)
         _ZDT_CACHED_UPTIME=$(_get_uptime)
         _ZDT_CACHED_STORAGE=$(_get_storage_percent)
+        _ZDT_CACHE_TIME_RAM=$now
     fi
 
-    # CPU & load — refresh max every 3 seconds
-    if [ "$elapsed" -ge 3 ] || [ "$_ZDT_CACHE_TIME_STATS" -eq 0 ]; then
+    # CPU & load — refresh max every 3 seconds (independent timer)
+    if [ "$elapsed_cpu" -ge 3 ] || [ "$_ZDT_CACHE_TIME_STATS" -eq 0 ]; then
         _ZDT_CACHED_LOAD=$(cat /proc/loadavg 2>/dev/null | awk '{print $1" "$2" "$3}' || echo "N/A")
         _ZDT_CACHED_CPU=$(grep 'cpu ' /proc/stat 2>/dev/null | awk '{print ($2+$4)*100/($2+$4+$5)}' | cut -d. -f1 || echo "?")
         _ZDT_CACHE_TIME_STATS=$now

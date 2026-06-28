@@ -67,8 +67,17 @@ _find_module() {
     return 1
 }
 
-# Shared config directory (guard against re-source with [ -z ])
-[ -z "${ZDT_CONFIG_DIR:-}" ] && readonly ZDT_CONFIG_DIR="$HOME/.config/zdt"
+# Shared config directory (single source of truth — respects XDG_CONFIG_HOME)
+# Match core.sh's _get_config_dir() logic
+if [ -z "${ZDT_CONFIG_DIR:-}" ]; then
+    if [ -n "${XDG_CONFIG_HOME:-}" ]; then
+        readonly ZDT_CONFIG_DIR="$XDG_CONFIG_HOME/zdt"
+    elif [ -n "${HOME:-}" ]; then
+        readonly ZDT_CONFIG_DIR="$HOME/.config/zdt"
+    else
+        readonly ZDT_CONFIG_DIR="/tmp/.zdt-config-$(id -u 2>/dev/null || echo 0)"
+    fi
+fi
 [ -z "${ZDT_CONFIG_FILE:-}" ] && readonly ZDT_CONFIG_FILE="$ZDT_CONFIG_DIR/config.env"
 [ -z "${ZDT_DB_PATH:-}" ] && readonly ZDT_DB_PATH="$ZDT_CONFIG_DIR/zdt.db"
 [ -z "${ZDT_SCHEDULER_PATH:-}" ] && readonly ZDT_SCHEDULER_PATH="$ZDT_CONFIG_DIR/scheduler.json"

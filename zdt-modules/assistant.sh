@@ -8,8 +8,9 @@
 # Version: ${APP_VERSION}
 
 # Conversation history (Database)
-readonly ZDT_DB_FILE="$HOME/.config/zdt/zdt_history.db"
-readonly ZDT_DB_HELPER="$_MODULES_DIR/zdt_db.py"
+# Non-readonly: resolve at runtime to accommodate _MODULES_DIR re-assignment after source
+ZDT_DB_FILE="${ZDT_HISTORY_DB:-$HOME/.config/zdt/zdt_history.db}"
+ZDT_DB_HELPER="${_MODULES_DIR:-.}/zdt_db.py"
 
 _zaki_add_history() {
     local role="$1" content="$2"

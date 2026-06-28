@@ -314,6 +314,10 @@ def test_telegram_auto_action_start_watch():
 
         zdt_telegram.auto_download_audio(mock_msg)
 
+        # run_bg_task runs async via thread pool — wait for it to execute
+        import time
+        time.sleep(0.5)
+
         # Should call Popen with --watch (via run_bg_task which uses Popen)
         mock_popen.assert_called()
         popen_args = mock_popen.call_args[0][0]

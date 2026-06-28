@@ -208,6 +208,84 @@ class TestWatchDaemon:
 
 
 # ────────────────────────────────────────────
+# Tests: Bash module bug fix validation
+# ────────────────────────────────────────────
+# Source-inspection tests that verify the Bash module fixes
+# are present and correctly implemented.
+
+class TestBashFixes:
+    """
+    Validate that Bash module bug fixes are in place.
+    Since these are shell scripts, we use source-inspection
+    to verify the changes without executing Bash.
+    """
+
+    def test_cache_timer_separate_ram_variable(self):
+        """core.sh: _ZDT_CACHE_TIME_RAM must exist as a separate timer
+        so RAM refresh (5s) doesn't get starved by CPU refresh (3s)."""
+        path = os.path.join(PROJECT_DIR, "zdt-modules", "core.sh")
+        with open(path) as f:
+            content = f.read()
+        # Must declare the RAM-specific timer variable
+        assert "_ZDT_CACHE_TIME_RAM" in content, "Missing _ZDT_CACHE_TIME_RAM variable"
+        # Must initialize it in _init_ui_cache()
+        assert "_ZDT_CACHE_TIME_RAM=$now" in content, "_ZDT_CACHE_TIME_RAM not initialized in _init_ui_cache"
+        # Must reference it in _refresh_stats_cache() for RAM/uptime/storage
+        assert "elapsed_ram=$(( now - _ZDT_CACHE_TIME_RAM ))" in content, "RAM timer not read in _refresh_stats_cache"
+
+    def test_cache_timer_ram_uses_separate_threshold(self):
+        """core.sh: RAM/uptime/storage must check elapsed_ram >= 5 (5s interval)."""
+        path = os.path.join(PROJECT_DIR, "zdt-modules", "core.sh")
+        with open(path) as f:
+            content = f.read()
+        # RAM block must use the RAM timer (5s), not the CPU timer (3s)
+        # Look for the pattern: if [ "$elapsed_ram" -ge 5 ]
+        assert '"$elapsed_ram" -ge 5' in content or 'elapsed_ram\\) -ge 5' in content, \
+            "RAM refresh should use 5s threshold via elapsed_ram"
+        # CPU block must use the STATS timer (3s)
+        assert '"$elapsed_cpu" -ge 3' in content or 'elapsed_cpu\\) -ge 3' in content, \
+            "CPU refresh should use 3s threshold via elapsed_cpu"
+
+    def test_xdg_config_home_fallback_in_helpers(self):
+        """helpers.sh: ZDT_CONFIG_DIR must respect XDG_CONFIG_HOME."""
+        path = os.path.join(PROJECT_DIR, "zdt-modules", "helpers.sh")
+        with open(path) as f:
+            content = f.read()
+        # Must check for XDG_CONFIG_HOME first
+        assert 'XDG_CONFIG_HOME' in content, "helpers.sh should reference XDG_CONFIG_HOME"
+        assert '${XDG_CONFIG_HOME:-}' in content, \
+            "Should use ${XDG_CONFIG_HOME:-} with default fallback"
+        # Must have fallback to /tmp/.zdt-config when both XDG and HOME are unset
+        assert "zdt-config" in content, "Should have /tmp/.zdt-config fallback when HOME unset"
+
+    def test_xdg_config_home_matches_core_sh(self):
+        """helpers.sh and core.sh should use consistent XDG_CONFIG_HOME logic."""
+        helpers_path = os.path.join(PROJECT_DIR, "zdt-modules", "helpers.sh")
+        core_path = os.path.join(PROJECT_DIR, "zdt-modules", "core.sh")
+        with open(helpers_path) as f:
+            helpers_content = f.read()
+        with open(core_path) as f:
+            core_content = f.read()
+        # Both must have the same 3-tier fallback:
+        # 1. XDG_CONFIG_HOME 2. HOME/.config 3. /tmp/.zdt-config-$(id -u)
+        assert 'XDG_CONFIG_HOME' in helpers_content and 'XDG_CONFIG_HOME' in core_content
+        assert 'HOME:-' in helpers_content and 'HOME:-' in core_content
+        assert 'id -u' in helpers_content and 'id -u' in core_content
+
+    def test_zdt_telegram_no_dead_code(self):
+        """zdt-telegram.py should use get_zdt_bin() not deprecated zdt_bin cache."""
+        path = os.path.join(PROJECT_DIR, "zdt-telegram.py")
+        with open(path) as f:
+            content = f.read()
+        # Must NOT have _find_zdt_bin() function anymore
+        assert "def _find_zdt_bin()" not in content, \
+            "_find_zdt_bin() should be removed (replaced by get_zdt_bin())"
+        # Must NOT have deprecated zdt_bin = ... module-level cache
+        assert "zdt_bin = _find_zdt_bin" not in content, \
+            "Module-level zdt_bin cache should be removed"
+
+
+# ────────────────────────────────────────────
 # Tests: Shared patterns across components
 # ────────────────────────────────────────────
 

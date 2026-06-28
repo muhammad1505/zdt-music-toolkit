@@ -30,7 +30,7 @@ auto_sync_lirik() {
         total_missing=0
         while IFS= read -r af; do
             local fn="${af%.*}.lrc"
-            [ ! -f "$fn" ] && ((total_missing++))
+            [ ! -f "$fn" ] && total_missing=$((total_missing + 1))
         done < <(_find_media_files "$target_dir" "all")
         if [ "$total_missing" -eq 0 ]; then
             return 0
@@ -45,7 +45,7 @@ auto_sync_lirik() {
             total_missing=0
             while IFS= read -r af; do
                 local fn="${af%.*}.lrc"
-                [ ! -f "$fn" ] && ((total_missing++))
+                [ ! -f "$fn" ] && total_missing=$((total_missing + 1))
             done < <(_find_media_files "$target_dir" "all")
 
             echo -e "  ${CYAN}${ICO_ARROW} Direktori target: ${YELLOW}$target_dir${RESET}"
@@ -92,7 +92,7 @@ auto_sync_lirik() {
         lrc_file="$dir_path/$filename_noext.lrc"
 
         if [ -f "$lrc_file" ]; then
-            ((count_skipped++))
+            count_skipped=$((count_skipped + 1))
             continue
         fi
 
@@ -115,11 +115,11 @@ auto_sync_lirik() {
 
         if [ -f "$lrc_file" ] && [ -s "$lrc_file" ]; then
             echo -e "    ${GREEN}${ICO_OK} Lirik Ditemukan!${RESET}"
-            ((count_success++))
+            count_success=$((count_success + 1))
         else
             rm -f "$lrc_file" 2>/dev/null
             echo -e "    ${RED}${ICO_FAIL} Gagal menemukan lirik.${RESET}"
-            ((count_failed++))
+            count_failed=$((count_failed + 1))
         fi
     done < <(_find_media_files "$target_dir" "all" | while IFS= read -r f; do stat -c "%Y %n" "$f" 2>/dev/null; done | sort -rn | cut -d' ' -f2-)
 
@@ -251,7 +251,7 @@ bikin_playlist() {
         local relpath
         relpath=$(_relpath "$f" "$(dirname "$(_realpath "$playlist_file")")")
         echo "$relpath" >> "$playlist_file"
-        ((lagu_ditemukan++))
+        lagu_ditemukan=$((lagu_ditemukan + 1))
     done < <(find "$target_dir" -type f \( -iname "*.m4a" -o -iname "*.mp3" -o -iname "*.flac" -o -iname "*.wav" -o -iname "*.ogg" \) 2>/dev/null | sort)
 
     if [ "$lagu_ditemukan" -le 0 ]; then
