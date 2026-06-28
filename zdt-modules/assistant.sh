@@ -336,6 +336,7 @@ zaki_assistant() {
                 "   'jalankan web ui' / 'update tools'"
                 "DIVIDER"
                 " ${CYAN}▶ Kontrol Bot${RESET}"
+                "   'set api key' / 'ganti key' — Atur API Key"
                 "   ${YELLOW}[!]${RESET} Reset memori percakapan"
                 "   ${RED}[0]${RESET} Kembali ke menu utama"
             )
@@ -1081,6 +1082,57 @@ print(json.dumps(payload))
             # Watch daemon
             elif [[ "$input" =~ (watch|daemon|pantau|monitor) ]]; then
                 start_watch_daemon
+
+            # Set API Key
+            elif [[ "$input" =~ (set (api )?key|api.?key|ganti (api )?key|key (gemini|openrouter)|atur (api )?key|configure key) ]]; then
+                echo ""
+                echo -e "  ${CYAN}${ICO_ARROW} Pilih API yang mau di-set:${RESET}"
+                echo -e "  ${GREEN}[1]${RESET} Gemini API Key"
+                echo -e "  ${GREEN}[2]${RESET} OpenRouter API Key"
+                echo -e "  ${RED}[0]${RESET} Batal"
+                echo -e -n "  ${BOLD}[?] Pilihan [0-2]: ${RESET}"
+                local _api_choice
+                read -r -n 1 _api_choice; echo ""
+                local _key_file=""
+                local _key_name=""
+                case "$_api_choice" in
+                    1) _key_file="$HOME/.config/zdt/gemini_key"; _key_name="Gemini";;
+                    2) _key_file="$HOME/.config/zdt/openrouter_key"; _key_name="OpenRouter";;
+                    *) echo -e "  ${YELLOW}${ICO_WARN} Dibatalkan.${RESET}"; echo ""; continue;;
+                esac
+                echo -e -n "  ${BOLD}[?] Masukkan ${_key_name} API Key: ${RESET}"
+                local _new_key
+                read -r _new_key
+                _new_key="${_new_key//\"/}"
+                _new_key="${_new_key//\'/}"
+                _new_key="$(echo "$_new_key" | tr -d '[:space:]')"
+                if [ -z "$_new_key" ]; then
+                    echo -e "  ${RED}${ICO_FAIL} Key kosong!${RESET}"
+                    echo ""; continue
+                fi
+                mkdir -p "$(dirname "$_key_file")" 2>/dev/null
+                echo "$_new_key" > "$_key_file"
+                chmod 600 "$_key_file" 2>/dev/null
+                echo -e "  ${GREEN}${ICO_OK} ${_key_name} API Key berhasil disimpan!${RESET}"
+                # Verify dengan test call singkat
+                if [ "$_api_choice" = "1" ]; then
+                    local _test
+                    _test=$(curl -sL "https://generativelanguage.googleapis.com/v1beta/models?key=$_new_key" 2>/dev/null | head -c 200)
+                    if echo "$_test" | grep -q "models"; then
+                        echo -e "  ${GREEN}   ✓ Key valid!${RESET}"
+                    else
+                        echo -e "  ${YELLOW}   ⚠ Key tersimpan, tapi verifikasi gagal (mungkin butuh waktu propagasi).${RESET}"
+                    fi
+                else
+                    local _test
+                    _test=$(curl -sL -o /dev/null -w "%{http_code}" "https://openrouter.ai/api/v1/auth/key" -H "Authorization: Bearer $_new_key" 2>/dev/null)
+                    if [ "$_test" = "200" ]; then
+                        echo -e "  ${GREEN}   ✓ Key valid!${RESET}"
+                    else
+                        echo -e "  ${YELLOW}   ⚠ Key tersimpan, tapi verifikasi gagal (HTTP $_test). Cek key di openrouter.ai/keys${RESET}"
+                    fi
+                fi
+                echo ""
 
             # Halo / greetings
             elif [[ "$input" =~ (halo|hai|hi|hey|selamat|pagi|siang|sore|malam|bro|boss|bang|kak|woi) ]]; then
