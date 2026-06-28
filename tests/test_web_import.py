@@ -78,6 +78,49 @@ class TestWebImportRoutes:
             data = resp.get_json()
             assert data.get("success") is True
 
+    def test_download_api_auto_detect_audio_no_format(self, web_app):
+        """Auto-detect: when fmt not provided, should default to audio."""
+        with web_app.test_client() as client:
+            resp = client.post("/api/download", json_data={
+                "url": "https://youtube.com/watch?v=test123"
+            })
+            assert resp.status_code == 200, f"Got {resp.status_code}: {resp.get_json()}"
+            data = resp.get_json()
+            assert data.get("success") is True, f"Auto-detect should succeed: {data}"
+
+    def test_download_api_auto_detect_spotify(self, web_app):
+        """Auto-detect: Spotify URLs should always be audio."""
+        with web_app.test_client() as client:
+            resp = client.post("/api/download", json_data={
+                "url": "https://open.spotify.com/track/test123",
+                "format": "auto"
+            })
+            assert resp.status_code == 200, f"Got {resp.status_code}: {resp.get_json()}"
+            data = resp.get_json()
+            assert data.get("success") is True
+
+    def test_download_api_auto_detect_empty_format(self, web_app):
+        """Auto-detect: empty format string should default to audio."""
+        with web_app.test_client() as client:
+            resp = client.post("/api/download", json_data={
+                "url": "https://youtube.com/watch?v=abc",
+                "format": ""
+            })
+            assert resp.status_code == 200, f"Got {resp.status_code}: {resp.get_json()}"
+            data = resp.get_json()
+            assert data.get("success") is True
+
+    def test_download_api_auto_detect_none_format(self, web_app):
+        """Auto-detect: None format should default to audio."""
+        with web_app.test_client() as client:
+            resp = client.post("/api/download", json_data={
+                "url": "https://soundcloud.com/test/track",
+                "format": None
+            })
+            assert resp.status_code == 200, f"Got {resp.status_code}: {resp.get_json()}"
+            data = resp.get_json()
+            assert data.get("success") is True
+
     def test_spotify_sync_empty(self, web_app):
         with web_app.test_client() as client:
             resp = client.post("/api/spotify-sync", json_data={"url": ""})

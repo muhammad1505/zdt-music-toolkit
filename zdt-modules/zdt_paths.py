@@ -111,11 +111,16 @@ class ZdtPaths:
 
     @classmethod
     def find_script(cls, name, script_dir=None):
-        """Find a Python/binary script: project dir → share dir → cwd."""
+        """Find a Python/binary script: project dir → share dir → modules dir → cwd ± parent."""
         candidates = []
         if script_dir:
             candidates.append(os.path.join(script_dir, name))
+            # Also check parent directory (useful when script_dir is a subdirectory)
+            parent = os.path.dirname(script_dir)
+            if parent != script_dir:
+                candidates.append(os.path.join(parent, name))
         candidates.append(os.path.join(cls.get_share_dir(), name))
+        candidates.append(os.path.join(cls.get_modules_dir(), name))
         candidates.append(os.path.join(os.getcwd(), name))
         return cls._find_first_file(candidates)
 

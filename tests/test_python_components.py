@@ -428,6 +428,50 @@ class TestZdtPaths:
         result = ZdtPaths.find_script("nonexistent_script.py", "/nonexistent")
         assert result is None
 
+    def test_find_script_parent_dir(self, monkeypatch, tmp_path):
+        """find_script should search parent directory when script_dir is a subdirectory."""
+        from zdt_paths import ZdtPaths
+        # Create structure: tmp_dir/subdir/ (script_dir) and tmp_dir/test.py (parent)
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        test_script = tmp_path / "zdt-test.py"
+        test_script.write_text("#!/usr/bin/env python3\n")
+        monkeypatch.setattr(ZdtPaths, "SHARE_DIRS", ["/nonexistent/zdt"])
+        monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path / "other"))
+        result = ZdtPaths.find_script("zdt-test.py", str(subdir))
+        assert result == str(test_script), f"Expected {test_script}, got {result}"
+
+    def test_find_script_script_dir_first(self, monkeypatch, tmp_path):
+        """find_script should prefer script_dir over parent dir."""
+        from zdt_paths import ZdtPaths
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        # Both parent and subdir have matching file
+        parent_script = tmp_path / "zdt-test.py"
+        parent_script.write_text("#!/usr/bin/env python3\n")
+        subdir_script = subdir / "zdt-test.py"
+        subdir_script.write_text("#!/usr/bin/env python3\n")
+        monkeypatch.setattr(ZdtPaths, "SHARE_DIRS", ["/nonexistent/zdt"])
+        monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path / "other"))
+        result = ZdtPaths.find_script("zdt-test.py", str(subdir))
+        # Should find script_dir version first
+        assert result == str(subdir_script), f"Expected {subdir_script}, got {result}"
+
+    def test_find_script_modules_dir(self, monkeypatch, tmp_path):
+        """find_script should search modules_dir as fallback."""
+        from zdt_paths import ZdtPaths
+        # Create a fake modules dir with the script
+        fake_share = tmp_path / "share" / "zdt"
+        fake_share.mkdir(parents=True)
+        fake_modules = fake_share / "zdt-modules"
+        fake_modules.mkdir()
+        test_script = fake_modules / "zdt-test.py"
+        test_script.write_text("#!/usr/bin/env python3\n")
+        monkeypatch.setattr(ZdtPaths, "SHARE_DIRS", [str(fake_share)])
+        monkeypatch.setattr(os, "getcwd", lambda: str(tmp_path / "other"))
+        result = ZdtPaths.find_script("zdt-test.py", "/nonexistent/script_dir")
+        assert result == str(test_script), f"Expected {test_script}, got {result}"
+
     def test_get_version_priority_file(self, monkeypatch):
         """VERSION file in project root takes priority over env var."""
         from zdt_paths import ZdtPaths

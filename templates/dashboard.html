@@ -531,15 +531,17 @@
         .btn {
             background: linear-gradient(135deg, var(--primary), var(--primary-hover));
             color: white;
-            border: none; padding: 12px 22px;
+            border: none; padding: 10px 18px;
             border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px;
-            font-weight: 600; cursor: pointer; width: 100%;
+            font-weight: 600; cursor: pointer; width: auto;
+            min-width: 100px; max-width: 100%;
             transition: all 0.3s ease;
             display: inline-flex; justify-content: center; align-items: center; gap: 8px;
             box-shadow: var(--shadow-btn);
             position: relative;
             overflow: hidden;
         }
+
         .btn::after {
             content: '';
             position: absolute;
@@ -1408,11 +1410,7 @@
                         <input type="text" id="dlUrl" placeholder="https://..." required>
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                        <select id="dlFormat" style="width:90px;">
-                            <option value="audio">🎵 Audio</option>
-                            <option value="video">🎬 Video</option>
-                        </select>
-                        <button type="submit" id="btnDl" class="btn" style="flex:1; min-width:120px;"><i class="fa-solid fa-download"></i> Execute</button>
+                        <button type="submit" id="btnDl" class="btn" style="min-width:120px;"><i class="fa-solid fa-download"></i> Download</button>
                     </div>
                 </form>
             <div id="dlStatus" class="status-box"></div>
@@ -1793,7 +1791,7 @@
 
     <script>
         window.addEventListener("DOMContentLoaded", () => {
-            if(document.getElementById("dlFormat")) updateFormatOptions();
+            // dlFormat selector removed — using auto-detect format
         });
 
         function switchTab(tabId, el) {
@@ -2236,7 +2234,7 @@
 
         function openPlaylistModal(url) {
             _playlistUrl = url;
-            _playlistFormat = document.getElementById('dlFormat').value;
+            _playlistFormat = "audio";
             document.getElementById('playlistFormat').value = _playlistFormat;
             updatePlaylistSpecOptions();
             document.getElementById('playlistModal').style.display = 'flex';
@@ -2425,7 +2423,7 @@
 
         handleFormSubmit('formDownloader', 'btnDl', 'dlStatus', '/api/download', () => ({
             url: document.getElementById('dlUrl').value,
-            format: document.getElementById('dlFormat').value
+            format: "audio"
         }), 'EXECUTING...');
 
         handleFormSubmit('formSpotify', 'btnSp', 'spStatus', '/api/spotify-sync', () => ({

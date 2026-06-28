@@ -336,7 +336,7 @@ def get_stats():
         offset = (page - 1) * per_page
         
         db_path = ZdtPaths.get_db_path()
-        db_script = os.path.join(PROJECT_DIR, "zdt-modules", "zdt_db.py")
+        db_script = os.path.join(_MODULES_DIR, "zdt_db.py")
         res = subprocess.run(
             [sys.executable, db_script, db_path, "get_stats", str(per_page), str(offset)],
             capture_output=True, text=True
@@ -634,6 +634,11 @@ def trigger_download():
     zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
     
     cmd = []
+    # Auto-detect format: Universal Downloader always defaults to audio
+    # Playlist modal can override fmt via playlistFormat selector
+    if not fmt or fmt == "auto":
+        fmt = "audio"
+    
     if "spotify.com" in url:
         cmd = [zdt_bin, "--download-audio", url]
     elif fmt == "audio":
