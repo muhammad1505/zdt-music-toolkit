@@ -529,3 +529,93 @@ def test_telegram_or_fallback_to_gemini():
         reply_text = args[1]
         assert "Tulus" in reply_text, f"Gemini response should contain 'Tulus', got: {reply_text}"
         assert "Aduh otak" not in reply_text, f"Should NOT be OR error, got: {reply_text}"
+
+
+def test_telegram_keyword_fallback_status():
+    """Keyword fallback: AI returns plain text, keyword 'status' triggers action."""
+    import json
+    from unittest.mock import patch, MagicMock
+
+    mock_msg = MagicMock()
+    mock_msg.chat.id = 99930
+    mock_msg.text = "cek status server"
+
+    # AI returns plain text WITHOUT AUTO_ACTION — keyword fallback should catch "status"
+    or_response = {
+        "choices": [{
+            "message": {"content": "Siap!"}
+        }]
+    }
+
+    def _mock_urlopen(req, timeout=20):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    key_paths = [os.path.expanduser("~/.config/zdt/openrouter_key")]
+    def _mock_exists(path):
+        return path in key_paths
+
+    def _mock_open(path, *args, **kwargs):
+        m = MagicMock()
+        m.__enter__.return_value.read.return_value = "sk-or-v1-test-key"
+        return m
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open), \
+         patch.object(zdt_telegram, 'server_status') as mock_server_status:
+
+        zdt_telegram.auto_download_audio(mock_msg)
+
+        # Keyword fallback should detect "status" and call server_status
+        mock_server_status.assert_called_once_with(mock_msg)
+
+
+def test_telegram_keyword_fallback_download():
+    """Keyword fallback: AI returns plain text, keyword 'download' triggers action."""
+    import json
+    from unittest.mock import patch, MagicMock
+
+    mock_msg = MagicMock()
+    mock_msg.chat.id = 99931
+    mock_msg.text = "download lagu Tulus"
+
+    or_response = {
+        "choices": [{
+            "message": {"content": "Oke!"}
+        }]
+    }
+
+    def _mock_urlopen(req, timeout=20):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(or_response).encode()
+        mock_resp.__enter__.return_value = mock_resp
+        mock_resp.__exit__.return_value = None
+        return mock_resp
+
+    key_paths = [os.path.expanduser("~/.config/zdt/openrouter_key")]
+    def _mock_exists(path):
+        return path in key_paths
+
+    def _mock_open(path, *args, **kwargs):
+        m = MagicMock()
+        m.__enter__.return_value.read.return_value = "sk-or-v1-test-key"
+        return m
+
+    with patch.object(zdt_telegram.bot, 'reply_to') as mock_reply, \
+         patch.object(zdt_telegram.bot, 'send_chat_action'), \
+         patch('urllib.request.urlopen', side_effect=_mock_urlopen), \
+         patch('os.path.exists', side_effect=_mock_exists), \
+         patch('builtins.open', side_effect=_mock_open):
+
+        zdt_telegram.auto_download_audio(mock_msg)
+
+        # Keyword fallback should detect "download" — reply_to called with progress msg
+        assert mock_reply.called, "bot.reply_to should have been called"
+        call_texts = [str(c[0]) for c in mock_reply.call_args_list]
+        assert any("Mendownload" in t for t in call_texts), f"Expected progress msg, got: {call_texts}"
