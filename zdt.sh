@@ -19,7 +19,7 @@ else
         fi
     done
 fi
-readonly APP_VERSION="${_APP_VERSION:-4.4.33}"
+readonly APP_VERSION="${_APP_VERSION:-4.4.34}"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -174,7 +174,7 @@ main() {
         local pkgs="$_ZDT_CACHED_PKGS"
         local load_avg="$_ZDT_CACHED_LOAD"
         
-        if [ "$cols" -ge 90 ] && [ "${RUNTIME_ENV:-}" != "termux" ]; then
+        if [ "$cols" -ge 75 ] && [ "${RUNTIME_ENV:-}" != "termux" ]; then
             # DESKTOP VIEW (Gacor Graphic Dashboard)
             local inner_cols=$(( cols - 4 ))
             local left_width=41
