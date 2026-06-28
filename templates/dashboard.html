@@ -717,22 +717,64 @@
         .tool-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.5; flex: 1; }
 
         /* ============================================
-           LOG CONTAINER
+           FLOATING LOG PANEL
            ============================================ */
-        .log-container {
-            background: var(--log-bg);
-            border: 1px solid var(--border);
-            padding: 16px;
-            margin-top: 18px;
-            border-radius: 8px;
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
-            font-size: 13px;
-            color: var(--log-color);
-            height: 250px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+        .floating-log {
+            position: fixed; bottom: 20px; right: 20px;
+            z-index: 999; width: 520px; max-width: calc(100vw - 40px);
+            background: var(--log-bg, #0d1117);
+            border: 1px solid var(--border-light, #333);
+            border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column; overflow: hidden;
+            animation: flogIn 0.25s ease;
         }
+        @keyframes flogIn { from { opacity:0; transform:translateY(20px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
+        @keyframes flogOut { from { opacity:1; transform:translateY(0) scale(1); } to { opacity:0; transform:translateY(20px) scale(0.95); } }
+        .floating-log-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: rgba(0,0,0,0.3);
+            border-bottom: 1px solid var(--border-light, #333);
+            font-size: 13px; font-weight: 600; user-select: none;
+        }
+        .floating-log-header span { display: flex; align-items: center; gap: 8px; }
+        .floating-log-actions { display: flex; gap: 4px; }
+        .flog-btn {
+            background: none; border: none; color: #888; cursor: pointer;
+            padding: 4px 8px; border-radius: 6px; font-size: 14px; line-height: 1;
+        }
+        .flog-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .floating-log-body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 12px; color: var(--log-color, #c9d1d9);
+            padding: 12px 14px; height: 200px; overflow-y: auto;
+            white-space: pre-wrap; line-height: 1.5;
+        }
+        .floating-log .floating-log-progress {
+            padding: 0 14px 10px;
+        }
+        .floating-log .floating-log-progress .floating-log-progress-fill {
+            height: 6px; width: 0%; border-radius: 3px;
+            background: linear-gradient(90deg, #6366f1, #a855f7);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 8px rgba(99,102,241,0.4);
+        }
+        .floating-log .floating-log-progress-text {
+            font-size: 10px; font-family: 'JetBrains Mono', monospace;
+            color: #888; margin-top: 4px;
+            display: flex; justify-content: space-between;
+        }
+        .floating-log-btn {
+            position: fixed; bottom: 20px; right: 20px; z-index: 998;
+            background: var(--primary, #6366f1); color: #fff; border: none;
+            border-radius: 24px; padding: 10px 18px; font-size: 13px;
+            cursor: pointer; box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+            display: flex; align-items: center; gap: 8px;
+            animation: flogIn 0.2s ease; transition: all 0.2s;
+        }
+        .floating-log-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99,102,241,0.5); }
+        .floating-log.minimized .floating-log-body,
+        .floating-log.minimized .floating-log-progress { display: none; }
+        .floating-log.minimized .floating-log-header { border-bottom: none; }
 
         /* ============================================
            SWITCH WRAPPER (Daemon controls)
@@ -1112,7 +1154,6 @@
             .form-group { margin-bottom: 16px; }
             input[type="text"], select { padding: 12px 14px; font-size: 16px; }
             .btn { padding: 12px 18px; font-size: 14px; }
-            .log-container { height: 180px; font-size: 11px; }
             .chart-grid { flex-direction: column; }
             .chart-card { flex: 1; min-width: 100%; }
             .table-card { min-width: 100%; }
@@ -1133,7 +1174,6 @@
             .tool-title { font-size: 14px; }
             .tool-desc { font-size: 12px; margin-bottom: 14px; }
             .btn { padding: 11px 14px; font-size: 13px; }
-            .log-container { height: 140px; font-size: 10px; }
             .badge { font-size: 9px; padding: 2px 7px; }
             .sidebar .nav-item { font-size: 9px; padding: 6px 2px; }
             .sidebar .nav-item i { font-size: 16px; }
@@ -1363,24 +1403,49 @@
                     <input type="text" id="dlUrl" placeholder="https://..." required>
                 </div>
                 <div style="display:flex; gap:15px; flex-wrap:wrap;">
-                    <div class="form-group" style="flex:1; min-width:140px;">
-                        <label>Format</label>
+                    <div class="form-group" style="flex:1; min-width:120px;">
+                        <label>Type</label>
                         <select id="dlFormat" onchange="updateFormatOptions()">
-                            <option value="audio">🎵 Audio Only</option>
+                            <option value="audio">🎵 Audio</option>
                             <option value="video">🎬 Video</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex:2;">
-                        <label>Quality</label>
-                        <select id="dlFormatSpec"></select>
+                    <div class="form-group" style="flex:1;" id="divAudioSpec">
+                        <label>Format</label>
+                        <select id="dlAudioSpec">
+                            <option value="1">M4A</option>
+                            <option value="2">MP3</option>
+                            <option value="3">FLAC</option>
+                            <option value="4">WAV</option>
+                            <option value="5">OPUS</option>
+                            <option value="6">OGG</option>
+                        </select>
                     </div>
-                    <div class="form-group" style="flex:1; min-width:140px; display:none;" id="divBitrate">
+                    <div class="form-group" style="flex:1; min-width:120px;" id="divAudioBitrate">
                         <label>Bitrate</label>
                         <select id="dlBitrate">
-                            <option value="320">320 kbps (HQ)</option>
+                            <option value="320">320 kbps</option>
                             <option value="256">256 kbps</option>
-                            <option value="192">192 kbps (Med)</option>
-                            <option value="128">128 kbps (Low)</option>
+                            <option value="192">192 kbps</option>
+                            <option value="128">128 kbps</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; display:none;" id="divVideoQuality">
+                        <label>Quality</label>
+                        <select id="dlVideoQuality">
+                            <option value="1">Best (up to 4K)</option>
+                            <option value="2">1080p</option>
+                            <option value="3">720p</option>
+                            <option value="4">480p</option>
+                            <option value="5">360p</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1; display:none;" id="divVideoFormat">
+                        <label>Container</label>
+                        <select id="dlVideoFormat">
+                            <option value="1">MP4</option>
+                            <option value="2">MKV</option>
+                            <option value="3">WebM</option>
                         </select>
                     </div>
                 </div>
@@ -1399,11 +1464,24 @@
                 <div class="modal-body">
                     <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
                         <input type="text" id="playlistSearch" placeholder="🔍 Cari judul atau artis..." oninput="filterPlaylistItems()" style="flex:1; min-width:150px;">
-                        <select id="playlistFormat" style="width:120px;">
+                        <select id="playlistFormat" onchange="updatePlaylistSpecOptions()" style="width:90px;">
                             <option value="audio">🎵 Audio</option>
                             <option value="video">🎬 Video</option>
                         </select>
-                        <select id="playlistSpec" style="width:120px;"></select>
+                        <select id="playlistSpec" style="width:90px;"></select>
+                        <select id="playlistQuality" style="width:110px;display:none;">
+                            <option value="1">Best (4K)</option>
+                            <option value="2">1080p</option>
+                            <option value="3">720p</option>
+                            <option value="4">480p</option>
+                            <option value="5">360p</option>
+                        </select>
+                        <select id="playlistBitrate" style="width:100px;">
+                            <option value="320">320 kbps</option>
+                            <option value="256">256 kbps</option>
+                            <option value="192">192 kbps</option>
+                            <option value="128">128 kbps</option>
+                        </select>
                     </div>
                     <div id="playlistInfo" style="margin-bottom:8px; font-size:13px;"></div>
                     <div style="margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap;">
@@ -1725,48 +1803,37 @@
         </div>
 
         <!-- Log Section -->
-        <div id="logSection" style="display: none;">
-            <div class="page-header" style="margin-top: 40px; margin-bottom: 15px;">
-                <div class="page-header-text">
-                    <h1 style="font-size:20px;"><i class="fa-solid fa-terminal" style="color:var(--primary);"></i> Live Task Output</h1>
+        <!-- Floating Log Panel -->
+        <div id="floatingLog" class="floating-log" style="display:none;">
+            <div class="floating-log-header">
+                <span><i class="fa-solid fa-terminal"></i> <span id="flLogTitle">Live Task Output</span></span>
+                <div class="floating-log-actions">
+                    <button class="flog-btn" onclick="toggleLogMinimize()" title="Minimize" id="flogMinBtn"><i class="fa-solid fa-window-minimize"></i></button>
+                    <button class="flog-btn" onclick="closeLogs()" title="Close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <button class="btn btn-outline" style="width:auto; padding:6px 16px; font-size:12px;" onclick="closeLogs()"><i class="fa-solid fa-xmark"></i> Tutup Log</button>
             </div>
-            <div class="log-container" id="terminalLog">System ready. Waiting for task execution...</div>
-            <div class="progress-wrapper" id="liveProgressWrapper">
-                <div class="progress-fill" id="liveProgressFill"></div>
-                <div class="progress-text">
+            <div class="floating-log-body" id="terminalLog">System ready. Waiting for task execution...</div>
+            <div class="floating-log-progress" id="liveProgressWrapper" style="display:none;">
+                <div class="floating-log-progress-fill" id="liveProgressFill"></div>
+                <div class="floating-log-progress-text">
                     <span id="liveProgressTask">Processing...</span>
                     <span id="liveProgressPct">0%</span>
                 </div>
             </div>
         </div>
+        <!-- Floating Log Minimized Button -->
+        <button id="floatingLogBtn" class="floating-log-btn" onclick="toggleLogRestore()" style="display:none;">
+            <i class="fa-solid fa-terminal"></i> <span id="logBtnStatus">1 active</span>
+        </button>
     </div>
 
     <script>
         function updateFormatOptions() {
             const type = document.getElementById("dlFormat").value;
-            const spec = document.getElementById("dlFormatSpec");
-            spec.innerHTML = "";
-            if (type === "audio") {
-                document.getElementById('divBitrate').style.display = 'block';
-                spec.innerHTML = `
-                    <option value="1">M4A (Default, Broad Compatibility)</option>
-                    <option value="2">MP3 (Universal)</option>
-                    <option value="3">FLAC (Lossless Studio Quality)</option>
-                    <option value="4">WAV (Uncompressed)</option>
-                    <option value="5">OPUS (Modern, Small Size)</option>
-                    <option value="6">OGG (Open Source)</option>
-                `;
-            } else {
-                document.getElementById('divBitrate').style.display = 'none';
-                spec.innerHTML = `
-                    <option value="1">MP4 (1080p / Max Res)</option>
-                    <option value="2">MKV (1080p / Max Res)</option>
-                    <option value="3">WebM (1080p / Max Res)</option>
-                    <option value="4">MKV (Best Video + Best Audio)</option>
-                `;
-            }
+            document.getElementById('divAudioSpec').style.display = type === 'audio' ? 'block' : 'none';
+            document.getElementById('divAudioBitrate').style.display = type === 'audio' ? 'block' : 'none';
+            document.getElementById('divVideoQuality').style.display = type === 'video' ? 'block' : 'none';
+            document.getElementById('divVideoFormat').style.display = type === 'video' ? 'block' : 'none';
         }
         window.addEventListener("DOMContentLoaded", () => {
             if(document.getElementById("dlFormat")) updateFormatOptions();
@@ -2237,20 +2304,17 @@
         function updatePlaylistSpecOptions() {
             const fmt = document.getElementById('playlistFormat').value;
             const sel = document.getElementById('playlistSpec');
+            const qsel = document.getElementById('playlistQuality');
+            const bsel = document.getElementById('playlistBitrate');
             sel.innerHTML = '';
             if (fmt === 'audio') {
-                sel.innerHTML = `
-                    <option value="1">M4A</option>
-                    <option value="2">MP3</option>
-                    <option value="3">FLAC</option>
-                    <option value="4">WAV</option>
-                    <option value="5">OPUS</option>
-                    <option value="6">OGG</option>`;
+                sel.innerHTML = `<option value="1">M4A</option><option value="2">MP3</option><option value="3">FLAC</option><option value="4">WAV</option><option value="5">OPUS</option><option value="6">OGG</option>`;
+                qsel.style.display = 'none';
+                bsel.style.display = 'inline-block';
             } else {
-                sel.innerHTML = `
-                    <option value="1">MP4</option>
-                    <option value="2">MKV</option>
-                    <option value="3">WebM</option>`;
+                sel.innerHTML = `<option value="1">MP4</option><option value="2">MKV</option><option value="3">WebM</option>`;
+                qsel.style.display = 'inline-block';
+                bsel.style.display = 'none';
             }
         }
         document.getElementById('playlistFormat').addEventListener('change', updatePlaylistSpecOptions);
@@ -2316,29 +2380,34 @@
 
         function downloadFullPlaylist() {
             closePlaylistModal();
+            clearLogContent();
             const fmt = document.getElementById('playlistFormat').value;
             const spec = document.getElementById('playlistSpec').value;
-            performDownload(_playlistUrl, fmt, spec, '');
+            const bitrate = document.getElementById('playlistBitrate').value;
+            const quality = document.getElementById('playlistQuality').value;
+            performDownload(_playlistUrl, fmt, spec, fmt === 'audio' ? bitrate : '', fmt === 'video' ? quality : '');
         }
 
         function downloadSelectedItems() {
             const urls = getSelectedPlaylistUrls();
-            if (!urls.length) {
-                showToast('Pilih minimal 1 lagu!', 'error');
-                return;
-            }
+            if (!urls.length) { showToast('Pilih minimal 1 lagu!', 'error'); return; }
             closePlaylistModal();
+            clearLogContent();
             const fmt = document.getElementById('playlistFormat').value;
             const spec = document.getElementById('playlistSpec').value;
+            const bitrate = document.getElementById('playlistBitrate').value;
+            const quality = document.getElementById('playlistQuality').value;
 
             const btn = document.getElementById('btnDl');
-            const status = document.getElementById('dlStatus');
             const originalHtml = btn.innerHTML;
             btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> BATCH...';
 
+            const body = {urls: urls, format: fmt, spec: spec};
+            if (fmt === 'audio') body.bitrate = bitrate;
+            if (fmt === 'video') body.quality = quality;
             csrfFetch('/api/download-selected', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({urls: urls, format: fmt, spec: spec})
+                body: JSON.stringify(body)
             })
             .then(r => r.json())
             .then(data => {
@@ -2352,20 +2421,22 @@
             });
         }
 
-        function performDownload(url, fmt, spec, bitrate) {
+        function performDownload(url, fmt, spec, bitrate, quality) {
+            clearLogContent();
             const btn = document.getElementById('btnDl');
             const status = document.getElementById('dlStatus');
             const originalHtml = btn.innerHTML;
             btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> EXECUTING...';
 
+            const body = {url: url, format: fmt, spec: spec, bitrate: bitrate};
+            if (fmt === 'video' && quality) body.quality = quality;
             csrfFetch('/api/download', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({url: url, format: fmt, spec: spec, bitrate: bitrate})
+                body: JSON.stringify(body)
             })
             .then(res => res.json())
             .then(data => {
                 showToast(data.message, data.success ? 'success' : 'error');
-                document.getElementById('formDownloader').reset();
             })
             .catch(err => {
                 showToast(err.message || 'Connection Error!', 'error');
@@ -2385,12 +2456,16 @@
             }
         }, true); // capture phase — runs before handleFormSubmit
 
-        handleFormSubmit('formDownloader', 'btnDl', 'dlStatus', '/api/download', () => ({
-            url: document.getElementById('dlUrl').value,
-            format: document.getElementById('dlFormat').value,
-            spec: document.getElementById('dlFormatSpec').value,
-            bitrate: document.getElementById('dlBitrate').value
-        }), 'EXECUTING...');
+        handleFormSubmit('formDownloader', 'btnDl', 'dlStatus', '/api/download', () => {
+            const fmt = document.getElementById('dlFormat').value;
+            return {
+                url: document.getElementById('dlUrl').value,
+                format: fmt,
+                spec: fmt === 'audio' ? document.getElementById('dlAudioSpec').value : document.getElementById('dlVideoFormat').value,
+                bitrate: document.getElementById('dlBitrate').value,
+                quality: fmt === 'video' ? document.getElementById('dlVideoQuality').value : ''
+            };
+        }, 'EXECUTING...');
 
         handleFormSubmit('formSpotify', 'btnSp', 'spStatus', '/api/spotify-sync', () => ({
             url: document.getElementById('spUrl').value
@@ -2699,11 +2774,57 @@
             if(tabId === 'metadata') loadFiles();
         }
 
+        let _logAutoCloseTimer = null;
+
+        function showFloatingLog() {
+            const panel = document.getElementById('floatingLog');
+            panel.classList.remove('minimized');
+            panel.style.display = 'flex';
+            document.getElementById('floatingLogBtn').style.display = 'none';
+            if (_logAutoCloseTimer) { clearTimeout(_logAutoCloseTimer); _logAutoCloseTimer = null; }
+        }
+
+        function hideFloatingLog() {
+            document.getElementById('floatingLog').style.display = 'none';
+            document.getElementById('floatingLogBtn').style.display = 'none';
+        }
+
+        function toggleLogMinimize() {
+            const panel = document.getElementById('floatingLog');
+            panel.classList.toggle('minimized');
+            if (panel.classList.contains('minimized')) {
+                document.getElementById('floatingLogBtn').style.display = 'flex';
+            } else {
+                document.getElementById('floatingLogBtn').style.display = 'none';
+            }
+        }
+
+        function toggleLogRestore() {
+            document.getElementById('floatingLog').classList.remove('minimized');
+            document.getElementById('floatingLogBtn').style.display = 'none';
+        }
+
+        function scheduleLogAutoClose() {
+            if (_logAutoCloseTimer) clearTimeout(_logAutoCloseTimer);
+            _logAutoCloseTimer = setTimeout(() => {
+                hideFloatingLog();
+                // Auto clear log on close
+                fetch('/api/logs/clear', {method: 'POST'}).catch(() => {});
+            }, 5000);
+        }
+
         async function closeLogs() {
-            document.getElementById("logSection").style.display = "none";
+            hideFloatingLog();
             try {
                 await csrfFetch('/api/logs/clear', {method: 'POST'});
             } catch(err) {}
+        }
+
+        function clearLogContent() {
+            document.getElementById("terminalLog").textContent = "System ready. Waiting for task execution...";
+            document.getElementById("liveProgressWrapper").style.display = "none";
+            document.getElementById("liveProgressFill").style.width = "0%";
+            document.getElementById("liveProgressPct").innerText = "0%";
         }
 
         // ============================================
@@ -2711,15 +2832,16 @@
         // ============================================
 
         function updateLogUI(logContent, isActive) {
-            const logSection = document.getElementById("logSection");
             const term = document.getElementById("terminalLog");
             const wrapper = document.getElementById("liveProgressWrapper");
             const fill = document.getElementById("liveProgressFill");
             const pctSpan = document.getElementById("liveProgressPct");
             const taskSpan = document.getElementById("liveProgressTask");
+            const btnStatus = document.getElementById("logBtnStatus");
 
             if (isActive && logContent && logContent.trim().length > 0) {
-                logSection.style.display = "block";
+                if (_logAutoCloseTimer) { clearTimeout(_logAutoCloseTimer); _logAutoCloseTimer = null; }
+                showFloatingLog();
 
                 if (term.textContent !== logContent) {
                     term.textContent = logContent;
@@ -2737,6 +2859,7 @@
                         if (match && match[1]) {
                             fill.style.width = match[1] + '%';
                             pctSpan.innerText = match[1] + '%';
+                            btnStatus.innerText = match[1] + '%';
 
                             if (lastProgressLine.toLowerCase().includes('download')) taskSpan.innerText = "Downloading Media...";
                             else if (lastProgressLine.toLowerCase().includes('split')) taskSpan.innerText = "Splitting Stems (Demucs)...";
@@ -2747,8 +2870,19 @@
                         wrapper.style.display = "none";
                     }
                 }
+            } else if (!isActive && logContent) {
+                // Task completed — show completed state briefly then auto-close
+                const lines = logContent.split('\n').filter(l => l.trim());
+                const lastLine = lines[lines.length-1] || '';
+                btnStatus.innerText = 'Done';
+                wrapper.style.display = "none";
+                if (term.textContent !== logContent) {
+                    term.textContent = logContent;
+                    term.scrollTop = term.scrollHeight;
+                }
+                scheduleLogAutoClose();
             } else {
-                logSection.style.display = "none";
+                hideFloatingLog();
                 wrapper.style.display = "none";
             }
         }

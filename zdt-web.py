@@ -628,6 +628,7 @@ def trigger_download():
     fmt = data.get('format')
     spec = data.get('spec')
     bitrate = data.get('bitrate')
+    quality = data.get('quality', '')
     if not url or not str(url).startswith(('http://', 'https://')): 
         return jsonify({"success": False, "message": "URL tidak valid!"})
     zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
@@ -644,8 +645,9 @@ def trigger_download():
         
     env = os.environ.copy()
     env["AUTO_MODE"] = "1"
-    if fmt == "video" and spec:
-        env["AUTO_VIDEO_FORMAT"] = str(spec)
+    if fmt == "video":
+        if spec: env["AUTO_VIDEO_FORMAT"] = str(spec)
+        if quality: env["AUTO_VIDEO_QUALITY"] = str(quality)
     elif fmt == "audio":
         if spec: cmd.extend(["--format-spec", str(spec)])
         if bitrate: cmd.extend(["--bitrate", str(bitrate)])
@@ -1264,6 +1266,7 @@ def download_selected():
     data = request.json
     urls = data.get('urls', [])
     fmt = data.get('format', 'audio')
+    quality = data.get('quality', '')
     if not urls:
         return jsonify({"success": False, "message": "Tidak ada URL dipilih!"})
 
@@ -1280,8 +1283,9 @@ def download_selected():
             cmd = [zdt_bin, "--download-video" if is_video else "--download-audio", url]
             env = os.environ.copy()
             env["AUTO_MODE"] = "1"
-            if fmt == "video":
-                env["AUTO_VIDEO_FORMAT"] = data.get("spec", "1")
+            if is_video:
+                if data.get("spec"): env["AUTO_VIDEO_FORMAT"] = str(data["spec"])
+                if quality: env["AUTO_VIDEO_QUALITY"] = str(quality)
             else:
                 if data.get("spec"): env["AUTO_FORMAT_SPEC"] = str(data["spec"])
                 if data.get("bitrate"): env["AUTO_BITRATE"] = str(data["bitrate"])
@@ -1293,7 +1297,7 @@ def download_selected():
             f.write(f"\n[ZDT] Batch {len(urls)} antrean selesai!\n")
 
     threading.Thread(target=_run_batch, daemon=True).start()
-    return jsonify({"success": True, "message": f"Memproses {len(urls)} video... Cek tab Log untuk progres!"})
+    return jsonify({"success": True, "message": f"Memproses {len(urls)} video... Cek Log untuk progres!"})
 
 @app.route('/api/health', methods=['GET'])
 def health():
