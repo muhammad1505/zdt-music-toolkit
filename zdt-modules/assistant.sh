@@ -682,16 +682,19 @@ print(json.dumps(payload))
 
                 # Salam/sapa — tanpa intent, balas natural
                 if echo "$ki" | grep -qE '^(halo|hai|hey|hi|hallo|helo|selamat|siang|pagi|sore|malam|testing)'; then
-                    local hr
-                    hr=$(date +%H 2>/dev/null || echo "12")
-                    if [ "$hr" -lt 11 ]; then
-                        clean_reply="Pagi bro! ☀️ Ada yang bisa gue bantu?"
-                    elif [ "$hr" -lt 15 ]; then
-                        clean_reply="Siang bro! 🌤️ Ada yang bisa gue bantu?"
-                    elif [ "$hr" -lt 19 ]; then
-                        clean_reply="Sore bro! 🌅 Ada yang bisa gue bantu?"
-                    else
-                        clean_reply="Malam bro! 🌙 Ada yang bisa gue bantu?"
+                    if [ -z "$clean_reply" ] || [[ "$clean_reply" == "Siap. Ada yang bisa saya bantu?" ]]; then
+                        local hr
+                        hr=$(date +%H 2>/dev/null || echo "12")
+                        if [ "$hr" -lt 11 ]; then
+                            clean_reply="Pagi bro! ☀️ Ada yang bisa gue bantu?"
+                        elif [ "$hr" -lt 15 ]; then
+                            clean_reply="Siang bro! 🌤️ Ada yang bisa gue bantu?"
+                        elif [ "$hr" -lt 19 ]; then
+                            clean_reply="Sore bro! 🌅 Ada yang bisa gue bantu?"
+                        else
+                            clean_reply="Malam bro! 🌙 Ada yang bisa gue bantu?"
+                        fi
+                        ai_used=true
                     fi
                 fi
 
@@ -781,7 +784,8 @@ print(json.dumps(payload))
                     action_intent="$kw_intent"
                     action_query="$kw_query"
                     is_auto_action=true
-                    if [ -z "$clean_reply" ] || echo "$clean_reply" | grep -qiE '(siap|ada yang bisa)'; then
+                    ai_used=true
+                    if [ -z "$clean_reply" ] || [[ "$clean_reply" == "Siap. Ada yang bisa saya bantu?" ]]; then
                         case "$kw_intent" in
                             "download audio") clean_reply="Mau download dari YouTube, Spotify, SoundCloud, atau kirim link aja? 🎵" ;;
                             "download video") clean_reply="Kirim link videonya bro! 💫" ;;
