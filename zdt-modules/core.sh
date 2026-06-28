@@ -48,8 +48,9 @@ _load_config() {
             # Trim leading and trailing whitespace from key
             key="${key#"${key%%[![:space:]]*}"}"
             key="${key%"${key##*[![:space:]]}"}"
-            # Skip comments, empty keys, or keys with invalid characters
-            [[ -z "$key" || "$key" == \#* || "$key" != [a-zA-Z_]* ]] && continue
+            # Skip comments, empty keys, or keys with invalid characters/untrusted prefixes
+            [[ -z "$key" || "$key" == \#* ]] && continue
+            [[ ! "$key" =~ ^(CONF_|ZDT_|TELEGRAM_|AUTO_|storage_dir|LAST_)[a-zA-Z0-9_]*$ ]] && continue
             # Strip surrounding quotes from value
             value="${value%\"}" && value="${value#\"}"
             value="${value%\'}" && value="${value#\'}"
@@ -435,15 +436,14 @@ _config_get() {
 _config_set() {
     local key="$1"
     local value="$2"
-    local config_dir config_file
+    local config_dir config_file lock_fd
     config_dir=$(_get_config_dir)
     config_file=$(_get_config_file)
 
     mkdir -p "$config_dir" 2>/dev/null
 
     if command -v flock >/dev/null 2>&1; then
-        local lock_fd=200
-        eval "exec $lock_fd>\"${config_file}.lock\"" 2>/dev/null
+        exec {lock_fd}>"${config_file}.lock" 2>/dev/null
         flock -w 5 $lock_fd 2>/dev/null || true
     fi
 
@@ -463,20 +463,19 @@ _config_set() {
     chmod 600 "$config_file" 2>/dev/null || true
 
     if command -v flock >/dev/null 2>&1; then
-        eval "exec 200>-" 2>/dev/null
+        eval "exec $lock_fd>-" 2>/dev/null
     fi
 }
 
 # Hapus key dari config (portable, atomic via tmp+mv)
 _config_unset() {
     local key="$1"
-    local config_file
+    local config_file lock_fd
     config_file=$(_get_config_file)
 
     if [ -f "$config_file" ]; then
         if command -v flock >/dev/null 2>&1; then
-            local lock_fd=200
-            eval "exec $lock_fd>\"${config_file}.lock\"" 2>/dev/null
+            exec {lock_fd}>"${config_file}.lock" 2>/dev/null
             flock -w 5 $lock_fd 2>/dev/null || true
         fi
 
@@ -486,7 +485,7 @@ _config_unset() {
         mv -- "$tmp_file" "$config_file"
 
         if command -v flock >/dev/null 2>&1; then
-            eval "exec 200>-" 2>/dev/null
+            eval "exec $lock_fd>-" 2>/dev/null
         fi
     fi
 }
@@ -673,6 +672,7 @@ _repeat_char() {
     local char="$1"
     local count="$2"
     local res=""
+    local i
     for ((i=0; i<count; i++)); do
         res="${res}${char}"
     done

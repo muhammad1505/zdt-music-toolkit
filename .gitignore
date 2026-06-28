@@ -8,3 +8,9 @@ dist/
 build/
 .venv/
 venv/
+.env
+*.db
+*.db-journal
+*.log
+.DS_Store
+.agents/

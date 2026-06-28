@@ -8,6 +8,7 @@ import tempfile
 import secrets
 import time
 import threading
+import logging
 from collections import defaultdict
 from flask import Flask, request, render_template, render_template_string, jsonify, Response
 from functools import wraps
@@ -66,6 +67,7 @@ def _find_templates_dir():
     return candidates[0]
 
 WEB_TASK_LOG_PATH = os.environ.get("ZDT_WEB_LOG", os.path.join(tempfile.gettempdir(), "zdt_web_task.log"))
+config_lock = threading.Lock()
 
 # Clear old task logs on startup
 if os.path.exists(WEB_TASK_LOG_PATH):
@@ -142,6 +144,19 @@ def _rate_limit(ip, max_requests=120, window=60):
         _rate_limit_store[ip].append(now)
     return False
 
+def _cleanup_rate_limits():
+    """Remove stale IPs to prevent memory leaks over time."""
+    while True:
+        time.sleep(300)
+        now = time.time()
+        with _lock_rate:
+            for ip in list(_rate_limit_store.keys()):
+                _rate_limit_store[ip] = [t for t in _rate_limit_store[ip] if now - t < 60]
+                if not _rate_limit_store[ip]:
+                    del _rate_limit_store[ip]
+
+threading.Thread(target=_cleanup_rate_limits, daemon=True).start()
+
 @app.before_request
 def check_rate_limit():
     ip = request.remote_addr or request.headers.get("X-Forwarded-For", "unknown")
@@ -189,12 +204,13 @@ def _ensure_password():
         random_pass = existing_pass or secrets.token_urlsafe(12)
         lines.append(f'ZDT_WEB_PASS={random_pass}\n')
     
-    with open(config_file, 'w') as f:
-        f.writelines(lines)
-    try:
-        os.chmod(config_file, 0o600)
-    except OSError:
-        pass
+    with config_lock:
+        with open(config_file, 'w') as f:
+            f.writelines(lines)
+        try:
+            os.chmod(config_file, 0o600)
+        except OSError:
+            pass
     
     if not existing_pass:
         print(f"\n{'='*60}")
@@ -275,11 +291,10 @@ def get_target_dir():
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    import traceback
-    traceback.print_exc()
+    logging.error(f"Unhandled Exception: {str(e)}")
     return jsonify({
         "success": False,
-        "message": f"Server Error: {str(e)}"
+        "message": "Internal Server Error"
     }), 500
 
 @app.route('/')
@@ -310,11 +325,10 @@ def get_stats():
         )
         if res.returncode == 0:
             return jsonify(json.loads(res.stdout.strip()))
-        return jsonify({"success": False, "message": res.stderr}), 500
+        return jsonify({"success": False, "message": "Gagal memuat statistik"}), 500
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"success": False, "message": str(e)}), 500
+        logging.error(f"Stats Error: {str(e)}")
+        return jsonify({"success": False, "message": "Terjadi kesalahan sistem"}), 500
 
 def _find_python():
     """Find available python binary (venv first, then system)."""
@@ -457,9 +471,10 @@ def manage_daemon():
             )
             return jsonify({"success": True, "message": f"{service.capitalize()} daemon dimulai."})
         except FileNotFoundError as e:
-            return jsonify({"success": False, "message": f"Python/script tidak ditemukan: {e}"})
+            return jsonify({"success": False, "message": "Python/script tidak ditemukan"})
         except Exception as e:
-            return jsonify({"success": False, "message": f"Gagal start: {str(e)}"})
+            logging.error(f"Gagal start daemon: {str(e)}")
+            return jsonify({"success": False, "message": "Gagal memulai daemon"})
         
     elif action == 'stop':
         try:
@@ -523,7 +538,8 @@ def manage_daemon():
             else:
                 return jsonify({"success": True, "message": f"{service.capitalize()} tidak berjalan."})
         except Exception as e:
-            return jsonify({"success": False, "message": f"Gagal stop: {str(e)}"})
+            logging.error(f"Gagal stop daemon: {str(e)}")
+            return jsonify({"success": False, "message": "Gagal menghentikan daemon"})
 
 @app.route('/api/csrf-token', methods=['GET'])
 @requires_auth
@@ -537,10 +553,15 @@ def update_storage():
     new_path = request.json.get('path')
     if not new_path: return jsonify({"success": False, "message": "Path cannot be empty."})
     
-    new_path = os.path.expanduser(new_path)
+    new_path = os.path.abspath(os.path.expanduser(new_path))
+    home_dir = os.path.abspath(os.path.expanduser('~'))
+    if not new_path.startswith(home_dir):
+        return jsonify({"success": False, "message": "Direktori harus berada di dalam folder home Anda."})
     if not os.path.exists(new_path):
         try: os.makedirs(new_path, exist_ok=True)
-        except Exception as e: return jsonify({"success": False, "message": f"Cannot create directory: {str(e)}"})
+        except Exception as e: 
+            logging.error(f"Gagal membuat direktori: {str(e)}")
+            return jsonify({"success": False, "message": "Gagal membuat direktori"})
         
     config_dir = os.path.dirname(CONFIG_FILE)
     if not os.path.exists(config_dir): os.makedirs(config_dir, exist_ok=True)
@@ -558,8 +579,6 @@ def update_storage():
             
     if not found: lines.append(f'TARGET_DIR="{new_path}"\n')
     
-    with open(CONFIG_FILE, "w") as f: f.writelines(lines)
-    
     # Sync to old config format (backward compatibility)
     old_conf = ZdtPaths.get_old_config_file()
     if os.path.exists(old_conf):
@@ -573,8 +592,13 @@ def update_storage():
                 break
         if not found_old:
             olines.append(f'storage_dir="{new_path}"\n')
-        with open(old_conf, "w") as f: f.writelines(olines)
+        with config_lock:
+            with open(old_conf, "w") as f: f.writelines(olines)
         
+    with config_lock:
+        with open(CONFIG_FILE, "w") as f: f.writelines(lines)
+        os.chmod(CONFIG_FILE, 0o600)
+    
     return jsonify({"success": True, "message": "Storage directory updated successfully."})
 
 @app.route('/api/download', methods=['POST'])
@@ -586,8 +610,8 @@ def trigger_download():
     fmt = data.get('format')
     spec = data.get('spec')
     bitrate = data.get('bitrate')
-    if not url: return jsonify({"success": False, "message": "URL tidak boleh kosong!"})
-    
+    if not url or not str(url).startswith(('http://', 'https://')): 
+        return jsonify({"success": False, "message": "URL tidak valid!"})
     zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
     
     cmd = []
@@ -611,8 +635,8 @@ def trigger_download():
 @requires_csrf
 def trigger_spotify_sync():
     url = request.json.get('url')
-    if not url: return jsonify({"success": False, "message": "URL tidak boleh kosong!"})
-    
+    if not url or not str(url).startswith(('http://', 'https://')): 
+        return jsonify({"success": False, "message": "URL Playlist tidak valid!"})
     zdt_bin = shutil.which("zdt") or ZdtPaths.get_bin_path()
     
     with open(WEB_TASK_LOG_PATH, "w") as log_file:
@@ -660,7 +684,8 @@ def update_metadata():
             audio.save()
         return jsonify({"success": True, "message": "Metadata berhasil diubah."})
     except Exception as e:
-        return jsonify({"success": False, "message": f"Gagal memproses file: {str(e)}"})
+        logging.error(f"Metadata error: {str(e)}")
+        return jsonify({"success": False, "message": "Gagal memproses file"})
 
 @app.route('/api/tools', methods=['POST'])
 @requires_auth
@@ -772,7 +797,8 @@ def server_tools():
 
         return jsonify({"success": False, "message": "Aksi tidak dikenal."})
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)})
+        logging.error(f"API Error: {str(e)}")
+        return jsonify({"success": False, "message": "Terjadi kesalahan sistem"}), 500
 
 # Track previous log state for notification detection
 # Thread-safe: all mutations use _lock_log_state
@@ -809,14 +835,6 @@ def get_logs():
     
     return jsonify({"log": log_content, "notify_sent": notify_sent})
 
-@app.route("/api/logs/stream", methods=["GET"])
-@requires_auth
-def stream_logs():
-    """SSE endpoint for real-time log streaming."""
-    import json as _json
-    import time as _time
-    log_file = WEB_TASK_LOG_PATH
-    
 # SSE connection limiter: max 20 concurrent SSE connections + track connected clients
 # Prevent file descriptor exhaustion from infinite reconnect loops
 _SSE_MAX_CONNECTIONS = 20
@@ -831,12 +849,13 @@ def stream_logs():
     import time as _time
     log_file = WEB_TASK_LOG_PATH
     
+    global _sse_active_count
+    
     # Check if we've reached the connection limit
     with _sse_active_lock:
         if _sse_active_count >= _SSE_MAX_CONNECTIONS:
             return jsonify({"error": "Too many SSE connections. Limit: " + str(_SSE_MAX_CONNECTIONS)}), 429
         _sse_active_count += 1
-        my_id = _sse_active_count
     
     def cleanup():
         global _sse_active_count
@@ -989,8 +1008,8 @@ def check_update():
             return _json.dumps({"has_update": False, "error": "rate_limited"}), 200, {"Content-Type": "application/json"}
         return _json.dumps({"has_update": False, "error": f"http_{e.code}"}), 200, {"Content-Type": "application/json"}
     except Exception as e:
-        print(f"Update check error: {e}")
-        return _json.dumps({"has_update": False, "error": str(e)}), 200, {"Content-Type": "application/json"}
+        logging.error(f"Update check error: {str(e)}")
+        return _json.dumps({"has_update": False, "error": "Gagal mengecek pembaruan"}), 200, {"Content-Type": "application/json"}
 
 @app.route('/api/notify/config', methods=['GET', 'POST'])
 @requires_auth

@@ -74,18 +74,21 @@ _load_ai_base_prompt() {
         # Fallback: base prompt minimal tanpa file
         echo "Kamu Zaki-Bot, asisten pintar ZDT Music Toolkit v${APP_VERSION}. Bahasa gaul Indonesia, jawab singkat dan to the point."
         echo ""
-        echo "FITUR ZDT:"
-        echo "- Download Audio/Video dari YouTube, Spotify, TikTok, IG, FB, SoundCloud"
-        echo "- Kompres Audio (AAC/MP3/FLAC/OPUS) & Video (x264/x265/AV1/VP9)"
-        echo "- Pisah Vokal & Instrumen pakai AI Demucs (karaoke)"
-        echo "- Auto Sync Lirik (.lrc) via syncedlyrics"
-        echo "- Bersih & Rapikan Nama File (hapus tag [Official], (Video), dll.)"
-        echo "- Buat Playlist .M3U dari folder"
-        echo "- Web Dashboard (Flask, port 5000)"
-        echo "- Watch Daemon (auto-process file baru)"
-        echo "- Telegram Bot (remote control dari HP)"
-        echo "- Metadata Editor (judul, artis, cover art)"
-        echo "- Storage Manager & System Info"
+        echo "ZDT adalah toolkit musik/video all-in-one: CLI, Web Dashboard, Telegram Bot."
+        echo ""
+        echo "MENU: 1=Setup, 2=Spotify DL, 3=YT Audio, 4=Video DL, 5=Kompres,"
+        echo "6=Hapus Vokal, 7=Sync Lirik, 8=Playlist Sync, 9=Info Sistem,"
+        echo "S=Storage, W=Watch, P=Playlist, M=Metadata, O=Bersih Nama,"
+        echo "T=Telegram, V=Web, U=Update, A=AI, X=Hapus Semua"
+        echo ""
+        echo "Download: YouTube (yt-dlp), Spotify (spotdl), Video (pilih quality/codec)"
+        echo "Kompres Audio: AAC/MP3/FLAC/OPUS, bitrate 128k-320k"
+        echo "Kompres Video: x264/x265/AV1/VP9, CRF28/23, 2M/5M"
+        echo "Vokal: AI Demucs, 3 mode (semua/per-artis/per-lagu)"
+        echo "Lirik: syncedlyrics, .lrc, timeout 30s"
+        echo "Metadata: mutagen, edit title/artist/cover"
+        echo "Web: Flask port 5000, Telegram: remote bot, Watch: auto-process"
+        echo "Config: ~/.config/zdt/config.env, API keys: gemini_key/openrouter_key"
         echo ""
         echo "PERSONALITY:"
         echo "- Santai, gaul, pake bahasa sehari-hari Indonesia"
@@ -93,6 +96,7 @@ _load_ai_base_prompt() {
         echo "- Kalo user minta aksi → kasih tau sambil eksekusi"
         echo "- JANGAN pake markdown heading (###)"
         echo "- PAKAI emoji secukupnya aja"
+        echo "- Paham menu nomor (5=kompres) dan huruf (V=web)"
     fi
 }
 
@@ -351,15 +355,38 @@ zaki_assistant() {
         # Coba pakai AI jika ada key (Gemini atau OpenRouter)
         if [ -n "$gemini_key" ] || [ -n "$openrouter_key" ]; then
             local abs_path="${STORAGE_DIR:-$HOME/Music/ZDT}"
-            local dir_contents=""
-            if [ -d "$abs_path" ]; then
-                dir_contents=$(ls "$abs_path" 2>/dev/null | head -15 | tr '\n' ', ')
-            fi
 
-            # File count stats
-            local file_count=0
+            # Runtime context
+            local ctx_os="$(_get_os_name 2>/dev/null || echo 'Linux')"
+            local ctx_env="$(_detect_environment 2>/dev/null || echo 'standard')"
+            local ctx_storage=""
+            if command -v df >/dev/null 2>&1 && [ -d "$abs_path" ]; then
+                ctx_storage=$(df -h "$abs_path" 2>/dev/null | awk 'NR==2{print $4" free of "$2}')
+            fi
+            local ctx_dir_contents=""
             if [ -d "$abs_path" ]; then
-                file_count=$(find "$abs_path" -maxdepth 2 -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.mp4" \) 2>/dev/null | wc -l)
+                ctx_dir_contents=$(ls "$abs_path" 2>/dev/null | head -12 | tr '\n' ', ')
+            fi
+            local ctx_file_count=0
+            if [ -d "$abs_path" ]; then
+                ctx_file_count=$(find "$abs_path" -maxdepth 2 -type f \( -iname "*.mp3" -o -iname "*.m4a" -o -iname "*.flac" -o -iname "*.mp4" -o -iname "*.wav" -o -iname "*.ogg" -o -iname "*.opus" \) 2>/dev/null | wc -l)
+            fi
+            local ctx_has_ytdlp="false"
+            command -v yt-dlp >/dev/null 2>&1 && ctx_has_ytdlp="true"
+            local ctx_has_ffmpeg="false"
+            command -v ffmpeg >/dev/null 2>&1 && ctx_has_ffmpeg="true"
+            local ctx_has_spotdl="false"
+            command -v spotdl >/dev/null 2>&1 && ctx_has_spotdl="true"
+            local ctx_web_running="false"
+            if [ -n "$(pgrep -f 'zdt-web.py' 2>/dev/null)" ]; then ctx_web_running="true"; fi
+            local ctx_tg_running="false"
+            if [ -n "$(pgrep -f 'zdt-telegram.py' 2>/dev/null)" ]; then ctx_tg_running="true"; fi
+            local ctx_watch_running="false"
+            if [ -n "$(pgrep -f 'zdt-watch.py' 2>/dev/null)" ]; then ctx_watch_running="true"; fi
+            local ctx_ai_provider="none"
+            if [ -n "$openrouter_key" ]; then ctx_ai_provider="OpenRouter"
+            elif [ -n "$gemini_key" ] && [[ "$gemini_key" != sk-or-* ]]; then ctx_ai_provider="Gemini"
+            elif [ -n "$gemini_key" ]; then ctx_ai_provider="OpenRouter (via Gemini key)"
             fi
 
             local ai_prompt
@@ -378,6 +405,12 @@ Contoh:
 User: download lagu Tulus
 {\"reply\":\"Gas download Tulus! 🎵\",\"intent\":\"download audio\",\"query\":\"ytsearch1:Tulus\"}
 
+User: menu 6
+{\"reply\":\"Buka Hapus Vokal! Siapkan file audionya 🎤\",\"intent\":\"hapus vokal\",\"query\":\"\"}
+
+User: jalanin web dashboard
+{\"reply\":\"Meluncurkan Web Dashboard... 🌐\",\"intent\":\"web ui\",\"query\":\"\"}
+
 User: cek status
 {\"reply\":\"Cek status! 📊\",\"intent\":\"info sistem\",\"query\":\"\"}
 
@@ -387,7 +420,28 @@ User: apa itu zdt
 User: lu bisa apa
 {\"reply\":\"Gue bisa download lagu, kompres file, pisahin vokal, sync lirik, bersihin nama file, dan kontrol server!\",\"intent\":\"\",\"query\":\"\"}
 
-KONTEKS: Storage=$abs_path ($file_count file). Isi: $dir_contents"
+User: V
+{\"reply\":\"Oke buka Web Dashboard! 🚀\",\"intent\":\"web ui\",\"query\":\"\"}
+
+User: kompres semua video
+{\"reply\":\"Siap, kompres video semua file! 🎬\",\"intent\":\"kompres video\",\"query\":\"\"}
+
+User: update tools dong
+{\"reply\":\"Update VENV tools... 🔄\",\"intent\":\"update\",\"query\":\"\"}
+
+User: bersihin nama yang kotor
+{\"reply\":\"Bersihin nama file berantakan! ✨\",\"intent\":\"bersih nama\",\"query\":\"\"}
+
+User: buatin playlist
+{\"reply\":\"Bikin playlist M3U! 📋\",\"intent\":\"bikin playlist\",\"query\":\"\"}
+
+KONTEKS:
+Storage=$abs_path ($ctx_file_count file, $ctx_storage)
+Isi folder: $ctx_dir_contents
+OS: $ctx_os ($ctx_env)
+AI Provider: $ctx_ai_provider
+Tools: yt-dlp=$ctx_has_ytdlp ffmpeg=$ctx_has_ffmpeg spotdl=$ctx_has_spotdl
+Services: Web=$ctx_web_running Telegram=$ctx_tg_running Watch=$ctx_watch_running"
             # Add current message to history
             _zaki_add_history "user" "$input_escaped"
 

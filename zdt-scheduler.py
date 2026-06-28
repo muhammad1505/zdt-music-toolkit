@@ -27,6 +27,45 @@ from zdt_paths import ZdtPaths
 SCHEDULER_FILE = ZdtPaths.get_scheduler_path()
 CHECK_INTERVAL = 3600  # Check every hour
 
+def _acquire_scheduler_lock():
+    """Acquire a lock to prevent multiple scheduler instances."""
+    lock_path = "/tmp/.zdt_scheduler_%s.lock" % os.getuid()
+    try:
+        # Try to create lock file atomically
+        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        with os.fdopen(fd, 'w') as f:
+            f.write(str(os.getpid()))
+        return lock_path
+    except FileExistsError:
+        # Lock exists — check if process is still alive
+        try:
+            with open(lock_path, 'r') as f:
+                old_pid = int(f.read().strip())
+            # Check if process exists
+            os.kill(old_pid, 0)
+            print(f"Scheduler already running (PID: {old_pid})")
+            return None
+        except (ProcessLookupError, ValueError, OSError):
+            # Stale lock — remove and retry
+            os.remove(lock_path)
+            try:
+                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+                with os.fdopen(fd, 'w') as f:
+                    f.write(str(os.getpid()))
+                return lock_path
+            except FileExistsError:
+                return None
+    except OSError:
+        return None  # Fallback: run anyway (no permission?)
+
+def _release_scheduler_lock(lock_path):
+    """Release the scheduler lock."""
+    if lock_path and os.path.exists(lock_path):
+        try:
+            os.remove(lock_path)
+        except OSError:
+            pass
+
 def find_zdt_bin():
     """Find the zdt binary."""
     return shutil.which("zdt") or ZdtPaths.get_bin_path()
@@ -145,18 +184,28 @@ def run_cycle():
 
 
 def main():
-    print(f"ZDT Scheduler Daemon started")
-    print(f"Config: {SCHEDULER_FILE}")
-    print(f"Check interval: {CHECK_INTERVAL}s ({CHECK_INTERVAL//3600}h)")
-    print("Press Ctrl+C to stop.\n")
+    lock_path = _acquire_scheduler_lock()
+    if lock_path is None:
+        print("Failed to acquire lock. Another instance may be running.")
+        sys.exit(1)
     
-    # Initial run immediately
-    run_cycle()
-    
-    while True:
-        time.sleep(CHECK_INTERVAL)
-        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Checking schedules...")
+    try:
+        print(f"ZDT Scheduler Daemon started")
+        print(f"Config: {SCHEDULER_FILE}")
+        print(f"Check interval: {CHECK_INTERVAL}s ({CHECK_INTERVAL//3600}h)")
+        print("Press Ctrl+C to stop.\n")
+        
+        # Initial run immediately
         run_cycle()
+        
+        while True:
+            time.sleep(CHECK_INTERVAL)
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Checking schedules...")
+            run_cycle()
+    except KeyboardInterrupt:
+        print("\nScheduler stopped by user.")
+    finally:
+        _release_scheduler_lock(lock_path)
 
 
 if __name__ == "__main__":

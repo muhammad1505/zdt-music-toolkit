@@ -110,7 +110,8 @@ auto_sync_lirik() {
 
         echo -e "  ${YELLOW}${ICO_ARROW} Mendownload lirik:${RESET} $filename_noext"
 
-        syncedlyrics "$query" -o "$lrc_file" >/dev/null 2>&1
+        # Gunakan timeout untuk mencegah hang selamanya (max 30 detik per query)
+        timeout 30 syncedlyrics "$query" -o "$lrc_file" >/dev/null 2>&1
 
         if [ -f "$lrc_file" ] && [ -s "$lrc_file" ]; then
             echo -e "    ${GREEN}${ICO_OK} Lirik Ditemukan!${RESET}"
@@ -173,7 +174,7 @@ sync_spotify_playlist() {
 
     # Duplicate Detector — cek DB apakah playlist ini sudah pernah di-sync
     local db_script="$_MODULES_DIR/zdt_db.py"
-    local db_path="$HOME/.config/zdt/zdt.db"
+    local db_path="$ZDT_DB_PATH"
     if [ -f "$db_script" ] && [ -n "$playlist_url" ]; then
         local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$playlist_url" 2>/dev/null)
         if [ "$is_dup" = "True" ]; then

@@ -23,7 +23,7 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 ## Changelog
 
 Riwayat versi dan pembaruan ZDT sekarang tersedia di file terpisah. 
-Silakan lihat: [**CHANGELOG.md**](CHANGELOG.md) untuk detail rilis **v4.1.63** dan versi-versi sebelumnya.
+Silakan lihat: [**CHANGELOG.md**](CHANGELOG.md) untuk detail rilis **v4.4.6** dan versi-versi sebelumnya.
 
 ## Instalasi 🚀
 

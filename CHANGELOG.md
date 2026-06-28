@@ -2,6 +2,15 @@
 
 Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini.
 
+## v4.4.6 (Production Readiness & Security Hardening)
+- **Security**: **Path Traversal & RCE** — Validasi path pada penghapusan direktori (`zdt-telegram.py`) dan pembuatan direktori (`zdt-web.py`). Whitelist key di `printf -v` pada config parser (`core.sh`) untuk mencegah RCE via injeksi config.
+- **Security**: **Command Injection & Info Leak** — Tambah validasi URL untuk mencegah parameter flag spoofing, ganti output `str(e)` dengan pesan generic.
+- **Fix(Core)**: **FD Collision & Missing Locals** — Ubah dynamic FD allocation pada flock di `_config_set` untuk mencegah collision. Tambah missing local variables.
+- **Fix(Core)**: **Release Script Bug** — Perbaiki sed replace command pada `release.sh` yang merusak default value.
+
+## v4.4.5 (Audit Remediation Prep)
+- **Chore**: Persiapan environment untuk production readiness audit (Phase 3-4 previously executed).
+
 ## v4.4.4 (OTA & Bootstrap Fixes — Hardcoded Path Cleanup)
 - **Fix(OTA)**: **Version Parsing** — `daemon.sh` grep `APP_VERSION="..."` dapet `${_APP_VERSION:-4.4.4}` literal karena format baru. Fix: deteksi via substring `":-"`, extract versi dengan regex `[0-9]+.[0-9]+.[0-9]+`. Tambah download VERSION file ke share_dir + binary_dir saat OTA update.
 - **Refactor(Python)**: **Bootstrap Hardcode** — 4 Python scripts (`zdt-web.py`, `zdt-scheduler.py`, `zdt-watch.py`, `zdt-telegram.py`) masih punya hardcoded `~/.local/share/zdt/zdt-modules` di bootstrap fallback (sebelum `ZdtPaths` importable). Sekarang pake komentar jelas: "Bootstrap: ZdtPaths belum tersedia, pake hardcoded path saja".
@@ -153,8 +162,24 @@ Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini
 - **Fix(Security)**: **Pengaman `rm -rf`** - Menambahkan guard `${target:?}` pada `hapus_semua` (`daemon.sh`) untuk mencegah ekspansi tak terduga ke `/*` jika variabel target kosong (SC2115).
 - **Fix(Security)**: **Temp File Aman** - Mengganti nama temp file yang dapat ditebak (`/tmp/...$$`) dengan `mktemp` acak pada AI assistant (`assistant.sh`) dan OTA updater (`daemon.sh`) untuk mencegah serangan symlink.
 - **Fix(Web)**: **Pesan Login** - Menghapus pesan menyesatkan `Default: admin / admin` pada layar 401 karena kredensial default kini sudah ditolak; diganti petunjuk lokasi password yang di-generate otomatis.
+- **Fix(UI)**: Perbaikan layout tabel history agar konsisten saat terminal diresize.
 
-## v4.1.69 (Latest Enterprise Update)
+## v4.1.69 (Duplicate Detector + Auto-Retry)
+- **Feat(Core)**: **Duplicate Detector** — ZDT akan mengecek apakah lagu/video sudah pernah diunduh sebelumnya melalui SQLite database. Jika ya, akan memberikan peringatan dan opsi konfirmasi.
+- **Feat(Download)**: **Auto-Retry** — ZDT otomatis melakukan percobaan ulang (retry) jika proses download gagal (maksimal 3x percobaan).
+- **Refactor**: Ekstrak fungsi download dengan retry ke `_download_with_retry` untuk DRY.
+
+## v4.1.66 (Download History & Statistics)
+- **Feat(DB)**: **Download History** — Menyimpan setiap lagu/video yang didownload ke dalam database history lokal.
+- **Feat(Stats)**: **Statistik Penggunaan** — Halaman statistik untuk melihat rincian jumlah download dan usage.
+
+## v4.1.65 (Unit test DB & DevEx)
+- **Test(DB)**: Penambahan unit test untuk fungsi database.
+
+## v4.1.64 (DevEx files)
+- **Chore**: Penambahan `requirements.txt` dan beberapa DevEx files.
+
+## v4.1.63 (Performance Updates) Enterprise Update
 - **Feat(Core)**: **Smart Duplicate Detector** - Mencegah unduhan ganda lewat pengecekan SQLite `check_duplicate`.
 - **Feat(Core)**: **Auto-Retry & Resume Queue** - Menangani kegagalan unduhan dengan sistem rehat dan coba ulang cerdas (Max 3 retries).
 - **Feat(Core)**: **Global Archive** - File arsip `yt-dlp` diletakkan di `$TARGET_DIR` agar tersinkronisasi.

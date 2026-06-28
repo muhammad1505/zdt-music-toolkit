@@ -219,12 +219,6 @@ update_zdt_script() {
         done
         echo "$HOME/.local/share/zdt"
     }
-    _get_share_dir_fb() {
-        for _d in "$HOME/.local/share/zdt" "/usr/local/share/zdt" "/data/data/com.termux/files/usr/share/zdt"; do
-            [ -d "$_d" ] && { echo "$_d"; return 0; }
-        done
-        echo "$HOME/.local/share/zdt"
-    }
 
     # Step 1: Download VERSION file FIRST — single source of truth
     local tmp_ver

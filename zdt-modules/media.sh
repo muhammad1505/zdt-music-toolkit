@@ -287,12 +287,18 @@ _kompres_video_batch() {
 hapus_vokal() {
     print_header "HAPUS VOKAL (AI DEMUCS)"
 
+    # Daftar temp directories yang perlu dibersihkan jika di-interupsi
+    _DEMUCS_CLEANUP_DIRS=()
+    _ZDT_ORIG_SIGINT=$(trap -p SIGINT 2>/dev/null || true)
+    trap '_cleanup_demucs_temp' SIGINT SIGTERM
+    
     local demucs_bin="${ZDT_DEMUCS_BIN:-$HOME/.local/share/zdt/demucs_venv/bin/demucs}"
 
     if [ ! -f "$demucs_bin" ]; then
         echo -e "  ${YELLOW}${ICO_WARN} Demucs AI belum terinstal.${RESET}"
         echo -e "  ${GRAY}Proses instalasi akan membuat virtual environment dan mendownload${RESET}"
         echo -e "  ${GRAY}library PyTorch & Demucs (total sekitar 2-3 GB).${RESET}"
+        echo -e "  ${GRAY}  ⚠ Pastikan ada ruang disk minimal 4GB sebelum instalasi.${RESET}"
         echo -e -n "  ${BOLD}[?] Lanjutkan instalasi sekarang? [Y/n]: ${RESET}"
         local confirm
         read -r confirm
@@ -464,6 +470,8 @@ hapus_vokal() {
 
         local tmp_out_dir="$dir/.demucs_tmp_$$"
         mkdir -p "$tmp_out_dir"
+        # Register cleanup directory (for Ctrl+C handling)
+        _DEMUCS_CLEANUP_DIRS+=("$tmp_out_dir")
 
         local demucs_log="$tmp_out_dir/demucs.log"
         echo -e -n "    ${CYAN}${ICO_ARROW} [AI Demucs] Membedah vokal & instrumen... [0%]"
@@ -552,8 +560,37 @@ hapus_vokal() {
         echo -e "  ──────────────────────────────────────────────────"
     done
 
+    # Bersihkan trap setelah selesai
+    if [ -n "$_ZDT_ORIG_SIGINT" ]; then
+        eval "$_ZDT_ORIG_SIGINT"
+    else
+        trap - SIGINT
+    fi
+    trap - SIGTERM
+    _ZDT_ORIG_SIGINT=""
     echo -e "  ${GREEN}${ICO_OK} 100% Selesai!${RESET}"
     _log "INFO" "Demucs vocal removal complete: $current files"
+}
+
+# Cleanup handler untuk Demucs temp files — dipanggil saat Ctrl+C
+_cleanup_demucs_temp() {
+    local dir
+    echo ""
+    echo -e "  ${YELLOW}${ICO_WARN} Membersihkan file temporary Demucs...${RESET}"
+    for dir in "${_DEMUCS_CLEANUP_DIRS[@]}"; do
+        if [ -d "$dir" ]; then
+            rm -rf "$dir" 2>/dev/null
+            echo -e "  ${GREEN}${ICO_OK} Dihapus: $dir${RESET}"
+        fi
+    done
+    _DEMUCS_CLEANUP_DIRS=()
+    if [ -n "$_ZDT_ORIG_SIGINT" ]; then
+        eval "$_ZDT_ORIG_SIGINT"
+    else
+        trap - SIGINT
+    fi
+    trap - SIGTERM
+    _ZDT_ORIG_SIGINT=""
 }
 
 # ==========================================

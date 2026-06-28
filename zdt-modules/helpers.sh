@@ -574,7 +574,7 @@ _record_downloads() {
             local fname size db_path
             fname=$(basename "$f")
             size=$(stat -c%s "$f" 2>/dev/null || echo 0)
-            db_path="$HOME/.config/zdt/zdt.db"
+            db_path="$ZDT_DB_PATH"
             python3 "$_MODULES_DIR/zdt_db.py" "$db_path" add_download "$fname" "$url" "$source" "$size" 2>/dev/null || true
         fi
     done < <(find "$scan_dir" -maxdepth 1 -type f \( "${find_args[@]}" \) -mmin -2 2>/dev/null)

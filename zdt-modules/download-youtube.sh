@@ -200,7 +200,7 @@ download_ytdlp() {
         fi
         if [ "$skip_dup" -eq 0 ]; then
             local db_script="$_MODULES_DIR/zdt_db.py"
-            local db_path="$HOME/.config/zdt/zdt.db"
+            local db_path="$ZDT_DB_PATH"
             if [ -f "$db_script" ]; then
                 local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
                 if [ "$is_dup" = "True" ]; then
@@ -570,7 +570,7 @@ download_video() {
         fi
         if [ "$skip_dup" -eq 0 ]; then
             local db_script="$_MODULES_DIR/zdt_db.py"
-            local db_path="$HOME/.config/zdt/zdt.db"
+            local db_path="$ZDT_DB_PATH"
             if [ -f "$db_script" ]; then
                 local is_dup=$(python3 "$db_script" "$db_path" "check_duplicate" "$link" 2>/dev/null)
                 if [ "$is_dup" = "True" ]; then

@@ -11,7 +11,7 @@ pass() { echo -e "  ✅ $1"; PASS=$((PASS + 1)); }
 fail() { echo -e "  ❌ $1"; FAIL=$((FAIL + 1)); }
 
 echo "╔══════════════════════════════════════════╗"
-echo "║   ZDT Smoke Test — v4.1.74 (Modular)    ║"
+echo "║   ZDT Smoke Test — v4.4.6 (Modular)    ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 

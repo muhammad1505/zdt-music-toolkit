@@ -52,14 +52,14 @@ echo "🚀 Bumping version: v$CURRENT_VERSION -> v$NEW_VERSION"
 echo "$NEW_VERSION" > VERSION
 
 # Update fallback di zdt.sh (dynamic expression: ${_APP_VERSION:-X.X.X})
-sed -i "s/:-[0-9.]*}/:-$NEW_VERSION}/" zdt.sh
+sed -i "s/_APP_VERSION:-[0-9.]*}/_APP_VERSION:-$NEW_VERSION}/" zdt.sh
 
 # Replace di README.md (khusus baris instalasi)
 sed -i "s/ZDT (v$CURRENT_VERSION+)/ZDT (v$NEW_VERSION+)/" README.md
 
 # Terapkan juga ke instalasi lokal (binary + VERSION file share dir)
 if [ -f "$HOME/.local/bin/zdt" ]; then
-    sed -i "s/:-[0-9.]*}/:-$NEW_VERSION}/" "$HOME/.local/bin/zdt"
+    sed -i "s/_APP_VERSION:-[0-9.]*}/_APP_VERSION:-$NEW_VERSION}/" "$HOME/.local/bin/zdt"
 fi
 if command -v zdt >/dev/null 2>&1; then
     _share=$(dirname "$(dirname "$(command -v zdt)")")/share/zdt

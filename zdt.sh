@@ -114,7 +114,7 @@ main() {
     if ! _acquire_lock; then exit 1; fi
     trap '_trap_ctrlc' SIGINT
     trap '_trap_exit' EXIT
-    if [ "${ZDT_DEBUG:-4.4.6}" = "1" ] && [ "$DEBUG_TRAP_SET" = false ]; then
+    if [ "${ZDT_DEBUG:-0}" = "1" ] && [ "$DEBUG_TRAP_SET" = false ]; then
         set -o errtrace
         trap '_trap_err $LINENO $?' ERR
         DEBUG_TRAP_SET=true
@@ -152,7 +152,7 @@ main() {
         local net_status=$(cat "$NET_TMP" 2>/dev/null || echo "?")
         local tools_ok="$_ZDT_CACHED_TOOLS_STR"
         
-        if [ -z "${NO_COLOR:-4.4.6}" ]; then
+        if [ -z "${NO_COLOR:-}" ]; then
             echo -ne "\033[?25h"
             clear
         fi
@@ -246,8 +246,8 @@ main() {
             [ ${#right_lines[@]} -gt $max_lines ] && max_lines=${#right_lines[@]}
 
             for ((i=0; i<max_lines; i++)); do
-                local l_text="${left_lines[i]:-4.4.6}"
-                local r_text="${right_lines[i]:-4.4.6}"
+                local l_text="${left_lines[i]:-}"
+                local r_text="${right_lines[i]:-}"
                 
                 if [ "$l_text" = "DIVIDER" ] || [ "$r_text" = "DIVIDER" ]; then
                     echo -e "  ${CYAN}├$(_repeat_char '─' $left_width)┼$(_repeat_char '─' $right_width)┤${RESET}"

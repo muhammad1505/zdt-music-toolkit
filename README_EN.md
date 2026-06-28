@@ -23,7 +23,7 @@ ZDT Music Toolkit is an all-in-one CLI assistant designed to simplify downloadin
 
 ## Changelog
 
-See [**CHANGELOG.md**](CHANGELOG.md) for release details of **v4.1.74** and previous versions.
+See [**CHANGELOG.md**](CHANGELOG.md) for release details of **v4.4.6** and previous versions.
 
 ## Installation 🚀
 

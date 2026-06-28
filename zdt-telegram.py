@@ -125,15 +125,19 @@ def _load_ai_prompt():
         "- PAKAI emoji secukupnya aja"
     )
 
+chat_history_lock = threading.Lock()
 chat_history = {}
 
 original_send_message = bot.send_message
 def logging_send_message(chat_id, text, **kwargs):
     logging.info(f"Bot mengirim pesan ke {chat_id}: {text}")
-    if chat_id not in chat_history:
-        chat_history[chat_id] = {"messages": [], "search_results": []}
-    chat_history[chat_id]["messages"].append(f"Zaki-Bot: {text}")
-    chat_history[chat_id]["messages"] = chat_history[chat_id]["messages"][-6:]
+    with chat_history_lock:
+        if chat_id not in chat_history:
+            if len(chat_history) >= 1000:
+                chat_history.pop(next(iter(chat_history)))
+            chat_history[chat_id] = {"messages": [], "search_results": []}
+        chat_history[chat_id]["messages"].append(f"Zaki-Bot: {text}")
+        chat_history[chat_id]["messages"] = chat_history[chat_id]["messages"][-6:]
     return original_send_message(chat_id, text, **kwargs)
 bot.send_message = logging_send_message
 
@@ -143,7 +147,10 @@ def listener(messages):
         if m.content_type == 'text':
             user = m.from_user.first_name if m.from_user else "Unknown"
             logging.info(f"Pesan masuk dari {user} (ID: {m.chat.id}): {m.text}")
+        with chat_history_lock:
             if m.chat.id not in chat_history:
+                if len(chat_history) >= 1000:
+                    chat_history.pop(next(iter(chat_history)))
                 chat_history[m.chat.id] = {"messages": [], "search_results": []}
             chat_history[m.chat.id]["messages"].append(f"User: {m.text}")
             chat_history[m.chat.id]["messages"] = chat_history[m.chat.id]["messages"][-6:]
@@ -275,11 +282,12 @@ def kompres_cmd(message):
 @bot.message_handler(commands=['video'])
 def download_video(message):
     text = message.text.replace('/video', '').strip()
-    if "http" not in text:
+    urls = [word for word in text.split() if word.startswith(('http://', 'https://'))]
+    if not urls:
         bot.reply_to(message, "❌ Link tidak valid! Contoh: `/video https://youtube.com/...`", parse_mode="Markdown")
         return
         
-    url = [word for word in text.split() if "http" in word][0]
+    url = urls[0]
     bot.reply_to(message, f"⏳ *Sedang Mendownload Video...*\n📍 `Server` sedang memproses link Anda.", parse_mode="Markdown")
     
     try:
@@ -291,11 +299,12 @@ def download_video(message):
 @bot.message_handler(commands=['audio'])
 def download_audio_cmd(message):
     text = message.text.replace('/audio', '').strip()
-    if "http" not in text:
+    urls = [word for word in text.split() if word.startswith(('http://', 'https://'))]
+    if not urls:
         bot.reply_to(message, "❌ Link tidak valid! Contoh: `/audio https://spotify.com/...`", parse_mode="Markdown")
         return
         
-    url = [word for word in text.split() if "http" in word][0]
+    url = urls[0]
     bot.reply_to(message, f"⏳ *Sedang Mendownload Audio...*\n📍 `Server` sedang menyedot musik Anda.", parse_mode="Markdown")
     
     try:
@@ -344,7 +353,8 @@ def auto_download_audio(message):
                 except (OSError, PermissionError):
                     dir_contents = "Gagal membaca direktori."
 
-                chat_data = chat_history.get(message.chat.id, {"messages": [], "search_results": []})
+                with chat_history_lock:
+                    chat_data = chat_history.get(message.chat.id, {"messages": [], "search_results": []})
                 history_context = "\\n".join(chat_data["messages"])
                 search_context = "\\n".join(chat_data["search_results"])
                     
@@ -490,8 +500,9 @@ Chat: {history_context}"""
                                                     formatted.append(f"{idx}. <b>{title}</b>\n{url}")
                                                     urls.append(f"{idx}) {parts[1].strip()}")
                                                 
-                                            if chat_history.get(message.chat.id):
-                                                chat_history[message.chat.id]["search_results"] = urls
+                                            with chat_history_lock:
+                                                if chat_history.get(message.chat.id):
+                                                    chat_history[message.chat.id]["search_results"] = urls
                                                 
                                             out_text = "\n\n".join(formatted)
                                             bot.reply_to(message, f"🎯 <b>Hasil Pencarian:</b>\n\n{out_text}\n\n<i>Balas dengan nomor (misal: 'download nomor 1') atau linknya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
@@ -529,8 +540,9 @@ Chat: {history_context}"""
                                                     urls.append(f"{idx}) {parts[1].strip()}")
                                                     idx += 1
                                                 
-                                            if chat_history.get(message.chat.id):
-                                                chat_history[message.chat.id]["search_results"] = urls
+                                            with chat_history_lock:
+                                                if chat_history.get(message.chat.id):
+                                                    chat_history[message.chat.id]["search_results"] = urls
                                                 
                                             out_text = "\n\n".join(formatted)
                                             bot.reply_to(message, f"🎯 <b>Hasil Pencarian Playlist:</b>\n\n{out_text}\n\n<i>Balas dengan nomor (misal: 'download playlist nomor 1') atau linknya!</i>", parse_mode="HTML", link_preview_options=telebot.types.LinkPreviewOptions(is_disabled=True))
@@ -798,7 +810,11 @@ def confirm_delete_callback(call):
     """Handler untuk konfirmasi hapus semua file"""
     bot.answer_callback_query(call.id, "Menghapus semua file...")
     try:
-        target_path = call.data.split(':', 1)[1]
+        target_path = os.path.abspath(call.data.split(':', 1)[1])
+        base_dir = os.path.abspath(get_target_dir())
+        if not target_path.startswith(base_dir):
+            bot.edit_message_text("❌ Path tidak diizinkan!", chat_id=call.message.chat.id, message_id=call.message.message_id)
+            return
         if not os.path.exists(target_path):
             bot.edit_message_text("❌ Direktori tidak ditemukan!", chat_id=call.message.chat.id, message_id=call.message.message_id)
             return
