@@ -662,7 +662,6 @@ print(json.dumps(payload))
                 _zaki_add_history "assistant" "$resp_escaped"
                 
                 if command -v python3 >/dev/null 2>&1; then
-                    # We expect ai_response to be a valid JSON string
                     clean_reply=$(echo "$ai_response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('reply',''))" 2>/dev/null)
                     action_intent=$(echo "$ai_response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('intent',''))" 2>/dev/null)
                     action_query=$(echo "$ai_response" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('query',''))" 2>/dev/null)
@@ -673,153 +672,157 @@ print(json.dumps(payload))
                 if [ -n "$action_intent" ]; then
                     is_auto_action=true
                 fi
+            fi
 
-                # === KEYWORD INTENT FALLBACK ===
-                # Jika AI gagal deteksi intent, pakai keyword matching sebagai jaring pengaman
-                if [ -z "$action_intent" ] && [ -n "$input_lower" ]; then
-                    local ki="$input_lower"
-                    local kw_intent=""
-                    local kw_query=""
+            # === KEYWORD INTENT FALLBACK (jalan meskipun AI gagal) ===
+            if [ -z "$action_intent" ] && [ -n "$input_lower" ]; then
+                local ki="$input_lower"
+                local kw_intent=""
+                local kw_query=""
 
-                    # Download audio — "download lagu/sedot/unduh" + kata audio/lagu/musik
-                    if [[ "$ki" =~ ^(download|sedot|ambil|unduh|downloadin|downloadkan) ]]; then
-                        local remainder="${bot_prompt#* }"  # ambil teks setelah kata pertama
-                        # Cek tipe: video atau audio
-                        if echo "$ki" | grep -qE '(video|mp4|film|klip)'; then
-                            kw_intent="download video"
-                            kw_query="$remainder"
-                            # Jika hanya "download video" tanpa query, kosongkan
-                            echo "$remainder" | grep -qiE '^(video|mp4 )' && kw_query=""
-                        else
-                            kw_intent="download audio"
-                            kw_query="$remainder"
-                            echo "$remainder" | grep -qiE '^(audio|lagu|musik|mp3 )' && kw_query=""
-                        fi
-                        # Jika query mengandung link, gunakan langsung
-                        if echo "$kw_query" | grep -qE '^https?://'; then
-                            :  # query sudah URL
-                        elif [ -n "$kw_query" ] && ! echo "$kw_query" | grep -qiE '^(download|sedot|ambil)'; then
-                            # Bukan kata perintah doang — wrap sebagai search query
-                            kw_query="ytsearch1:$kw_query"
-                        else
-                            kw_query=""
-                        fi
-                    fi
-
-                    # Spotify
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(spotify|spot)'; then
-                        kw_intent="spotify"
-                        if echo "$ki" | grep -qE 'https?://'; then
-                            kw_query=$(echo "$bot_prompt" | grep -oE 'https?://[^ ]+' | head -1)
-                        fi
-                    fi
-
-                    # Hapus vokal — "pisah vokal", "karaoke", "demucs", "pisahin", "vocal remover"
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(pisah.*vokal|vokal.*pisah|karaoke|demucs|vocal.?remov|pisahin)'; then
-                        kw_intent="hapus vokal"
-                    fi
-
-                    # Kompres media
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(kompres|kecilin|compress|kecilkan)'; then
-                        if echo "$ki" | grep -qE '(video|mp4)'; then
-                            kw_intent="kompres video"
-                        else
-                            kw_intent="kompres media"
-                        fi
-                    fi
-
-                    # Sync lirik
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(lirik|sync.*lirik|lyric|cari.*lirik)'; then
-                        kw_intent="sync lirik"
-                    fi
-
-                    # Bersih nama
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(bersih.*nama|beresin.*nama|rapihin.*nama|rename.*file|rapiin)'; then
-                        kw_intent="bersih nama"
-                    fi
-
-                    # Playlist
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(playlist|m3u|buat.*playlist|bikin.*playlist)'; then
-                        kw_intent="bikin playlist"
-                    fi
-
-                    # Info sistem
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(status|info.*sistem|cek.*server|storage|kapasitas)'; then
-                        kw_intent="info sistem"
-                    fi
-
-                    # Web UI
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(web.*ui|dashboard|webui)'; then
-                        kw_intent="web ui"
-                    fi
-
-                    # Update
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(update|upgrade|perbarui)'; then
-                        kw_intent="update"
-                    fi
-
-                    # Telegram
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(telegram|bot.*tg)'; then
-                        kw_intent="telegram"
-                    fi
-
-                    # Daemon / watch
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(watch|daemon|pantau|pemantau)'; then
-                        kw_intent="daemon"
-                    fi
-
-                    # Setup
-                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(setup|konfigurasi|config|setting)'; then
-                        kw_intent="setup"
-                    fi
-
-                    if [ -n "$kw_intent" ]; then
-                        action_intent="$kw_intent"
-                        action_query="$kw_query"
-                        is_auto_action=true
-                        # Override reply biar sesuai intent
-                        if [ -z "$clean_reply" ] || echo "$clean_reply" | grep -qi '(siap|ada yang bisa)'; then
-                            case "$kw_intent" in
-                                "download audio") clean_reply="Siap, gue downloadin! Mau dari YouTube, Spotify, SoundCloud, atau kirim link aja 🎵" ;;
-                                "download video") clean_reply="Gas download video! 💫" ;;
-                                "spotify") clean_reply="Oke, gue ambil dari Spotify! 🎧" ;;
-                                "hapus vokal") clean_reply="Siap, gue pisahin vokalnya! 🎤" ;;
-                                "kompres media") clean_reply="Kompres file audio! 🔧" ;;
-                                "kompres video") clean_reply="Kompres video! 🎬" ;;
-                                "sync lirik") clean_reply="Cari & sync lirik! 📝" ;;
-                                "bersih nama") clean_reply="Bersihin nama file! ✨" ;;
-                                "bikin playlist") clean_reply="Bikin playlist M3U! 📋" ;;
-                                "info sistem") clean_reply="Cek status sistem! 📊" ;;
-                                "web ui") clean_reply="Buka Web Dashboard! 🚀" ;;
-                                "update") clean_reply="Update tools... 🔄" ;;
-                                "telegram") clean_reply="Atur Bot Telegram! 🤖" ;;
-                                "daemon") clean_reply="Atur Watch Daemon! 👀" ;;
-                                "setup") clean_reply="Buka setup! ⚙️" ;;
-                            esac
-                        fi
-                    fi
-                fi
-
-                # Anti-empty response fallback
-                if [ -z "$clean_reply" ] && [ "$is_auto_action" = false ]; then
-                    echo -e "  ${YELLOW}${ICO_WARN} Zaki-Bot belum ngerti maksud Bos. Ketik '?' buat bantuan.${RESET}"
-                    continue
-                fi
-
-                if [ -n "$clean_reply" ]; then
-                    echo ""
-                    echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}$clean_reply${RESET}"
-                    if [ "$is_auto_action" = false ]; then
-                        echo ""
+                # Salam/sapa — tanpa intent, balas natural
+                if echo "$ki" | grep -qE '^(halo|hai|hey|hi|hallo|helo|selamat|siang|pagi|sore|malam|testing)'; then
+                    local hr
+                    hr=$(date +%H 2>/dev/null || echo "12")
+                    if [ "$hr" -lt 11 ]; then
+                        clean_reply="Pagi bro! ☀️ Ada yang bisa gue bantu?"
+                    elif [ "$hr" -lt 15 ]; then
+                        clean_reply="Siang bro! 🌤️ Ada yang bisa gue bantu?"
+                    elif [ "$hr" -lt 19 ]; then
+                        clean_reply="Sore bro! 🌅 Ada yang bisa gue bantu?"
                     else
-                        echo ""
-                        sleep 1
+                        clean_reply="Malam bro! 🌙 Ada yang bisa gue bantu?"
                     fi
                 fi
-                
-                # Proses Intent JSON (Case-Insensitive)
-                if [ "$is_auto_action" = true ]; then
-                    local intent_lower="${action_intent,,}"
+
+                # Download — cocok di mana pun dalam kalimat
+                if echo "$ki" | grep -qE '(download|sedot|ambil|unduh|downloadin|downloadkan)'; then
+                    local dl_match=""
+                    dl_match=$(echo "$ki" | grep -oE '(download|sedot|ambil|unduh|downloadin|downloadkan)' | head -1)
+                    # Ambil teks setelah kata kunci download
+                    local after_dl
+                    after_dl=$(echo "$bot_prompt" | sed "s/.*${dl_match}//I" | xargs)
+                    # Bersihin kata-kata perintah/artikel di depan
+                    after_dl=$(echo "$after_dl" | sed 's/^\(bantu\|tolong\|dung\|in\|kan\|dong\|yah\|ya\|bro\|bang\|kak\|boss\|sih\|deh\|ah\|nih\|dari\|dgn\|dan\|atau\)[ ]*//I' | xargs)
+                    # Deteksi tipe: video atau audio?
+                    if echo "$ki" | grep -qE '(video|mp4|film|klip)'; then
+                        kw_intent="download video"
+                        after_dl=$(echo "$after_dl" | sed 's/^\(video\|mp4\|film\|klip\)[ ]*//I' | xargs)
+                    else
+                        kw_intent="download audio"
+                        after_dl=$(echo "$after_dl" | sed 's/^\(audio\|lagu\|musik\|mp3\)[ ]*//I' | xargs)
+                    fi
+                    # Cek hasil akhir
+                    if echo "$after_dl" | grep -qE '^https?://'; then
+                        kw_query="$after_dl"
+                    elif [ -n "$after_dl" ]; then
+                        kw_query="ytsearch1:$after_dl"
+                    else
+                        kw_query=""
+                    fi
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(spotify|spot)'; then
+                    kw_intent="spotify"
+                    if echo "$ki" | grep -qE 'https?://'; then
+                        kw_query=$(echo "$bot_prompt" | grep -oE 'https?://[^ ]+' | head -1)
+                    fi
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(pisah.*vokal|vokal.*pisah|karaoke|demucs|vocal.?remov|pisahin)'; then
+                    kw_intent="hapus vokal"
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(kompres|kecilin|compress|kecilkan)'; then
+                    if echo "$ki" | grep -qE '(video|mp4)'; then
+                        kw_intent="kompres video"
+                    else
+                        kw_intent="kompres media"
+                    fi
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(lirik|sync.*lirik|lyric|cari.*lirik)'; then
+                    kw_intent="sync lirik"
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(bersih.*nama|beresin.*nama|rapihin.*nama|rename.*file|rapiin)'; then
+                    kw_intent="bersih nama"
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(playlist|m3u|buat.*playlist|bikin.*playlist)'; then
+                    kw_intent="bikin playlist"
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(status|info.*sistem|cek.*server|storage|kapasitas)'; then
+                    kw_intent="info sistem"
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(web.*ui|dashboard|webui)'; then
+                    kw_intent="web ui"
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(update|upgrade|perbarui)'; then
+                    kw_intent="update"
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(telegram|bot.*tg)'; then
+                    kw_intent="telegram"
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(watch|daemon|pantau|pemantau)'; then
+                    kw_intent="daemon"
+                fi
+
+                if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(setup|konfigurasi|config|setting)'; then
+                    kw_intent="setup"
+                fi
+
+                if [ -n "$kw_intent" ]; then
+                    action_intent="$kw_intent"
+                    action_query="$kw_query"
+                    is_auto_action=true
+                    if [ -z "$clean_reply" ] || echo "$clean_reply" | grep -qiE '(siap|ada yang bisa)'; then
+                        case "$kw_intent" in
+                            "download audio") clean_reply="Mau download dari YouTube, Spotify, SoundCloud, atau kirim link aja? 🎵" ;;
+                            "download video") clean_reply="Kirim link videonya bro! 💫" ;;
+                            "spotify") clean_reply="Kirim link Spotify-nya bro! 🎧" ;;
+                            "hapus vokal") clean_reply="Siap, gue pisahin vokalnya! 🎤" ;;
+                            "kompres media") clean_reply="Kompres file audio! 🔧" ;;
+                            "kompres video") clean_reply="Kompres video! 🎬" ;;
+                            "sync lirik") clean_reply="Cari & sync lirik! 📝" ;;
+                            "bersih nama") clean_reply="Bersihin nama file! ✨" ;;
+                            "bikin playlist") clean_reply="Bikin playlist M3U! 📋" ;;
+                            "info sistem") clean_reply="Cek status sistem! 📊" ;;
+                            "web ui") clean_reply="Buka Web Dashboard! 🚀" ;;
+                            "update") clean_reply="Update tools... 🔄" ;;
+                            "telegram") clean_reply="Atur Bot Telegram! 🤖" ;;
+                            "daemon") clean_reply="Atur Watch Daemon! 👀" ;;
+                            "setup") clean_reply="Buka setup! ⚙️" ;;
+                        esac
+                    fi
+                fi
+            fi
+
+            # Anti-empty response fallback
+            if [ -z "$clean_reply" ] && [ "$is_auto_action" = false ]; then
+                echo -e "  ${YELLOW}${ICO_WARN} Zaki-Bot belum ngerti maksud Bos. Ketik '?' buat bantuan.${RESET}"
+                continue
+            fi
+
+            if [ -n "$clean_reply" ]; then
+                echo ""
+                echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}$clean_reply${RESET}"
+                if [ "$is_auto_action" = false ]; then
+                    echo ""
+                else
+                    echo ""
+                    sleep 1
+                fi
+            fi
+            
+            # Proses Intent (Case-Insensitive)
+            if [ "$is_auto_action" = true ]; then
+                local intent_lower="${action_intent,,}"
                     
                     case "$intent_lower" in
                         "download smart")
@@ -985,7 +988,6 @@ print(json.dumps(payload))
                     # Layar tidak di-clear lagi tiap turn, cukup beri spasi
                     echo ""
                 fi
-            fi
         fi
 
         # Fallback: proses manual jika AI tidak digunakan/gagal
