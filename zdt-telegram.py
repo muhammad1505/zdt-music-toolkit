@@ -415,12 +415,76 @@ Storage: {abs_path}. File: {dir_contents}
 {search_context}
 Chat: {history_context}"""
 
-                def process_reply(reply_text):
+                def process_reply(reply_text, user_text=None):
+                    if user_text is None:
+                        user_text = text
+                    action = None
+
                     if "[AUTO_ACTION:" in reply_text:
                         import re
                         match = re.search(r"\[AUTO_ACTION:\s*(.+?)\]", reply_text)
                         if match:
                             action = match.group(1).strip()
+
+                    # === KEYWORD FALLBACK: if AI didn't include AUTO_ACTION, detect from user text ===
+                    if not action:
+                        import re
+                        kw = user_text.lower()
+
+                        if re.search(r'(download|sedot|ambil|unduh)', kw):
+                            if re.search(r'(video|mp4|film|klip)', kw):
+                                url = re.sub(r'.*?(video|download|sedot|ambil|unduh)\s*', '', kw, flags=re.I).strip()
+                                url = re.sub(r'^(video|mp4|film|klip)\s*', '', url).strip()
+                                if re.match(r'^https?://', url):
+                                    action = f"gas download video {url}"
+                                else:
+                                    action = "gas download video "
+                            else:
+                                url = re.sub(r'.*?(download|sedot|ambil|unduh)\s*', '', kw, flags=re.I).strip()
+                                url = re.sub(r'^(audio|lagu|musik|mp3)\s*', '', url).strip()
+                                url = re.sub(r'^(bantu|tolong|dung|in|kan|dong|yah|ya|bro|bang|nih|nih)\s*', '', url, flags=re.I).strip()
+                                if re.match(r'^https?://', url):
+                                    action = f"gas download audio {url}"
+                                elif url and not re.match(r'^(download|sedot|ambil|audio|lagu)$', url):
+                                    action = f"gas download audio ytsearch1:{url}"
+                                else:
+                                    action = "gas download audio "
+
+                        elif re.search(r'(pisah.*vokal|vokal.*pisah|karaoke|demucs|vocal.?remov|pisahin)', kw):
+                            action = "hapus vokal"
+
+                        elif re.search(r'(kompres|kecilin|compress|kecilkan)', kw):
+                            if re.search(r'(video|mp4)', kw):
+                                action = "kompres video"
+                            else:
+                                action = "kompres media"
+
+                        elif re.search(r'(lirik|sync.*lirik|lyric|cari.*lirik)', kw):
+                            action = "sync lirik"
+
+                        elif re.search(r'(bersih.*nama|beresin.*nama|rapihin.*nama|rename.*file|rapiin)', kw):
+                            action = "bersih nama"
+
+                        elif re.search(r'(playlist|m3u|buat.*playlist|bikin.*playlist)', kw):
+                            action = "bikin playlist"
+
+                        elif re.search(r'(status|info.*sistem|cek.*server|storage|kapasitas)', kw):
+                            action = "cek status"
+
+                        elif re.search(r'(web.*ui|dashboard|webui)', kw):
+                            action = "buka web"
+
+                        elif re.search(r'(spotify|spot)', kw):
+                            if re.search(r'https?://', kw):
+                                url = re.search(r'https?://[^\s]+', kw).group(0)
+                                action = f"gas download audio {url}"
+                            else:
+                                action = "gas download audio "
+
+                        elif re.search(r'^(halo|hai|hey|hi|hallo|helo|selamat|siang|pagi|sore|malam)', kw):
+                            pass  # Biarkan AI handle greeting, no action needed
+
+                    if action:
                                 
                             def run_bg_task(cmd_args, success_msg, progress_msg=None):
                                 import threading
