@@ -2492,11 +2492,23 @@
 
         let sseSource = null;
 
+        let _sseRetryCount = 0;
+        let _sseRetryTimer = null;
+
         function connectSSE() {
             if (sseSource) {
                 sseSource.close();
             }
+            if (_sseRetryCount >= 10) {
+                console.warn('SSE: too many retries, giving up');
+                return;
+            }
             sseSource = new EventSource('/api/logs/stream');
+            _sseRetryCount++;
+
+            sseSource.onopen = function() {
+                _sseRetryCount = 0;
+            };
 
             sseSource.onmessage = function(event) {
                 try {
@@ -2507,7 +2519,9 @@
 
             sseSource.onerror = function() {
                 sseSource.close();
-                setTimeout(connectSSE, 3000);
+                const delay = Math.min(3000 * Math.pow(2, _sseRetryCount), 60000);
+                if (_sseRetryTimer) clearTimeout(_sseRetryTimer);
+                _sseRetryTimer = setTimeout(connectSSE, delay);
             };
         }
 
@@ -2515,9 +2529,10 @@
 
         setInterval(async () => {
             if (!sseSource || sseSource.readyState === EventSource.CLOSED) {
+                _sseRetryCount = 0;
                 connectSSE();
             }
-        }, 10000);
+        }, 15000);
     </script>
 </body>
 </html>

@@ -130,11 +130,13 @@ def requires_csrf(f):
         return f(*args, **kwargs)
     return decorated
 
-# Rate limiting: max 120 requests per minute per IP
-# (dashboard has 3 polling loops: status 3s, logs 3s, scheduler 10s = ~46 req/min)
+# Rate limiting: max 240 requests per minute per IP
+# Dashboard polling: loadStatus (3s = 20/min), scheduler (10s = 6/min) = ~26 GET/min
+# POST endpoints are the actual target — they're mutation-sensitive
+# SSE endpoint (/api/logs/stream) excluded — long-lived connection, not bursty
 _rate_limit_store = defaultdict(list)
 
-def _rate_limit(ip, max_requests=120, window=60):
+def _rate_limit(ip, max_requests=240, window=60):
     """Return True if rate limited."""
     now = time.time()
     with _lock_rate:
@@ -159,6 +161,9 @@ threading.Thread(target=_cleanup_rate_limits, daemon=True).start()
 
 @app.before_request
 def check_rate_limit():
+    # Skip rate limit for SSE endpoint — long-lived connection, not bursty
+    if request.path == "/api/logs/stream":
+        return
     ip = request.remote_addr or request.headers.get("X-Forwarded-For", "unknown")
     if _rate_limit(ip):
         return jsonify({"error": "Too many requests. Slow down!"}), 429
@@ -850,7 +855,7 @@ def get_logs():
 
 # SSE connection limiter: max 20 concurrent SSE connections + track connected clients
 # Prevent file descriptor exhaustion from infinite reconnect loops
-_SSE_MAX_CONNECTIONS = 20
+_SSE_MAX_CONNECTIONS = 50
 _sse_active_count = 0
 _sse_active_lock = threading.Lock()
 
