@@ -130,6 +130,31 @@ start_web_dashboard() {
         return 1
     fi
 
+    local port="${WEB_PORT:-5000}"
+    local host="${WEB_BIND:-127.0.0.1}"
+    local open_host="$host"
+    [ "$open_host" = "0.0.0.0" ] && open_host="127.0.0.1"
+    local url="http://$open_host:$port"
+
+    # Cek apakah port sudah dipakai
+    if command -v ss >/dev/null 2>&1; then
+        if ss -tlnp "sport = :$port" 2>/dev/null | grep -q "$port"; then
+            echo -e "  ${GREEN}${ICO_OK} Web Dashboard sudah berjalan di ${CYAN}${url}${RESET}"
+            echo -e "  ${YELLOW}${ICO_WARN} Info Auth:${RESET} cek di terminal pertama kali dijalankan"
+            echo ""
+            ( sleep 0.5; command -v xdg-open >/dev/null && xdg-open "$url" >/dev/null 2>&1 ) &
+            return 0
+        fi
+    elif command -v lsof >/dev/null 2>&1; then
+        if lsof -i :"$port" 2>/dev/null | grep -q LISTEN; then
+            echo -e "  ${GREEN}${ICO_OK} Web Dashboard sudah berjalan di ${CYAN}${url}${RESET}"
+            echo -e "  ${YELLOW}${ICO_WARN} Info Auth:${RESET} cek di terminal pertama kali dijalankan"
+            echo ""
+            ( sleep 0.5; command -v xdg-open >/dev/null && xdg-open "$url" >/dev/null 2>&1 ) &
+            return 0
+        fi
+    fi
+
     echo -e "  ${YELLOW}${ICO_ARROW} Menyalakan Web Dashboard...${RESET}"
 
     # Baca credentials asli dari config.env (bukan hardcoded "admin")
@@ -143,28 +168,17 @@ start_web_dashboard() {
     echo -e "  ${CYAN}${ICO_WARN} INFO AUTH: Username = ${BOLD}$_actual_user${RESET} | Password = ${BOLD}$_actual_pass${RESET}"
     echo ""
     
-    local port="${WEB_PORT:-5000}"
-    local host="${WEB_BIND:-127.0.0.1}"
-    local open_host="$host"
-    [ "$open_host" = "0.0.0.0" ] && open_host="127.0.0.1"
-    local url="http://$open_host:$port"
-    
     # Auto-open browser (multi-platform)
     ( sleep 1.5
         if command -v termux-open-url >/dev/null 2>&1; then
-            # Native Termux
             termux-open-url "$url" >/dev/null 2>&1
         elif [ -x "/host-rootfs/data/data/com.termux/files/usr/bin/termux-open-url" ]; then
-            # Proot-distro → call host Termux
             /host-rootfs/data/data/com.termux/files/usr/bin/termux-open-url "$url" >/dev/null 2>&1
         elif command -v am >/dev/null 2>&1; then
-            # Android via am (Activity Manager)
             am start -a android.intent.action.VIEW -d "$url" >/dev/null 2>&1
         elif command -v xdg-open >/dev/null 2>&1; then
-            # Linux desktop
             xdg-open "$url" >/dev/null 2>&1
         elif command -v open >/dev/null 2>&1; then
-            # macOS
             open "$url" >/dev/null 2>&1
         else
             python3 -m webbrowser "$url" >/dev/null 2>&1

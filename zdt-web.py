@@ -265,7 +265,20 @@ def requires_auth(f):
             return authenticate()
         return f(*args, **kwargs)
     return decorated
-APP_VERSION = os.environ.get("ZDT_VERSION") or ZdtPaths.get_version()
+
+def get_version():
+    v = os.environ.get("ZDT_VERSION")
+    if v:
+        return v
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        version_file = os.path.join(script_dir, "VERSION")
+        if os.path.exists(version_file):
+            with open(version_file) as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return ZdtPaths.get_version()
 
 CONFIG_FILE = ZdtPaths.get_config_file()
 
@@ -399,7 +412,7 @@ def get_status():
         "target_dir": target,
         "storage_free": storage_free,
         "file_count": file_count,
-        "version": APP_VERSION,
+        "version": get_version(),
         "watcher": is_process_running("zdt-watch.py"),
         "telegram": is_process_running("zdt-telegram.py")
     })
@@ -978,17 +991,18 @@ def check_update():
     try:
         req = urllib.request.Request(
             "https://api.github.com/repos/muhammad1505/zdt-music-toolkit/releases/latest",
-            headers={"User-Agent": f"ZDT-Enterprise/{APP_VERSION}", "Accept": "application/vnd.github.v3+json"}
+            headers={"User-Agent": f"ZDT-Enterprise/{get_version()}", "Accept": "application/vnd.github.v3+json"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = _json.loads(resp.read())
             latest_tag = data.get("tag_name", "")
-            current_version = "v" + APP_VERSION
+            ver = get_version()
+            current_version = "v" + ver
             is_newer = False
             if latest_tag and latest_tag != current_version:
                 # Compare versions numerically
                 try:
-                    curr = [int(x) for x in APP_VERSION.split(".")]
+                    curr = [int(x) for x in ver.split(".")]
                     latest = [int(x) for x in latest_tag.lstrip("v").split(".")]
                     # Pad to same length
                     while len(curr) < len(latest): curr.append(0)
@@ -1190,7 +1204,7 @@ def scheduler_save_playlists():
 @app.route('/api/health', methods=['GET'])
 def health():
     """Lightweight health check. Returns 200 when server is operational."""
-    return jsonify({"status": "ok", "version": APP_VERSION, "uptime": time.time() - _start_time})
+    return jsonify({"status": "ok", "version": get_version(), "uptime": time.time() - _start_time})
 
 _start_time = time.time()
 
