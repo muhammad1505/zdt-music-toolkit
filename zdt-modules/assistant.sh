@@ -396,14 +396,23 @@ reply: natural dan santai (max 3 kalimat). KALO USER SALAM/SAPA, balas lalu TANY
 intent: KOSONG jika hanya ngobrol. Isi SALAH SATU dari: download audio, download video, download smart, cari lagu, spotify, kompres media, kompres video, hapus vokal, sync lirik, bersih nama, bikin playlist, playlist sync, info sistem, web ui, setup, update, telegram, daemon, metadata, storage, hapus semua
 query: URL atau 'ytsearch1:kata kunci' (kosong jika tidak ada)
 
-PENTING: Pahamin MAKSUD user. Contoh variasi pertanyaan yang artinya SAMA:
-- \"download lagu Tulus\" = download audio
-- \"bisa bantu download audio?\" = download audio
-- \"tolong sedot lagu ini\" = download audio
-- \"gw mau download video\" = download video
-- \"minta tolong pisahin vokal\" = hapus vokal
-- \"tolong bersihin nama file yang berantakan\" = bersih nama
-- \"bisa kompresin file audio?\" = kompres media
+INSTRUKSI INTENT:
+- JIKA user MINTA sesuatu (download, kompres, hapus, dll) → WAJIB isi intent! BAHKAN jika user belum kasih URL/judul!
+- Intent \"download audio\" = download dari MANAPUN (YouTube, Spotify, SoundCloud, FB, Twitter, TikTok, IG, dll). Backend otomatis deteksi sumbernya.
+- Intent \"download video\" = download video dari link mana pun.
+- Intent \"spotify\" = khusus link Spotify (track/album/playlist).
+- jika user minta download TANPA URL → isi intent, query KOSONG, user bakal ditanya setelahnya.
+
+PENTING: Pahamin variasi bahasa user:
+- download lagu/bantu download/sedot/unduh/ambil → download audio
+- download video/sedot video → download video
+- kompres/kecilin/compress file audio → kompres media
+- kompres/kecilin video → kompres video
+- pisah vokal/karaoke/demucs/vocal remover/pisahin → hapus vokal
+- cari lirik/sync lyric/sync lirik → sync lirik
+- bersih nama/beresin nama/rapiin file/bersihin file → bersih nama
+- bikin playlist/buat playlist/m3u → bikin playlist
+- download spotify/spotify link → spotify
 
 Contoh:
 User: halo bro
@@ -412,14 +421,20 @@ User: halo bro
 User: download lagu Tulus
 {\"reply\":\"Gas download Tulus! 🎵\",\"intent\":\"download audio\",\"query\":\"ytsearch1:Tulus\"}
 
+User: bisa gak bantu gw download audio?
+{\"reply\":\"Bisa bang! Mau download dari YouTube, Spotify, SoundCloud, atau kirim link aja? 🎵\",\"intent\":\"download audio\",\"query\":\"\"}
+
+User: tolong sedot video dari fb
+{\"reply\":\"Oke, kirim link videonya bro! 💫\",\"intent\":\"download video\",\"query\":\"\"}
+
+User: download spotify playlist
+{\"reply\":\"Oke, kasih link Spotify-nya bro! 🎧\",\"intent\":\"spotify\",\"query\":\"\"}
+
 User: menu 6
 {\"reply\":\"Buka Hapus Vokal! Siapkan file audionya 🎤\",\"intent\":\"hapus vokal\",\"query\":\"\"}
 
 User: jalanin web dashboard
 {\"reply\":\"Meluncurkan Web Dashboard... 🌐\",\"intent\":\"web ui\",\"query\":\"\"}
-
-User: bisa gak bantu gw download audio?
-{\"reply\":\"Tentu bisa bos! Mau download lagu apa? Kirim link atau judul aja 🎵\",\"intent\":\"download audio\",\"query\":\"\"}
 
 User: cek status
 {\"reply\":\"Cek status! 📊\",\"intent\":\"info sistem\",\"query\":\"\"}
@@ -428,7 +443,7 @@ User: apa itu zdt
 {\"reply\":\"ZDT itu toolkit lengkap buat kelola musik/video. Ada download, kompres, pisah vokal, lirik, dan banyak lagi!\",\"intent\":\"\",\"query\":\"\"}
 
 User: lu bisa apa
-{\"reply\":\"Gue bisa download lagu/video, kompres file, pisahin vokal pake AI, sync lirik, bersihin nama file, dan kontrol server dari web/telegram! Ada yang mau dicoba? 😎\",\"intent\":\"\",\"query\":\"\"}
+{\"reply\":\"Gue bisa download lagu/video dari YouTube, Spotify, SoundCloud, FB, TikTok, dll! Juga kompres file, pisahin vokal pake AI, sync lirik, bersihin nama file, dan kontrol server dari web/telegram! Ada yang mau dicoba? 😎\",\"intent\":\"\",\"query\":\"\"}
 
 User: V
 {\"reply\":\"Oke buka Web Dashboard! 🚀\",\"intent\":\"web ui\",\"query\":\"\"}
@@ -657,6 +672,132 @@ print(json.dumps(payload))
                 
                 if [ -n "$action_intent" ]; then
                     is_auto_action=true
+                fi
+
+                # === KEYWORD INTENT FALLBACK ===
+                # Jika AI gagal deteksi intent, pakai keyword matching sebagai jaring pengaman
+                if [ -z "$action_intent" ] && [ -n "$input_lower" ]; then
+                    local ki="$input_lower"
+                    local kw_intent=""
+                    local kw_query=""
+
+                    # Download audio — "download lagu/sedot/unduh" + kata audio/lagu/musik
+                    if [[ "$ki" =~ ^(download|sedot|ambil|unduh|downloadin|downloadkan) ]]; then
+                        local remainder="${bot_prompt#* }"  # ambil teks setelah kata pertama
+                        # Cek tipe: video atau audio
+                        if echo "$ki" | grep -qE '(video|mp4|film|klip)'; then
+                            kw_intent="download video"
+                            kw_query="$remainder"
+                            # Jika hanya "download video" tanpa query, kosongkan
+                            echo "$remainder" | grep -qiE '^(video|mp4 )' && kw_query=""
+                        else
+                            kw_intent="download audio"
+                            kw_query="$remainder"
+                            echo "$remainder" | grep -qiE '^(audio|lagu|musik|mp3 )' && kw_query=""
+                        fi
+                        # Jika query mengandung link, gunakan langsung
+                        if echo "$kw_query" | grep -qE '^https?://'; then
+                            :  # query sudah URL
+                        elif [ -n "$kw_query" ] && ! echo "$kw_query" | grep -qiE '^(download|sedot|ambil)'; then
+                            # Bukan kata perintah doang — wrap sebagai search query
+                            kw_query="ytsearch1:$kw_query"
+                        else
+                            kw_query=""
+                        fi
+                    fi
+
+                    # Spotify
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(spotify|spot)'; then
+                        kw_intent="spotify"
+                        if echo "$ki" | grep -qE 'https?://'; then
+                            kw_query=$(echo "$bot_prompt" | grep -oE 'https?://[^ ]+' | head -1)
+                        fi
+                    fi
+
+                    # Hapus vokal — "pisah vokal", "karaoke", "demucs", "pisahin", "vocal remover"
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(pisah.*vokal|vokal.*pisah|karaoke|demucs|vocal.?remov|pisahin)'; then
+                        kw_intent="hapus vokal"
+                    fi
+
+                    # Kompres media
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(kompres|kecilin|compress|kecilkan)'; then
+                        if echo "$ki" | grep -qE '(video|mp4)'; then
+                            kw_intent="kompres video"
+                        else
+                            kw_intent="kompres media"
+                        fi
+                    fi
+
+                    # Sync lirik
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(lirik|sync.*lirik|lyric|cari.*lirik)'; then
+                        kw_intent="sync lirik"
+                    fi
+
+                    # Bersih nama
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(bersih.*nama|beresin.*nama|rapihin.*nama|rename.*file|rapiin)'; then
+                        kw_intent="bersih nama"
+                    fi
+
+                    # Playlist
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(playlist|m3u|buat.*playlist|bikin.*playlist)'; then
+                        kw_intent="bikin playlist"
+                    fi
+
+                    # Info sistem
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(status|info.*sistem|cek.*server|storage|kapasitas)'; then
+                        kw_intent="info sistem"
+                    fi
+
+                    # Web UI
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(web.*ui|dashboard|webui)'; then
+                        kw_intent="web ui"
+                    fi
+
+                    # Update
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(update|upgrade|perbarui)'; then
+                        kw_intent="update"
+                    fi
+
+                    # Telegram
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(telegram|bot.*tg)'; then
+                        kw_intent="telegram"
+                    fi
+
+                    # Daemon / watch
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(watch|daemon|pantau|pemantau)'; then
+                        kw_intent="daemon"
+                    fi
+
+                    # Setup
+                    if [ -z "$kw_intent" ] && echo "$ki" | grep -qE '(setup|konfigurasi|config|setting)'; then
+                        kw_intent="setup"
+                    fi
+
+                    if [ -n "$kw_intent" ]; then
+                        action_intent="$kw_intent"
+                        action_query="$kw_query"
+                        is_auto_action=true
+                        # Override reply biar sesuai intent
+                        if [ -z "$clean_reply" ] || echo "$clean_reply" | grep -qi '(siap|ada yang bisa)'; then
+                            case "$kw_intent" in
+                                "download audio") clean_reply="Siap, gue downloadin! Mau dari YouTube, Spotify, SoundCloud, atau kirim link aja 🎵" ;;
+                                "download video") clean_reply="Gas download video! 💫" ;;
+                                "spotify") clean_reply="Oke, gue ambil dari Spotify! 🎧" ;;
+                                "hapus vokal") clean_reply="Siap, gue pisahin vokalnya! 🎤" ;;
+                                "kompres media") clean_reply="Kompres file audio! 🔧" ;;
+                                "kompres video") clean_reply="Kompres video! 🎬" ;;
+                                "sync lirik") clean_reply="Cari & sync lirik! 📝" ;;
+                                "bersih nama") clean_reply="Bersihin nama file! ✨" ;;
+                                "bikin playlist") clean_reply="Bikin playlist M3U! 📋" ;;
+                                "info sistem") clean_reply="Cek status sistem! 📊" ;;
+                                "web ui") clean_reply="Buka Web Dashboard! 🚀" ;;
+                                "update") clean_reply="Update tools... 🔄" ;;
+                                "telegram") clean_reply="Atur Bot Telegram! 🤖" ;;
+                                "daemon") clean_reply="Atur Watch Daemon! 👀" ;;
+                                "setup") clean_reply="Buka setup! ⚙️" ;;
+                            esac
+                        fi
+                    fi
                 fi
 
                 # Anti-empty response fallback
