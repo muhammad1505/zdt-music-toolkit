@@ -2122,12 +2122,22 @@
             });
         }
 
-        handleFormSubmit('formDownloader', 'btnDl', 'dlStatus', '/api/download', () => ({
-            url: document.getElementById('dlUrl').value,
-            format: document.getElementById('dlFormat').value,
-            spec: document.getElementById('dlFormatSpec').value,
-            bitrate: document.getElementById('dlBitrate').value
-        }), 'EXECUTING...');
+        handleFormSubmit('formDownloader', 'btnDl', 'dlStatus', '/api/download', () => {
+            let url = document.getElementById('dlUrl').value;
+            if (url.match(/[?&](list|playlist)=/i)) {
+                if (!confirm('⚠️ URL ini terdeteksi sebagai PLAYLIST!\n\nKlik "OK" = Download SELURUH isi playlist\nKlik "Batal" = Download video ini saja')) {
+                    url = url.replace(/[?&](list|playlist|start_radio|index)=[^&]*/g, '');
+                    if (url.match(/^\w+:\/\/[^?]+\?&/)) url = url.replace('?&', '?');
+                    document.getElementById('dlUrl').value = url;
+                }
+            }
+            return {
+                url: url,
+                format: document.getElementById('dlFormat').value,
+                spec: document.getElementById('dlFormatSpec').value,
+                bitrate: document.getElementById('dlBitrate').value
+            };
+        }, 'EXECUTING...');
 
         handleFormSubmit('formSpotify', 'btnSp', 'spStatus', '/api/spotify-sync', () => ({
             url: document.getElementById('spUrl').value
