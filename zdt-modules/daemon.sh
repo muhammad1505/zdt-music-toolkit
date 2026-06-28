@@ -123,7 +123,14 @@ start_web_dashboard() {
     if ! _ensure_python_tool "flask" "Flask" 1; then return 1; fi
     
     local web_script
-    web_script=$(_find_script "zdt-web.py")
+    local _share
+    _share=$(_get_share_dir)
+    # Prioritaskan share_dir (diupdate OTA) daripada SCRIPT_DIR (repo)
+    if [ -f "$_share/zdt-web.py" ]; then
+        web_script="$_share/zdt-web.py"
+    else
+        web_script=$(_find_script "zdt-web.py")
+    fi
 
     if [ -z "$web_script" ]; then
         echo -e "  ${RED}${ICO_FAIL} Script zdt-web.py tidak ditemukan!${RESET}"
