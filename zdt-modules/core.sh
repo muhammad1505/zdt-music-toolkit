@@ -585,8 +585,12 @@ _init_ui_cache() {
     _ZDT_CACHED_YTDLP=$(command -v yt-dlp >/dev/null 2>&1 && echo "1" || echo "0")
     _ZDT_CACHED_SPOTDL=$(command -v spotdl >/dev/null 2>&1 && echo "1" || echo "0")
     _ZDT_CACHED_DEMUCS=$([ -f "${ZDT_DEMUCS_BIN:-$HOME/.local/share/zdt/demucs_venv/bin/demucs}" ] && echo "1" || echo "0")
-    # Mutagen: lazy check (tidak fork Python di startup, cuma di system_info)
+    # Mutagen: file existence check (no Python fork)
+    local _mu_venv="${ZDT_VENV_DIR:-$HOME/.local/share/zdt/venv}"
     _ZDT_CACHED_MUTAGEN="0"
+    for _mu_p in "$_mu_venv/lib/python3."*/site-packages/mutagen/__init__.py; do
+        [ -f "$_mu_p" ] && { _ZDT_CACHED_MUTAGEN="1"; break; }
+    done
 
     # Build tools status string (for desktop & mobile views)
     _ZDT_CACHED_TOOLS_STR=""
