@@ -1096,8 +1096,8 @@ print(json.dumps(payload))
                 local _key_file=""
                 local _key_name=""
                 case "$_api_choice" in
-                    1) _key_file="$HOME/.config/zdt/gemini_key"; _key_name="Gemini";;
-                    2) _key_file="$HOME/.config/zdt/openrouter_key"; _key_name="OpenRouter";;
+                    1) _key_file="$HOME/.config/zdt/gemini_key"; _key_name="Gemini"; gemini_key="$_new_key";;
+                    2) _key_file="$HOME/.config/zdt/openrouter_key"; _key_name="OpenRouter"; openrouter_key="$_new_key";;
                     *) echo -e "  ${YELLOW}${ICO_WARN} Dibatalkan.${RESET}"; echo ""; continue;;
                 esac
                 echo -e -n "  ${BOLD}[?] Masukkan ${_key_name} API Key: ${RESET}"
@@ -1144,6 +1144,30 @@ print(json.dumps(payload))
             elif [[ "$input" =~ (makasih|terima\ kasih|thanks|thank\ you|thx|tq|mantap|keren|gokil) ]]; then
                 echo ""
                 echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Sama-sama Bos! Senang bisa bantu! 🙏${RESET}"
+                echo ""
+
+            # Capabilities: "kamu bisa apa aja"
+            elif [[ "$input" =~ (bisa.?apa|kamu.?bisa|what.?can.?you|capabilities|fitur|kemampuan|bantuin|fungsi) ]] && ! [[ "$input" =~ (download|kompres|vokal|pisah|lirik|set|key|api|update) ]]; then
+                echo ""
+                echo -e "  ${MAGENTA}${ICO_ROCKET} ${BOLD}Zaki-Bot:${RESET} ${WHITE}Aku bisa bantu banyak hal Bos! 😎${RESET}"
+                echo ""
+                echo -e "  ${CYAN}📥  ${BOLD}Download${RESET}"
+                echo -e "  ${GRAY}    • Lagu/Playlist Spotify (HQ + metadata)${RESET}"
+                echo -e "  ${GRAY}    • Audio/Video dari YouTube, TikTok, dll${RESET}"
+                echo -e "  ${CYAN}🎛️  ${BOLD}Edit & Tools${RESET}"
+                echo -e "  ${GRAY}    • Pisah vokal & instrumen (Demucs AI)${RESET}"
+                echo -e "  ${GRAY}    • Kompres audio/video (multi-core)${RESET}"
+                echo -e "  ${GRAY}    • Sync lirik otomatis (.lrc)${RESET}"
+                echo -e "  ${GRAY}    • Bersihin & rapiin nama file${RESET}"
+                echo -e "  ${CYAN}🌐  ${BOLD}Remote & Otomasi${RESET}"
+                echo -e "  ${GRAY}    • Web Dashboard (via browser HP)${RESET}"
+                echo -e "  ${GRAY}    • Telegram Bot (kontrol dari HP)${RESET}"
+                echo -e "  ${GRAY}    • Watch Daemon (auto-process folder)${RESET}"
+                echo -e "  ${CYAN}⚙️  ${BOLD}Sistem${RESET}"
+                echo -e "  ${GRAY}    • Update OTA, Backup, Rollback${RESET}"
+                echo -e "  ${GRAY}    • Info sistem & diagnosa${RESET}"
+                echo ""
+                echo -e "  ${YELLOW}${ICO_ARROW} Tinggal ngomong aja, contoh:${RESET} ${WHITE}'download lagu Tulus' 'pisahin vokal' 'kompres semua'${RESET}"
                 echo ""
 
             # Sisanya
