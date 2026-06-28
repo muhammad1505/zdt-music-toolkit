@@ -75,14 +75,13 @@ _save_config() {
 
 # Deteksi environment
 _detect_environment() {
-    # Proot check: Termux proot distro (env vars set by proot)
-    if [ -n "${PROOT_TMP_DIR:-}" ] || [ -n "${PROOT_CWD:-}" ]; then
-        echo "termux"
-        return
-    fi
+    # Termux native: env vars
     if [ -n "${TERMUX_VERSION:-}" ] || { [ -n "${PREFIX:-}" ] && [[ "${PREFIX:-}" == */com.termux/* ]]; }; then
-        echo "termux"
-        return
+        echo "termux"; return
+    fi
+    # Proot / Android kernel: Termux proot distro (Debian/Ubuntu etc)
+    if grep -qi 'android' /proc/version 2>/dev/null || uname -a | grep -qi 'android'; then
+        echo "termux"; return
     fi
     if [ -f /etc/alpine-release ]; then
         echo "alpine"; return
@@ -92,14 +91,6 @@ _detect_environment() {
     fi
     if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
         echo "container"; return
-    fi
-    if grep -qi 'android' /proc/version 2>/dev/null || uname -a | grep -qi 'android'; then
-        if [ -d "/usr/share" ] && [ -d "/usr/bin" ]; then
-            echo "linux"
-        else
-            echo "termux"
-        fi
-        return
     fi
     echo "linux"
 }
