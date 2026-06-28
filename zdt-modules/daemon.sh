@@ -137,6 +137,19 @@ start_web_dashboard() {
         return 1
     fi
 
+    # Pastikan Python modules (zdt_paths.py, zdt_db.py) ada di mod_dir
+    local _mod_dir="$(_get_share_dir)/zdt-modules"
+    for _pm in zdt_paths.py zdt_db.py; do
+        if [ ! -f "$_mod_dir/$_pm" ]; then
+            for _src in "${SCRIPT_DIR:-.}/zdt-modules/$_pm" "${_MODULES_DIR:-.}/$_pm" "$(pwd)/zdt-modules/$_pm"; do
+                if [ -f "$_src" ]; then
+                    cp "$_src" "$_mod_dir/$_pm" 2>/dev/null || true
+                    break
+                fi
+            done
+        fi
+    done
+
     local port="${WEB_PORT:-5000}"
     local host="${WEB_BIND:-127.0.0.1}"
     local open_host="$host"
@@ -334,6 +347,12 @@ update_zdt_script() {
             cp "$mod_dir/${mod}.sh" "$backup_dir/zdt-modules/" 2>/dev/null || true
         fi
     done
+    # Backup Python modules in zdt-modules (zdt_paths.py, zdt_db.py)
+    for pymod in zdt_paths.py zdt_db.py; do
+        if [ -f "$mod_dir/$pymod" ]; then
+            cp "$mod_dir/$pymod" "$backup_dir/zdt-modules/" 2>/dev/null || true
+        fi
+    done
     # Backup Python scripts
     for pyfile in zdt-web.py zdt-watch.py zdt-telegram.py; do
         if [ -f "$share_dir/$pyfile" ]; then
@@ -374,6 +393,19 @@ update_zdt_script() {
         fi
     done
     
+    echo -e "  ${CYAN}${ICO_ARROW} Mengupdate Python modules...${RESET}"
+    for pymod in zdt_paths.py zdt_db.py; do
+        curl -sL "${gh_url}/zdt-modules/${pymod}${cache_bust}" -o "${mod_dir}/${pymod}" 2>/dev/null
+        if [ ! -s "${mod_dir}/${pymod}" ]; then
+            echo -e "  ${RED}   ✗ Gagal download ${pymod}! Mengembalikan dari backup...${RESET}"
+            if [ -f "$backup_dir/zdt-modules/$pymod" ]; then
+                cp "$backup_dir/zdt-modules/$pymod" "${mod_dir}/${pymod}" 2>/dev/null || true
+            fi
+        fi
+        if [ "$dev_mode" = true ]; then
+            cp "${mod_dir}/${pymod}" "$SCRIPT_DIR/zdt-modules/${pymod}" 2>/dev/null || true
+        fi
+    done
     echo -e "  ${CYAN}${ICO_ARROW} Mengupdate Python scripts...${RESET}"
     for pyfile in zdt-web.py zdt-watch.py zdt-telegram.py; do
         curl -sL "${gh_url}/${pyfile}${cache_bust}" -o "${share_dir}/${pyfile}" 2>/dev/null
@@ -403,10 +435,6 @@ update_zdt_script() {
         fi
     done
     curl -sL "${gh_url}/zdt-ai-prompt.txt${cache_bust}" -o "${share_dir}/zdt-ai-prompt.txt" 2>/dev/null
-    curl -sL "${gh_url}/zdt-modules/zdt_db.py${cache_bust}" -o "${mod_dir}/zdt_db.py" 2>/dev/null
-    if [ "$dev_mode" = true ] && [ -d "$SCRIPT_DIR/zdt-modules" ]; then
-        cp "${mod_dir}/zdt_db.py" "$SCRIPT_DIR/zdt-modules/zdt_db.py" 2>/dev/null || true
-    fi
     chmod +x "${share_dir}/install.sh" 2>/dev/null
     
     # Step 6: Write VERSION file everywhere
