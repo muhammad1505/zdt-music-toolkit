@@ -19,7 +19,7 @@ else
         fi
     done
 fi
-readonly APP_VERSION="${_APP_VERSION:-4.4.27}"
+readonly APP_VERSION="${_APP_VERSION:-4.4.28}"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -210,7 +210,7 @@ main() {
                 ""
                 "DIVIDER"
                 " ${RED}SYSTEM${RESET}"
-                "  ${RED}[0]${RESET} Shutdown Terminal"
+                "  ${RED}[R]${RESET} Uninstall ZDT   ${RED}[0]${RESET} Shutdown"
             )
 
             # Dependency status strings (cached, no command -v calls per iteration)
@@ -308,7 +308,7 @@ main() {
                 "   ${YELLOW}[A]${RESET} Zaki AI          ${RED}[X]${RESET} Delete All"
                 "DIVIDER"
                 " ${RED}${BOLD}■ SYSTEM${RESET}"
-                "   ${RED}[0]${RESET} Shutdown Terminal"
+                "   ${RED}[R]${RESET} Uninstall ZDT   ${RED}[0]${RESET} Shutdown"
             )
 
             local top_text=" ZDT v${APP_VERSION} | UPT: $uptime_val | NET: $net_str "
@@ -362,6 +362,7 @@ main() {
             o) bersih_nama ;;
             t) start_telegram_bot ;;
             v) start_web_dashboard ;;
+            r) uninstall_global ;;
             u) update_zdt_script ;;
             a) zaki_assistant ;;
             x) hapus_semua ;;

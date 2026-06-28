@@ -55,6 +55,27 @@ chmod +x zdt.sh
 ./zdt.sh
 ```
 
+## Uninstall 🗑️
+
+Hapus ZDT dari sistem dengan salah satu metode berikut:
+
+### Via Menu (Mudah)
+Jalankan ZDT dan pilih menu `[R] Uninstall ZDT`.
+
+### Via CLI
+```bash
+zdt --uninstall
+# atau
+make uninstall   # jika diinstall via Makefile
+```
+
+**Yang akan dihapus:**
+- Binary ZDT (`~/.local/bin/zdt` atau `/usr/local/bin/zdt`)
+- Modul, Python scripts, templates (`~/.local/share/zdt/`)
+- Virtual environment (`venv` dan `demucs_venv`)
+- Desktop entry
+- **Konfigurasi dan database (`~/.config/zdt/`)** — ditanya konfirmasi terpisah
+
 ## Mulai Menggunakan (Getting Started) 💡
 
 Setelah terinstal secara global, Anda cukup memanggil aplikasinya dari manapun dengan perintah:
@@ -65,6 +86,7 @@ zdt
 ### CLI Arguments (Pintasan Eksekusi Cepat)
 Anda juga bisa menggunakan argumen saat memanggil aplikasi lewat terminal:
 - `zdt update` *(atau `zdt --update`)* : Mengunduh dan memasang versi terbaru ZDT secara instan dari GitHub (Over-The-Air Update) tanpa perlu membuka menu aplikasi.
+- `zdt --uninstall` : Hapus ZDT dari sistem.
 - `zdt --web` : Menjalankan Web Dashboard di `http://localhost:5000` dengan auto-open browser.
 - `zdt --web-bind 0.0.0.0` : Menjalankan Web Dashboard terbuka untuk semua network interface.
 - `zdt --help` : Menampilkan daftar lengkap *command-line arguments* yang tersedia.

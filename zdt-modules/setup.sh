@@ -255,6 +255,7 @@ DAFTAR MENU:
   T. Telegram Bot             - Kontrol ZDT dari HP via Telegram
   V. Web Dashboard            - Akses ZDT dari browser
   U. Update Tools (VENV)      - Update tools Python
+  R. Uninstall ZDT            - Hapus ZDT dari sistem
   A. Zaki AI Assistant        - Chat dengan AI untuk kontrol ZDT
   X. Hapus Semua File         - Bersihkan semua file media
 
@@ -267,6 +268,8 @@ ARGUMEN CLI:
   zdt --web                   - Jalankan Web Dashboard
   zdt --web-bind 0.0.0.0     - Web Dashboard untuk semua interface
   zdt --telegram              - Jalankan Telegram Bot Daemon
+  zdt --install               - Instal ZDT secara global
+  zdt --uninstall             - Hapus ZDT dari sistem
   zdt --update                - Update ZDT via OTA
   zdt --download-audio <url>  - Download audio langsung
   zdt --download-video <url>  - Download video langsung
@@ -443,6 +446,92 @@ DESKEOF
 }
 
 # ==========================================
+# FUNGSI: UNINSTALL GLOBAL
+# ==========================================
+uninstall_global() {
+    print_header "UNINSTALL ZDT"
+    
+    echo -e "  ${YELLOW}${ICO_WARN} Ini akan menghapus ZDT dari sistem!${RESET}"
+    echo ""
+    echo -e "  ${CYAN}File yang akan dihapus:${RESET}"
+    echo -e "  ${GRAY}  • Binary script${RESET}"
+    echo -e "  ${GRAY}  • Share directory (modules, Python scripts, templates)${RESET}"
+    echo -e "  ${GRAY}  • Konfigurasi dan database${RESET}"
+    echo -e "  ${GRAY}  • Virtual environment (VENV)${RESET}"
+    echo -e "  ${GRAY}  • Desktop entry${RESET}"
+    echo ""
+    echo -e "  ${RED}${ICO_FAIL} Semua file akan dihapus permanen!${RESET}"
+    echo ""
+    echo -ne "  ${YELLOW}Lanjutkan uninstall? (y/n): ${RESET}"
+    read -r confirm
+    if [ "${confirm,,}" != "y" ]; then
+        echo -e "  ${GREEN}${ICO_OK} Uninstall dibatalkan.${RESET}"
+        return 0
+    fi
+    
+    echo ""
+    echo -e "  ${CYAN}${ICO_ARROW} Menghapus ZDT...${RESET}"
+    
+    # Deteksi lokasi instalasi
+    local target_bin=""
+    local target_share=""
+    if [ -n "${TERMUX_VERSION:-}" ]; then
+        target_bin="/data/data/com.termux/files/usr/bin/zdt"
+        target_share="/data/data/com.termux/files/usr/share/zdt"
+    elif [ "$(id -u)" -eq 0 ]; then
+        target_bin="/usr/local/bin/zdt"
+        target_share="/usr/local/share/zdt"
+    else
+        target_bin="$HOME/.local/bin/zdt"
+        target_share="$(_get_share_dir)"
+    fi
+    
+    # Hapus binary
+    if [ -f "$target_bin" ]; then
+        rm -f "$target_bin" 2>/dev/null && echo -e "  ${GREEN}   ✓ Binary dihapus: $target_bin${RESET}" || echo -e "  ${YELLOW}   ⚠ Gagal hapus binary${RESET}"
+    else
+        echo -e "  ${GRAY}   - Binary tidak ditemukan: $target_bin${RESET}"
+    fi
+    
+    # Hapus share directory
+    if [ -d "$target_share" ]; then
+        rm -rf "$target_share" 2>/dev/null && echo -e "  ${GREEN}   ✓ Share directory dihapus: $target_share${RESET}" || echo -e "  ${YELLOW}   ⚠ Gagal hapus share directory${RESET}"
+    else
+        echo -e "  ${GRAY}   - Share directory tidak ditemukan: $target_share${RESET}"
+    fi
+    
+    # Hapus config
+    local config_dir="$HOME/.config/zdt"
+    if [ -d "$config_dir" ]; then
+        echo -ne "  ${YELLOW}Hapus konfigurasi dan database ($config_dir)? (y/n): ${RESET}"
+        read -r del_conf
+        if [ "${del_conf,,}" = "y" ]; then
+            rm -rf "$config_dir" 2>/dev/null && echo -e "  ${GREEN}   ✓ Konfigurasi dihapus: $config_dir${RESET}" || echo -e "  ${YELLOW}   ⚠ Gagal hapus konfigurasi${RESET}"
+        else
+            echo -e "  ${GRAY}   - Konfigurasi dilewati${RESET}"
+        fi
+    fi
+    
+    # Hapus desktop entry
+    local desktop_entry="$HOME/.local/share/applications/zdt.desktop"
+    if [ -f "$desktop_entry" ]; then
+        rm -f "$desktop_entry" 2>/dev/null && echo -e "  ${GREEN}   ✓ Desktop entry dihapus${RESET}" || true
+    fi
+    
+    # Hapus symlink dari PATH alternatif
+    for alt_path in /usr/local/bin/zdt /data/data/com.termux/files/usr/bin/zdt; do
+        if [ "$alt_path" != "$target_bin" ] && [ -f "$alt_path" ]; then
+            rm -f "$alt_path" 2>/dev/null && echo -e "  ${GREEN}   ✓ Symlink dihapus: $alt_path${RESET}" || true
+        fi
+    done
+    
+    echo ""
+    echo -e "  ${GREEN}${ICO_OK} Uninstall selesai!${RESET}"
+    echo -e "  ${CYAN}Terima kasih telah menggunakan ZDT 🚀${RESET}"
+    _log "INFO" "ZDT has been uninstalled"
+}
+
+# ==========================================
 # PARSE CLI ARGUMENTS
 # ==========================================
 _parse_args() {
@@ -545,6 +634,10 @@ _parse_args() {
                 ;;
             --install|install)
                 install_global
+                exit $?
+                ;;
+            --uninstall|uninstall)
+                uninstall_global
                 exit $?
                 ;;
             --update|update)
