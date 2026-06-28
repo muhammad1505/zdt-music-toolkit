@@ -324,6 +324,15 @@ update_zdt_script() {
     fi
     echo -e "  ${GREEN}   ✓ Backup tersimpan di $backup_dir${RESET}"
     
+    # Hapus backup lama — keep only last 3
+    local old_backups
+    old_backups=$(ls -dt "$share_dir"/backup-* 2>/dev/null | tail -n +4)
+    if [ -n "$old_backups" ]; then
+        while IFS= read -r old_dir; do
+            [ -d "$old_dir" ] && rm -rf "$old_dir" && echo -e "  ${GRAY}   └ Hapus backup lama: $(basename "$old_dir")${RESET}"
+        done <<< "$old_backups"
+    fi
+    
     # Step 5: Clean up stale module from previous buggy OTA
     mkdir -p "$mod_dir"
     rm -f "$mod_dir/download.sh" 2>/dev/null || true
