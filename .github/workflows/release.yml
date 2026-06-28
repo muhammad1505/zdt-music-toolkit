@@ -2,8 +2,8 @@ name: Auto Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -16,7 +16,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get version
+        id: version
+        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+
       - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --generate-notes \
+              --title "Release $TAG"
+            echo "✅ Release $TAG created"
+          else
+            echo "ℹ️ Release $TAG already exists — skipping"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
