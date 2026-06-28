@@ -66,9 +66,11 @@ if command -v zdt >/dev/null 2>&1; then
     cp VERSION "$_share/VERSION" 2>/dev/null || true
 fi
 
-# Push ke GitHub
+# Commit + Tag + Push ke GitHub
 git add VERSION zdt.sh README.md
 git commit -m "Release: Version $NEW_VERSION"
+git tag "v$NEW_VERSION"
 git push
+git push --tags
 
 echo "✅ Berhasil merilis v$NEW_VERSION ke GitHub!"
