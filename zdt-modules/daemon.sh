@@ -136,23 +136,23 @@ start_web_dashboard() {
     [ "$open_host" = "0.0.0.0" ] && open_host="127.0.0.1"
     local url="http://$open_host:$port"
 
-    # Cek apakah port sudah dipakai
+    # Cek apakah port sudah dipakai — matikan dulu baru start ulang
+    local old_pid=""
     if command -v ss >/dev/null 2>&1; then
-        if ss -tlnp "sport = :$port" 2>/dev/null | grep -q "$port"; then
-            echo -e "  ${GREEN}${ICO_OK} Web Dashboard sudah berjalan di ${CYAN}${url}${RESET}"
-            echo -e "  ${YELLOW}${ICO_WARN} Info Auth:${RESET} cek di terminal pertama kali dijalankan"
-            echo ""
-            ( sleep 0.5; command -v xdg-open >/dev/null && xdg-open "$url" >/dev/null 2>&1 ) &
-            return 0
-        fi
+        old_pid=$(ss -tlnp "sport = :$port" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | head -1)
     elif command -v lsof >/dev/null 2>&1; then
-        if lsof -i :"$port" 2>/dev/null | grep -q LISTEN; then
-            echo -e "  ${GREEN}${ICO_OK} Web Dashboard sudah berjalan di ${CYAN}${url}${RESET}"
-            echo -e "  ${YELLOW}${ICO_WARN} Info Auth:${RESET} cek di terminal pertama kali dijalankan"
-            echo ""
-            ( sleep 0.5; command -v xdg-open >/dev/null && xdg-open "$url" >/dev/null 2>&1 ) &
-            return 0
+        old_pid=$(lsof -t -i :"$port" 2>/dev/null | head -1)
+    fi
+    if [ -n "$old_pid" ]; then
+        echo -e "  ${YELLOW}${ICO_ARROW} Web Dashboard sudah jalan (PID $old_pid), matikan dulu...${RESET}"
+        kill "$old_pid" 2>/dev/null
+        sleep 1
+        # Pastikan beneran mati
+        if kill -0 "$old_pid" 2>/dev/null; then
+            kill -9 "$old_pid" 2>/dev/null
+            sleep 0.5
         fi
+        echo -e "  ${GREEN}${ICO_OK} Proses lama dimatikan.${RESET}"
     fi
 
     echo -e "  ${YELLOW}${ICO_ARROW} Menyalakan Web Dashboard...${RESET}"
