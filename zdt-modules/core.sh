@@ -557,8 +557,7 @@ _ZDT_CACHED_TOOLS_STR=""
 
 # Initialize cache: run once at session start
 _init_ui_cache() {
-    local now
-    now=$(date +%s 2>/dev/null || echo 0)
+    local now=${EPOCHSECONDS:-$(date +%s 2>/dev/null || echo 0)}
 
     # Refresh all caches
     _ZDT_CACHE_TIME_STATS=$now
@@ -601,19 +600,20 @@ _init_ui_cache() {
 }
 
 # Refresh fast-changing stats (RAM, uptime, storage, CPU)
-# CPU and load use TTL (2s) since they need awk computation
+# All metrics use TTL to avoid forking on every menu loop
 _refresh_stats_cache() {
-    local now
-    now=$(date +%s 2>/dev/null || echo 0)
+    local now=${EPOCHSECONDS:-$(date +%s 2>/dev/null || echo 0)}
     local elapsed=$(( now - _ZDT_CACHE_TIME_STATS ))
 
-    # Fast /proc reads — always refresh
-    _ZDT_CACHED_RAM=$(_get_ram_percent)
-    _ZDT_CACHED_UPTIME=$(_get_uptime)
-    _ZDT_CACHED_STORAGE=$(_get_storage_percent)
+    # RAM, uptime, storage — refresh max every 5 seconds (save fork)
+    if [ "$elapsed" -ge 5 ] || [ "$_ZDT_CACHE_TIME_STATS" -eq 0 ]; then
+        _ZDT_CACHED_RAM=$(_get_ram_percent)
+        _ZDT_CACHED_UPTIME=$(_get_uptime)
+        _ZDT_CACHED_STORAGE=$(_get_storage_percent)
+    fi
 
-    # CPU & load — refresh max every 2 seconds (save awk/grep)
-    if [ "$elapsed" -ge 2 ] || [ "$_ZDT_CACHE_TIME_STATS" -eq 0 ]; then
+    # CPU & load — refresh max every 3 seconds
+    if [ "$elapsed" -ge 3 ] || [ "$_ZDT_CACHE_TIME_STATS" -eq 0 ]; then
         _ZDT_CACHED_LOAD=$(cat /proc/loadavg 2>/dev/null | awk '{print $1" "$2" "$3}' || echo "N/A")
         _ZDT_CACHED_CPU=$(grep 'cpu ' /proc/stat 2>/dev/null | awk '{print ($2+$4)*100/($2+$4+$5)}' | cut -d. -f1 || echo "?")
         _ZDT_CACHE_TIME_STATS=$now

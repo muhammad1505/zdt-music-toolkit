@@ -19,7 +19,7 @@ else
         fi
     done
 fi
-readonly APP_VERSION="${_APP_VERSION:-4.4.28}"
+readonly APP_VERSION="${_APP_VERSION:-4.4.29}"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -261,78 +261,96 @@ main() {
 
             echo -e "  ${CYAN}╰$(_repeat_char '─' $left_width)┴$(_repeat_char '─' $right_width)╯${RESET}"
         else
-            # MOBILE VIEW (1-Column Stacked Layout)
+            # MOBILE VIEW — 3 responsive tiers
             local inner_cols=$(( cols - 4 ))
             [ "$inner_cols" -lt 30 ] && inner_cols=30
-            
-            local lw=34
-            local dep_ok="${GREEN}OK${RESET}" dep_miss="${RED}X${RESET}"
-            local d1=" ${MAGENTA}${BOLD}■ DEPENDENCIES${RESET}"
-            local d2="   ${GRAY}FFmpeg :${RESET} $([ "$_ZDT_CACHED_FFMPEG" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
-            local d3="   ${GRAY}Python3:${RESET} $([ "$_ZDT_CACHED_PYTHON3" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
-            local d4="   ${GRAY}YT-DLP :${RESET} $([ "$_ZDT_CACHED_YTDLP" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
-            local d5="   ${GRAY}SpotDL :${RESET} $([ "$_ZDT_CACHED_SPOTDL" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
-            local d6="   ${GRAY}Demucs :${RESET} $([ "$_ZDT_CACHED_DEMUCS" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
-            local d7="   ${GRAY}Mutagen:${RESET} $([ "$_ZDT_CACHED_MUTAGEN" = "1" ] && echo "$dep_ok" || echo "$dep_miss")"
 
-            local q1=" ${CYAN}${BOLD}■ QUICK INFO${RESET}"
-            local q2="   ${GRAY}Dir :${RESET} $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:15}${RESET}" || echo "${GRAY}(Def)${RESET}")"
-            local q3="   ${GRAY}RAM :${RESET} ${YELLOW}${ram_pct}% USED${RESET}"
-            local q4="   ${GRAY}Disk:${RESET} ${YELLOW}${storage_pct}% FULL${RESET}"
-            local q5="   ${GRAY}OS  :${RESET} ${os_name:0:15}"
-            local q6="   ${GRAY}UI  :${RESET} Mobile"
-            local q7="   ${GRAY}Net :${RESET} ${net_col}${net_str}${RESET}"
+            local net_icon="${net_col}${ICO_WIFI:-NET}${RESET} ${net_str}"
 
-            local mobile_lines=(
-                "DIVIDER_2COL_TOP"
-                "$(_pad_str "$q1" $lw)${CYAN}│${RESET}$d1"
-                "$(_pad_str "$q2" $lw)${CYAN}│${RESET}$d2"
-                "$(_pad_str "$q3" $lw)${CYAN}│${RESET}$d3"
-                "$(_pad_str "$q4" $lw)${CYAN}│${RESET}$d4"
-                "$(_pad_str "$q5" $lw)${CYAN}│${RESET}$d5"
-                "$(_pad_str "$q6" $lw)${CYAN}│${RESET}$d6"
-                "$(_pad_str "$q7" $lw)${CYAN}│${RESET}$d7"
-                "DIVIDER_2COL_BOT"
-                " ${MAGENTA}${BOLD}■ MAIN MENU${RESET}"
-                "   ${GREEN}[1]${RESET} Setup Tools      ${GREEN}[6]${RESET} Vocal Remover"
-                "   ${GREEN}[2]${RESET} Spotify DL       ${GREEN}[7]${RESET} Sync Lyrics"
-                "   ${GREEN}[3]${RESET} YT Audio         ${GREEN}[8]${RESET} Playlist Sync"
-                "   ${GREEN}[4]${RESET} Video DL         ${GREEN}[9]${RESET} System Info"
-                "   ${GREEN}[5]${RESET} Compress"
-                "DIVIDER"
-                " ${MAGENTA}${BOLD}■ UTILITIES${RESET}"
-                "   ${YELLOW}[S]${RESET} Storage          ${YELLOW}[O]${RESET} Clean"
-                "   ${YELLOW}[W]${RESET} Watch            ${YELLOW}[T]${RESET} Telegram"
-                "   ${YELLOW}[P]${RESET} Playlist         ${YELLOW}[V]${RESET} Web UI"
-                "   ${YELLOW}[M]${RESET} Metadata         ${YELLOW}[U]${RESET} Update"
-                "   ${YELLOW}[A]${RESET} Zaki AI          ${RED}[X]${RESET} Delete All"
-                "DIVIDER"
-                " ${RED}${BOLD}■ SYSTEM${RESET}"
-                "   ${RED}[R]${RESET} Uninstall ZDT   ${RED}[0]${RESET} Shutdown"
-            )
+            if [ "$inner_cols" -lt 42 ]; then
+                # TIER 1: Ultra-narrow (< 42 cols) — minimal, one-liner header
+                local header=" ZDT v${APP_VERSION} ${net_icon} "
+                local header_pad=$(_pad_str "$header" $inner_cols)
+                echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
+                echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${header_pad}${RESET}${CYAN}│${RESET}"
+                echo -e "  ${CYAN}╰$(_repeat_char '─' $inner_cols)╯${RESET}"
 
-            local top_text=" ZDT v${APP_VERSION} | UPT: $uptime_val | NET: $net_str "
-            if [ "$inner_cols" -lt 45 ]; then
-                top_text=" ZDT v${APP_VERSION} | NET: $net_str "
+                local menu_items=(
+                    " ${GREEN}[1]${RESET} Setup    ${GREEN}[6]${RESET} Vocal"
+                    " ${GREEN}[2]${RESET} Spotify  ${GREEN}[7]${RESET} Lyrics"
+                    " ${GREEN}[3]${RESET} YT Aud   ${GREEN}[8]${RESET} PlSync"
+                    " ${GREEN}[4]${RESET} Video    ${GREEN}[9]${RESET} Info"
+                    " ${GREEN}[5]${RESET} Compress"
+                    "DIVIDER"
+                    " ${YELLOW}[S]${RESET} Storage  ${YELLOW}[W]${RESET} Watch"
+                    " ${YELLOW}[P]${RESET} Playlist ${YELLOW}[M]${RESET} Meta"
+                    " ${YELLOW}[O]${RESET} Clean    ${YELLOW}[T]${RESET} Telegram"
+                    " ${YELLOW}[V]${RESET} Web UI   ${YELLOW}[U]${RESET} Update"
+                    " ${YELLOW}[A]${RESET} Zaki AI  ${RED}[X]${RESET} Delete"
+                    "DIVIDER"
+                    " ${RED}[R]${RESET} Uninstall ${RED}[0]${RESET} Exit"
+                )
+            elif [ "$inner_cols" -lt 55 ]; then
+                # TIER 2: Narrow (42-54 cols) — compact with system stats
+                local header=" ZDT v${APP_VERSION} | RAM ${ram_pct}% | ${net_icon} "
+                local header_pad=$(_pad_str "$header" $inner_cols)
+                echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
+                echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${header_pad}${RESET}${CYAN}│${RESET}"
+                echo -e "  ${CYAN}├$(_repeat_char '─' $inner_cols)┤${RESET}"
+
+                local menu_items=(
+                    " ${MAGENTA}MAIN${RESET}"
+                    "  ${GREEN}[1]${RESET} Setup Tools    ${GREEN}[6]${RESET} Vocal"
+                    "  ${GREEN}[2]${RESET} Spotify DL     ${GREEN}[7]${RESET} Lyrics"
+                    "  ${GREEN}[3]${RESET} YT Audio       ${GREEN}[8]${RESET} PlSync"
+                    "  ${GREEN}[4]${RESET} Video DL       ${GREEN}[9]${RESET} System"
+                    "  ${GREEN}[5]${RESET} Compress"
+                    "DIVIDER"
+                    " ${MAGENTA}TOOLS${RESET}"
+                    "  ${YELLOW}[S]${RESET} Storage    ${YELLOW}[W]${RESET} Watch"
+                    "  ${YELLOW}[P]${RESET} Playlist   ${YELLOW}[M]${RESET} Meta"
+                    "  ${YELLOW}[O]${RESET} Clean      ${YELLOW}[T]${RESET} Telegram"
+                    "  ${YELLOW}[V]${RESET} Web UI     ${YELLOW}[U]${RESET} Update"
+                    "  ${YELLOW}[A]${RESET} Zaki AI    ${RED}[X]${RESET} Delete"
+                    "DIVIDER"
+                    " ${RED}SYSTEM${RESET}"
+                    "  ${RED}[R]${RESET} Uninstall   ${RED}[0]${RESET} Shutdown"
+                )
+            else
+                # TIER 3: Medium (55-74 cols) — full layout
+                local header=" ZDT v${APP_VERSION} | RAM ${ram_pct}% | DSK ${storage_pct}% | UPT ${uptime_val} | ${net_icon} "
+                local header_pad=$(_pad_str "$header" $inner_cols)
+                echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
+                echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${header_pad}${RESET}${CYAN}│${RESET}"
+                echo -e "  ${CYAN}├$(_repeat_char '─' $inner_cols)┤${RESET}"
+
+                local menu_items=(
+                    " ${MAGENTA}■ MAIN${RESET}"
+                    "  ${GREEN}[1]${RESET} Setup Tools      ${GREEN}[6]${RESET} Vocal Remover"
+                    "  ${GREEN}[2]${RESET} Spotify DL       ${GREEN}[7]${RESET} Sync Lyrics"
+                    "  ${GREEN}[3]${RESET} YT Audio         ${GREEN}[8]${RESET} Playlist Sync"
+                    "  ${GREEN}[4]${RESET} Video DL         ${GREEN}[9]${RESET} System Info"
+                    "  ${GREEN}[5]${RESET} Compress"
+                    "DIVIDER"
+                    " ${MAGENTA}■ UTILITIES${RESET}"
+                    "  ${YELLOW}[S]${RESET} Storage          ${YELLOW}[W]${RESET} Watch Daemon"
+                    "  ${YELLOW}[P]${RESET} Playlist         ${YELLOW}[M]${RESET} Metadata"
+                    "  ${YELLOW}[O]${RESET} Clean Files      ${YELLOW}[T]${RESET} Telegram Bot"
+                    "  ${YELLOW}[V]${RESET} Web Dashboard    ${YELLOW}[U]${RESET} Update ZDT"
+                    "  ${YELLOW}[A]${RESET} Zaki AI          ${RED}[X]${RESET} Delete All"
+                    "DIVIDER"
+                    " ${RED}■ SYSTEM${RESET}"
+                    "  ${RED}[R]${RESET} Uninstall ZDT   ${RED}[0]${RESET} Shutdown"
+                )
             fi
-            local top_pad=$(_pad_str "$top_text" $inner_cols)
 
-            echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
-            echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${top_pad}${RESET}${CYAN}│${RESET}"
-
-            for ((i=0; i<${#mobile_lines[@]}; i++)); do
-                local l_text="${mobile_lines[i]}"
-                if [ "$l_text" = "DIVIDER_2COL_TOP" ]; then
-                    local rw=$(( inner_cols - lw - 1 ))
-                    echo -e "  ${CYAN}├$(_repeat_char '─' $lw)┬$(_repeat_char '─' $rw)┤${RESET}"
-                elif [ "$l_text" = "DIVIDER_2COL_BOT" ]; then
-                    local rw=$(( inner_cols - lw - 1 ))
-                    echo -e "  ${CYAN}├$(_repeat_char '─' $lw)┴$(_repeat_char '─' $rw)┤${RESET}"
-                elif [ "$l_text" = "DIVIDER" ]; then
+            # Print the menu box
+            for item in "${menu_items[@]}"; do
+                if [ "$item" = "DIVIDER" ]; then
                     echo -e "  ${CYAN}├$(_repeat_char '─' $inner_cols)┤${RESET}"
                 else
-                    local l_pad=$(_pad_str "$l_text" $inner_cols)
-                    echo -e "  ${CYAN}│${RESET}${l_pad}${CYAN}│${RESET}"
+                    local item_pad=$(_pad_str "$item" $inner_cols)
+                    echo -e "  ${CYAN}│${RESET}${item_pad}${CYAN}│${RESET}"
                 fi
             done
 
