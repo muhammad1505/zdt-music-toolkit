@@ -324,7 +324,7 @@ setup_storage_dir() {
         2)
             echo -e -n "  ${BOLD}[?] Masukkan path lengkap: ${RESET}"
             local custom_path
-            read -r -e custom_path
+            read -r custom_path
             custom_path="${custom_path//\'/}"
             custom_path="${custom_path//\"/}"
             custom_path="${custom_path#"${custom_path%%[![:space:]]*}"}"
