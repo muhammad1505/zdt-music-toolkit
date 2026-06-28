@@ -460,7 +460,7 @@ update_zdt_script() {
     echo -e "  ${GREEN}   ✓ Utility files (installer, readme)${RESET}"
     echo -e "  ${YELLOW}   Silakan jalankan ulang ZDT.${RESET}"
     _log "INFO" "OTA Update completed to version $new_version (full update)"
-    exit 0
+    return 0
         else
             echo -e "  ${RED}${ICO_FAIL} File download tidak valid!${RESET}"
             rm -f "$tmp_file"
