@@ -571,7 +571,7 @@ _init_ui_cache() {
     _ZDT_CACHED_KERNEL=$(uname -r 2>/dev/null | cut -d'-' -f1,2 || echo "N/A")
     _ZDT_CACHED_ARCH=$(uname -m 2>/dev/null || echo "N/A")
     _ZDT_CACHED_USER=$(whoami 2>/dev/null || echo "user")
-    _ZDT_CACHED_PKGS=$(dpkg-query -f '.\n' -W 2>/dev/null | wc -l || echo 0)
+    _ZDT_CACHED_PKGS=$(grep -c '^Package:' /var/lib/dpkg/status 2>/dev/null || dpkg-query -f '.\n' -W 2>/dev/null | wc -l || echo 0)
     _ZDT_CACHED_LOAD=$(cat /proc/loadavg 2>/dev/null | awk '{print $1" "$2" "$3}' || echo "N/A")
     if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
         _ZDT_CACHED_TEMP="$(($(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null) / 1000))°C"
@@ -586,13 +586,8 @@ _init_ui_cache() {
     _ZDT_CACHED_YTDLP=$(command -v yt-dlp >/dev/null 2>&1 && echo "1" || echo "0")
     _ZDT_CACHED_SPOTDL=$(command -v spotdl >/dev/null 2>&1 && echo "1" || echo "0")
     _ZDT_CACHED_DEMUCS=$([ -f "${ZDT_DEMUCS_BIN:-$HOME/.local/share/zdt/demucs_venv/bin/demucs}" ] && echo "1" || echo "0")
-    # Mutagen check: cache result (heavy Python import)
-    local _mutagen_python="${ZDT_VENV_DIR:-$HOME/.local/share/zdt/venv}/bin/python"
-    if [ -f "$_mutagen_python" ]; then
-        "$_mutagen_python" -c "import mutagen" >/dev/null 2>&1 && _ZDT_CACHED_MUTAGEN="1" || _ZDT_CACHED_MUTAGEN="0"
-    else
-        _ZDT_CACHED_MUTAGEN="0"
-    fi
+    # Mutagen: lazy check (tidak fork Python di startup, cuma di system_info)
+    _ZDT_CACHED_MUTAGEN="0"
 
     # Build tools status string (for desktop & mobile views)
     _ZDT_CACHED_TOOLS_STR=""

@@ -19,7 +19,7 @@ else
         fi
     done
 fi
-readonly APP_VERSION="${_APP_VERSION:-4.4.26}"
+readonly APP_VERSION="${_APP_VERSION:-4.4.27}"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -121,25 +121,26 @@ main() {
     fi
     # Use mktemp with validation; fallback creates a proper file, not a string
     NET_TMP=$(mktemp "${TMPDIR:-/tmp}/zdt_net_XXXXXX" 2>/dev/null || { touch "/tmp/.zdt_net_$$" 2>/dev/null && echo "/tmp/.zdt_net_$$"; } || echo "")
-    if [ -n "$NET_TMP" ] && [ -f "$NET_TMP" ]; then
-        # Network monitor: check every 30s (reduced from 3s to save resources on mobile/SSH)
+    NET_PID=""
+    if [ -n "$NET_TMP" ] && [ -f "$NET_TMP" ] && [ -z "${TERMUX_VERSION:-}" ]; then
+        # Network monitor: check every 30s (skip on Termux — no raw socket ping)
         ( while true; do
             if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then echo "1" > "$NET_TMP"; else echo "0" > "$NET_TMP"; fi
             sleep 30
         done 2>/dev/null ) &
         NET_PID=$!
         disown "$NET_PID" 2>/dev/null
-    else
-        NET_PID=""
-        NET_TMP=""
+    fi
+    # On Termux/proot: one-time fast check via /proc/net/route
+    if [ -n "${TERMUX_VERSION:-}" ] && [ -f /proc/net/route ]; then
+        grep -q '^\w\+' /proc/net/route 2>/dev/null && echo "1" > "$NET_TMP" || echo "0" > "$NET_TMP"
     fi
     _log "INFO" "ZDT started in $(pwd)"
     
     # Initialize UI cache (cache tool status, OS info, system stats)
     _init_ui_cache
     
-    # Auto-Launch Zaki AI on Startup
-    zaki_assistant
+    # Zaki AI diakses via tombol [A] di menu (tidak auto-launch biar loading cepet)
     
     while true; do
         # Use cached values (updated once at init) instead of recomputing every iteration
