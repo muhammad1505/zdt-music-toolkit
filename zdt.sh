@@ -19,7 +19,7 @@ else
         fi
     done
 fi
-readonly APP_VERSION="${_APP_VERSION:-4.4.43}"
+readonly APP_VERSION="${_APP_VERSION:-4.4.44}"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"

@@ -1358,6 +1358,11 @@
                 </div>
             </div>
 
+            <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn btn-outline btn-sm" onclick="loadDbStats()" style="padding:5px 12px; font-size:11px;"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                <button class="btn btn-outline btn-sm" onclick="resetStats()" style="padding:5px 12px; font-size:11px; border-color:rgba(220,38,38,0.4); color:#e74c3c;"><i class="fa-solid fa-trash-can"></i> Reset Statistik</button>
+            </div>
+
             <div class="chart-grid">
                 <div class="chart-card">
                     <canvas id="statsChart"></canvas>
@@ -1397,60 +1402,19 @@
                 <i class="fa-solid fa-cloud-arrow-down"></i>
                 <h3>Universal Downloader</h3>
             </div>
-            <form id="formDownloader">
-                <div class="form-group">
-                    <label>Media URL (YouTube / SoundCloud / TikTok)</label>
-                    <input type="text" id="dlUrl" placeholder="https://..." required>
-                </div>
-                <div style="display:flex; gap:15px; flex-wrap:wrap;">
-                    <div class="form-group" style="flex:1; min-width:120px;">
-                        <label>Type</label>
-                        <select id="dlFormat" onchange="updateFormatOptions()">
+                <form id="formDownloader">
+                    <div class="form-group">
+                        <label>Media URL (YouTube / SoundCloud / TikTok / Spotify)</label>
+                        <input type="text" id="dlUrl" placeholder="https://..." required>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <select id="dlFormat" style="width:90px;">
                             <option value="audio">🎵 Audio</option>
                             <option value="video">🎬 Video</option>
                         </select>
+                        <button type="submit" id="btnDl" class="btn" style="flex:1; min-width:120px;"><i class="fa-solid fa-download"></i> Execute</button>
                     </div>
-                    <div class="form-group" style="flex:1;" id="divAudioSpec">
-                        <label>Format</label>
-                        <select id="dlAudioSpec">
-                            <option value="1">M4A</option>
-                            <option value="2">MP3</option>
-                            <option value="3">FLAC</option>
-                            <option value="4">WAV</option>
-                            <option value="5">OPUS</option>
-                            <option value="6">OGG</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex:1; min-width:120px;" id="divAudioBitrate">
-                        <label>Bitrate</label>
-                        <select id="dlBitrate">
-                            <option value="320">320 kbps</option>
-                            <option value="256">256 kbps</option>
-                            <option value="192">192 kbps</option>
-                            <option value="128">128 kbps</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex:1; display:none;" id="divVideoQuality">
-                        <label>Quality</label>
-                        <select id="dlVideoQuality">
-                            <option value="1">Best (up to 4K)</option>
-                            <option value="2">1080p</option>
-                            <option value="3">720p</option>
-                            <option value="4">480p</option>
-                            <option value="5">360p</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex:1; display:none;" id="divVideoFormat">
-                        <label>Container</label>
-                        <select id="dlVideoFormat">
-                            <option value="1">MP4</option>
-                            <option value="2">MKV</option>
-                            <option value="3">WebM</option>
-                        </select>
-                    </div>
-                </div>
-                <button type="submit" id="btnDl" class="btn"><i class="fa-solid fa-download"></i> Execute Download</button>
-            </form>
+                </form>
             <div id="dlStatus" class="status-box"></div>
         </div>
 
@@ -1491,10 +1455,10 @@
                     </div>
                     <div id="playlistItems" class="playlist-items" style="max-height:400px; overflow-y:auto; border:1px solid #333; border-radius:8px;"></div>
                 </div>
-                <div class="modal-footer" style="padding:12px 16px; border-top:1px solid #333; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
-                    <button class="btn" onclick="closePlaylistModal()">Batal</button>
-                    <button class="btn btn-spotify" onclick="downloadFullPlaylist()"><i class="fa-solid fa-download"></i> Download Full Playlist</button>
-                    <button id="btnDownloadSelected" class="btn btn-primary" onclick="downloadSelectedItems()"><i class="fa-solid fa-download"></i> Download Selected</button>
+                <div class="modal-footer" style="padding:10px 14px; border-top:1px solid #333; display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap;">
+                    <button class="btn btn-sm" onclick="closePlaylistModal()" style="padding:6px 12px; font-size:12px;">Batal</button>
+                    <button class="btn btn-sm btn-spotify" onclick="downloadFullPlaylist()" style="padding:6px 12px; font-size:12px;"><i class="fa-solid fa-download"></i> Download Playlist</button>
+                    <button id="btnDownloadSelected" class="btn btn-sm btn-primary" onclick="downloadSelectedItems()" style="padding:6px 12px; font-size:12px;"><i class="fa-solid fa-check"></i> Download Selected</button>
                 </div>
             </div>
         </div>
@@ -1828,13 +1792,6 @@
     </div>
 
     <script>
-        function updateFormatOptions() {
-            const type = document.getElementById("dlFormat").value;
-            document.getElementById('divAudioSpec').style.display = type === 'audio' ? 'block' : 'none';
-            document.getElementById('divAudioBitrate').style.display = type === 'audio' ? 'block' : 'none';
-            document.getElementById('divVideoQuality').style.display = type === 'video' ? 'block' : 'none';
-            document.getElementById('divVideoFormat').style.display = type === 'video' ? 'block' : 'none';
-        }
         window.addEventListener("DOMContentLoaded", () => {
             if(document.getElementById("dlFormat")) updateFormatOptions();
         });
@@ -2001,6 +1958,16 @@
                     });
                 }
             } catch(e) { console.error(e); }
+        }
+
+        async function resetStats() {
+            if (!confirm('⚠️ Reset semua data statistik?\n\nData tidak bisa dikembalikan!')) return;
+            try {
+                const res = await csrfFetch('/api/stats/reset', {method: 'POST'});
+                const data = await res.json();
+                showToast(data.message || 'Statistik direset!', data.success ? 'success' : 'error');
+                if(data.success) loadDbStats();
+            } catch(err) { showToast('Connection Error!', 'error'); }
         }
 
         async function loadStatus() {
@@ -2456,16 +2423,10 @@
             }
         }, true); // capture phase — runs before handleFormSubmit
 
-        handleFormSubmit('formDownloader', 'btnDl', 'dlStatus', '/api/download', () => {
-            const fmt = document.getElementById('dlFormat').value;
-            return {
-                url: document.getElementById('dlUrl').value,
-                format: fmt,
-                spec: fmt === 'audio' ? document.getElementById('dlAudioSpec').value : document.getElementById('dlVideoFormat').value,
-                bitrate: document.getElementById('dlBitrate').value,
-                quality: fmt === 'video' ? document.getElementById('dlVideoQuality').value : ''
-            };
-        }, 'EXECUTING...');
+        handleFormSubmit('formDownloader', 'btnDl', 'dlStatus', '/api/download', () => ({
+            url: document.getElementById('dlUrl').value,
+            format: document.getElementById('dlFormat').value
+        }), 'EXECUTING...');
 
         handleFormSubmit('formSpotify', 'btnSp', 'spStatus', '/api/spotify-sync', () => ({
             url: document.getElementById('spUrl').value

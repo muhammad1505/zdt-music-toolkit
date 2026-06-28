@@ -1211,6 +1211,25 @@ def scheduler_save_playlists():
         _json.dump(data, f, indent=2)
     return jsonify({"success": True, "message": "Jadwal tersimpan!"})
 
+@app.route('/api/stats/reset', methods=['POST'])
+@requires_auth
+@requires_csrf
+def reset_stats():
+    """Reset all download statistics."""
+    db_script = ZdtPaths.find_script("zdt_db.py", os.path.dirname(os.path.abspath(__file__)))
+    if db_script and os.path.exists(db_script):
+        db_path = os.path.expanduser("~/.config/zdt/zdt_history.db")
+        try:
+            result = subprocess.run([sys.executable, db_script, db_path, "clear_all"],
+                capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                return jsonify({"success": True, "message": "Semua data statistik berhasil direset!"})
+            else:
+                return jsonify({"success": False, "message": "Gagal reset: " + result.stderr[:100]})
+        except subprocess.TimeoutExpired:
+            return jsonify({"success": False, "message": "Timeout reset database!"})
+    return jsonify({"success": False, "message": "zdt_db.py tidak ditemukan!"})
+
 
 # ============================================
 # HEALTH CHECK ENDPOINT — untuk Docker/Kubernetes health probe

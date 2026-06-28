@@ -525,7 +525,8 @@ hapus_vokal() {
                 
                 ffmpeg -y -nostdin -v quiet -threads 2 -i "$file" -i "$novocals_file" -map 0:v:0 -map 1:a:0 -c:v copy -c:a "$a_codec" -b:a "$src_bitrate" "$final_output" &
             elif [ "$ext_lower" = "wav" ]; then
-                cp "$novocals_file" "$final_output" &
+                final_output="$dir/${filename_noext}_karaoke.mp3"
+                ffmpeg -y -nostdin -v quiet -threads 2 -i "$novocals_file" -c:a libmp3lame -b:a "$src_bitrate" "$final_output" &
             elif [ "$ext_lower" = "flac" ]; then
                 ffmpeg -y -nostdin -v quiet -threads 2 -i "$novocals_file" -c:a flac "$final_output" &
             elif [ "$ext_lower" = "mp3" ]; then
