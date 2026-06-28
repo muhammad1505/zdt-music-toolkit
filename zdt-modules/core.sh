@@ -75,23 +75,33 @@ _save_config() {
 
 # Deteksi environment
 _detect_environment() {
+    # Proot check: Termux proot distro (env vars set by proot)
+    if [ -n "${PROOT_TMP_DIR:-}" ] || [ -n "${PROOT_CWD:-}" ]; then
+        echo "termux"
+        return
+    fi
     if [ -n "${TERMUX_VERSION:-}" ] || { [ -n "${PREFIX:-}" ] && [[ "${PREFIX:-}" == */com.termux/* ]]; }; then
         echo "termux"
-    elif [ -f /etc/alpine-release ]; then
-        echo "alpine"
-    elif grep -qi microsoft /proc/version 2>/dev/null; then
-        echo "wsl"
-    elif [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
-        echo "container"
-    elif grep -qi 'android' /proc/version 2>/dev/null || uname -a | grep -qi 'android'; then
+        return
+    fi
+    if [ -f /etc/alpine-release ]; then
+        echo "alpine"; return
+    fi
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        echo "wsl"; return
+    fi
+    if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
+        echo "container"; return
+    fi
+    if grep -qi 'android' /proc/version 2>/dev/null || uname -a | grep -qi 'android'; then
         if [ -d "/usr/share" ] && [ -d "/usr/bin" ]; then
             echo "linux"
         else
             echo "termux"
         fi
-    else
-        echo "linux"
+        return
     fi
+    echo "linux"
 }
 
 # Portable realpath (fallback via python3 atau manual resolution)
