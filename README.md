@@ -17,7 +17,11 @@ ZDT Music Toolkit adalah asisten terminal (CLI) all-in-one yang dirancang untuk 
 - **Metadata & Cover Art Editor**: Ubah Judul, Artis, dan injeksi gambar sebagai Cover Art lagu secara manual melalui antarmuka terminal.
 - **Over-The-Air (OTA) Updater**: Perbarui versi skrip ZDT Anda langsung dari GitHub ke sistem Anda cukup dengan satu tombol dari dalam aplikasi!
 - **File Konfigurasi**: Simpan preferensi resolusi video dan kualitas audio favorit Anda sehingga Anda tidak perlu ditanya berulang-ulang saat mengunduh (*tersimpan di `~/.config/zdt/config.env`*).
-- **Zaki AI Assistant (Pro)**: Asisten cerdas berbasis Gemini AI. Cukup *chat* pakai bahasa sehari-hari ("Bro tolong pisahin dong vokal lagu terakhir", dll), lalu AI yang akan mengeksekusi komandonya!
+- **Zaki AI Assistant (Pro)**: Asisten cerdas berbasis Gemini AI & OpenRouter. Cukup *chat* pakai bahasa sehari-hari ("Bro tolong pisahin dong vokal lagu terakhir", dll), paham variasi bahasa ("download"/"sedot"/"unduh" = download). Dilengkapi **keyword fallback** — kalo AI gagal deteksi intent, keyword matching otomatis ambil alih biar perintah tetep dieksekusi!
+- **Telegram Bot Cerdas**: Kontrol ZDT dari HP via Telegram dengan bahasa santai. Sama kayak AI Assistant, paham variasi bahasa dan punya **keyword fallback** biar ga ada perintah yang kelewat.
+- **Smart Web Dashboard (ZDT Console)**: Tampilan modern ala audio mixing console dengan mode gelap/terang, grafik Chart.js, log real-time, dan notifikasi. Bisa di-restart otomatis (kill + start ulang) biar selalu pake kode terbaru.
+- **Over-The-Air (OTA) Updater**: Perbarui versi ZDT langsung dari GitHub. Backup otomatis sebelum update, tinggal rollback kalo ada masalah.
+- **Auto GitHub Release**: Setiap tag `v*` otomatis bikin GitHub Release.
 - **Smoke Test**: Jalankan `bash test_smoke.sh` untuk memvalidasi syntax, integritas, dan keamanan semua file script sebelum commit/deploy.
 
 ## Changelog
