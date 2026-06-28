@@ -383,11 +383,6 @@ zaki_assistant() {
             if [ -n "$(pgrep -f 'zdt-telegram.py' 2>/dev/null)" ]; then ctx_tg_running="true"; fi
             local ctx_watch_running="false"
             if [ -n "$(pgrep -f 'zdt-watch.py' 2>/dev/null)" ]; then ctx_watch_running="true"; fi
-            local ctx_ai_provider="none"
-            if [ -n "$openrouter_key" ]; then ctx_ai_provider="OpenRouter"
-            elif [ -n "$gemini_key" ] && [[ "$gemini_key" != sk-or-* ]]; then ctx_ai_provider="Gemini"
-            elif [ -n "$gemini_key" ]; then ctx_ai_provider="OpenRouter (via Gemini key)"
-            fi
 
             local ai_prompt
             ai_prompt=$(_load_ai_base_prompt)
@@ -439,7 +434,6 @@ KONTEKS:
 Storage=$abs_path ($ctx_file_count file, $ctx_storage)
 Isi folder: $ctx_dir_contents
 OS: $ctx_os ($ctx_env)
-AI Provider: $ctx_ai_provider
 Tools: yt-dlp=$ctx_has_ytdlp ffmpeg=$ctx_has_ffmpeg spotdl=$ctx_has_spotdl
 Services: Web=$ctx_web_running Telegram=$ctx_tg_running Watch=$ctx_watch_running"
             # Add current message to history
@@ -454,71 +448,60 @@ Services: Web=$ctx_web_running Telegram=$ctx_tg_running Watch=$ctx_watch_running
             local ai_tmpfile
             ai_tmpfile=$(mktemp "${TMPDIR:-/tmp}/zdt_ai_resp_XXXXXX" 2>/dev/null || echo "/tmp/.zdt_ai_resp_$$")
 
-            # Use openrouter_key if available, otherwise check if gemini_key is an OR key
+            # Resolve OR key (explicit OR key or backward-compat sk-or- gemini key)
             local effective_or_key="${openrouter_key:-}"
             if [ -z "$effective_or_key" ] && [[ "$gemini_key" == sk-or-* ]]; then
                 effective_or_key="$gemini_key"
             fi
-            
-            if [ -n "$effective_or_key" ]; then
-                # OpenRouter — Multi-tier fallback (max 3 models per request)
-                local or_url="https://openrouter.ai/api/v1/chat/completions"
-                local or_tiers=(
-                    '["google/gemma-4-31b-it:free","google/gemma-4-26b-a4b-it:free"]'
-                    '["nvidia/nemotron-3-super-120b-a12b:free","meta-llama/llama-3.3-70b-instruct:free"]'
-                    '["nousresearch/hermes-3-llama-3.1-405b:free","meta-llama/llama-3.2-3b-instruct:free"]'
-                )
+            local or_fallback_key="${openrouter_key:-$gemini_key}"
 
-                local or_parse='
+            # Shared JSON extractor: handles markdown code blocks AND raw JSON
+            # Priority: ```json block > flat JSON > whole text fallback
+            local ai_json_parse='
 import sys, json, re
+def extract(txt):
+    # Try markdown code block first
+    m = re.search(r"```(?:json)?\s*\n?(.*?)```", txt, re.DOTALL)
+    if m:
+        try:
+            p = json.loads(m.group(1))
+            if isinstance(p, dict): return json.dumps(p)
+        except: pass
+    # Try non-greedy flat JSON (no nested braces)
+    for m in re.finditer(r"\{[^{}]*\}", txt):
+        try:
+            p = json.loads(m.group(0))
+            if isinstance(p, dict):
+                return json.dumps(p)
+        except: pass
+    # Greedy fallback
+    m = re.search(r"\{.*\}", txt, re.DOTALL)
+    if m:
+        try:
+            p = json.loads(m.group(0))
+            if isinstance(p, dict): return json.dumps(p)
+        except: pass
+    # Plain text fallback
+    return json.dumps({"reply": txt.strip()[:600], "intent": "", "query": ""})
 try:
     d = json.load(sys.stdin)
-    if "error" in d:
-        sys.exit(1)
     txt = d.get("choices",[{}])[0].get("message",{}).get("content","")
-    
-    match = re.search(r"\{.*\}", txt, re.DOTALL)
-    if match:
-        parsed = json.loads(match.group(0))
-        print(json.dumps(parsed))
+    if txt:
+        print(extract(txt))
     else:
-        print(json.dumps({"reply": txt.strip(), "intent": "", "query": ""}))
-except Exception:
-    pass
+        sys.exit(1)
+except: sys.exit(1)
 '
-                for tier_models in "${or_tiers[@]}"; do
-                    # Build payload safely via Python to avoid JSON injection from messages content
-                    local tmp_payload
-                    tmp_payload=$(python3 -c "
-import sys, json
-try:
-    models = json.loads(sys.argv[1])
-    msgs = json.loads(sys.argv[2])
-    payload = {'models': models, 'messages': msgs, 'max_tokens': 1000}
-    print(json.dumps(payload))
-except:
-    print(json.dumps({'models': [], 'messages': [], 'max_tokens': 1000}))
-" "$tier_models" "$messages" 2>/dev/null)
-                    
-                    curl -s --max-time 20 -H "Authorization: Bearer $effective_or_key" -H "Content-Type: application/json" -d "$tmp_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
-                    local curl_pid=$!
-                    _zaki_spinner $curl_pid
-                    wait $curl_pid 2>/dev/null
 
-                    ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$or_parse" 2>/dev/null)
-                    [ -n "$ai_response" ] && break
-                done
-            fi
-            
+            # ==============================================
+            # PRIORITY 1: Gemini (lebih pintar, lebih cepat)
+            # ==============================================
             if [ -z "$ai_response" ] && [ -n "$gemini_key" ] && [[ "$gemini_key" != sk-or-* ]]; then
-                # Gemini (only if OR didn't produce an answer AND we have a real Gemini key)
                 local gemini_url="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$gemini_key"
                 local gemini_contents=""
-                
                 if command -v python3 >/dev/null 2>&1; then
                     gemini_contents=$(python3 "$ZDT_DB_HELPER" "$ZDT_DB_FILE" "get_gemini_json" 2>/dev/null)
                 fi
-                # Build payload safely via Python to avoid JSON injection from prompt content
                 local payload
                 payload=$(python3 -c "
 import sys, json
@@ -529,63 +512,110 @@ try:
     payload = {
         'system_instruction': {'parts': [{'text': sys.argv[2]}]},
         'contents': contents,
-        'generationConfig': {'maxOutputTokens': 1000}
+        'generationConfig': {'maxOutputTokens': 2000}
     }
     print(json.dumps(payload))
 except:
-    print(json.dumps({'system_instruction': {'parts': [{'text': sys.argv[2]}]}, 'contents': [], 'generationConfig': {'maxOutputTokens': 1000}}))
+    print(json.dumps({'system_instruction': {'parts': [{'text': sys.argv[2]}]}, 'contents': [], 'generationConfig': {'maxOutputTokens': 2000}}))
 " "$gemini_contents" "$ai_prompt" 2>/dev/null)
-                
-                curl -s --max-time 20 -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null > "$ai_tmpfile" &
-                local curl_pid=$!
-                _zaki_spinner $curl_pid
-                wait $curl_pid 2>/dev/null
 
-                local gemini_parse='
+                curl -s --max-time 45 -H "Content-Type: application/json" -d "$payload" "$gemini_url" 2>/dev/null > "$ai_tmpfile" &
+                local g_pid=$!
+                _zaki_spinner $g_pid
+                wait $g_pid 2>/dev/null
+
+                local g_parse="
 import sys, json, re
+def extract(txt):
+    m = re.search(r\"'''json'''\s*\n?(.*?)''''''\", txt, re.DOTALL)
+    if m:
+        try:
+            p = json.loads(m.group(1))
+            if isinstance(p, dict): return json.dumps(p)
+        except: pass
+    for m in re.finditer(r'\{[^{}]*\}', txt):
+        try:
+            p = json.loads(m.group(0))
+            if isinstance(p, dict): return json.dumps(p)
+        except: pass
+    m = re.search(r'\{.*\}', txt, re.DOTALL)
+    if m:
+        try:
+            p = json.loads(m.group(0))
+            if isinstance(p, dict): return json.dumps(p)
+        except: pass
+    return json.dumps({'reply': txt.strip()[:600], 'intent': '', 'query': ''})
 try:
     d = json.load(sys.stdin)
-    txt = d.get("candidates",[{}])[0].get("content",{}).get("parts",[{}])[0].get("text","")
-    match = re.search(r"\{.*\}", txt, re.DOTALL)
-    if match:
-        parsed = json.loads(match.group(0))
-        print(json.dumps(parsed))
+    txt = d.get('candidates',[{}])[0].get('content',{}).get('parts',[{}])[0].get('text','')
+    if txt:
+        print(extract(txt))
     else:
-        print(json.dumps({"reply": txt.strip(), "intent": "", "query": ""}))
-except Exception:
-    pass
-'
-                ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$gemini_parse" 2>/dev/null)
-                
-                # Graceful Fallback to OpenRouter if Gemini fails or hits quota
-                # Use openrouter_key if available, otherwise fall back to gemini_key for OR
-                local or_fallback_key="${openrouter_key:-$gemini_key}"
-                if [ -z "$ai_response" ] || [[ "$ai_response" == *"error"* ]]; then
+        sys.exit(1)
+except: sys.exit(1)
+"
+                ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$g_parse" 2>/dev/null)
+
+                if [ -z "$ai_response" ]; then
+                    # Gemini gagal — fallback ke OpenRouter jika ada
                     if [ -n "$or_fallback_key" ]; then
-                        echo -e "\n  ${YELLOW}${ICO_WARN} Gemini API sibuk (429). Mengalihkan ke OpenRouter (Graceful Fallback)...${RESET}"
-                        local or_url="https://openrouter.ai/api/v1/chat/completions"
-                        local or_parse="import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))"
-                        # Build payload safely via Python
-                        local fallback_payload
-                        fallback_payload=$(python3 -c "
-import sys, json
-try:
-    payload = {
-        'models': ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free'],
-        'messages': [{'role': 'system', 'content': sys.argv[1]}, {'role': 'user', 'content': sys.argv[2]}],
-        'max_tokens': 1000
-    }
-    print(json.dumps(payload))
-except:
-    print('{}')
-" "$ai_prompt" "$bot_prompt" 2>/dev/null)
-                        curl -s --max-time 20 -H "Authorization: Bearer $or_fallback_key" -H "Content-Type: application/json" -d "$fallback_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
-                        local or_pid=$!
-                        _zaki_spinner $or_pid
-                        wait $or_pid 2>/dev/null
-                        ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$or_parse" 2>/dev/null)
+                        echo -e "\n  ${YELLOW}${ICO_WARN} Gemini sibuk, alihkan ke OpenRouter...${RESET}"
                     fi
                 fi
+            fi
+
+            # ==============================================
+            # PRIORITY 2: OpenRouter (fallback jika Gemini gagal)
+            # ==============================================
+            if [ -z "$ai_response" ] && [ -n "$effective_or_key" ]; then
+                local or_url="https://openrouter.ai/api/v1/chat/completions"
+                local or_tiers=(
+                    '["meta-llama/llama-3.3-70b-instruct:free","qwen/qwen2.5-72b-instruct:free"]'
+                    '["google/gemma-4-31b-it:free","mistralai/mistral-small-3.1-24b-instruct:free"]'
+                )
+                for tier_models in "${or_tiers[@]}"; do
+                    local tmp_payload
+                    tmp_payload=$(python3 -c "
+import sys, json
+try:
+    models = json.loads(sys.argv[1])
+    msgs = json.loads(sys.argv[2])
+    payload = {'models': models, 'messages': msgs, 'max_tokens': 1500}
+    print(json.dumps(payload))
+except:
+    print(json.dumps({'models': [], 'messages': [], 'max_tokens': 1500}))
+" "$tier_models" "$messages" 2>/dev/null)
+
+                    curl -s --max-time 30 -H "Authorization: Bearer $effective_or_key" -H "Content-Type: application/json" -d "$tmp_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
+                    local curl_pid=$!
+                    _zaki_spinner $curl_pid
+                    wait $curl_pid 2>/dev/null
+
+                    ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$ai_json_parse" 2>/dev/null)
+                    [ -n "$ai_response" ] && break
+                done
+            fi
+
+            # ==============================================
+            # PRIORITY 3: Simple OR fallback (tanpa JSON, tanpa history)
+            # ==============================================
+            if [ -z "$ai_response" ] && [ -n "$or_fallback_key" ]; then
+                local simple_payload
+                simple_payload=$(python3 -c "
+import sys, json
+payload = {
+    'model': 'meta-llama/llama-3.3-70b-instruct:free',
+    'messages': [{'role': 'system', 'content': sys.argv[1]}, {'role': 'user', 'content': sys.argv[2]}],
+    'max_tokens': 1000
+}
+print(json.dumps(payload))
+" "$ai_prompt" "$bot_prompt" 2>/dev/null)
+                curl -s --max-time 30 -H "Authorization: Bearer $or_fallback_key" -H "Content-Type: application/json" -d "$simple_payload" "$or_url" 2>/dev/null > "$ai_tmpfile" &
+                local s_pid=$!
+                _zaki_spinner $s_pid
+                wait $s_pid 2>/dev/null
+                local simple_parse="import sys,json; d=json.load(sys.stdin); t=d.get('choices',[{}])[0].get('message',{}).get('content',''); print(json.dumps({'reply':t.strip()[:600],'intent':'','query':''}))"
+                ai_response=$(cat "$ai_tmpfile" 2>/dev/null | python3 -c "$simple_parse" 2>/dev/null)
             fi
 
             rm -f "$ai_tmpfile" 2>/dev/null
@@ -612,8 +642,8 @@ except:
                 fi
 
                 # Anti-empty response fallback
-                if [ ${#clean_reply} -lt 15 ] && [ "$is_auto_action" = false ]; then
-                    echo -e "  ${YELLOW}${ICO_WARN} Zaki-Bot belum mengerti maksud Bos. Ketik '?' untuk menu bantuan.${RESET}"
+                if [ -z "$clean_reply" ] && [ "$is_auto_action" = false ]; then
+                    echo -e "  ${YELLOW}${ICO_WARN} Zaki-Bot belum ngerti maksud Bos. Ketik '?' buat bantuan.${RESET}"
                     continue
                 fi
 

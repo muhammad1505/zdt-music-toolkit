@@ -356,7 +356,7 @@ class TestZdtPaths:
         monkeypatch.setenv("ZDT_VERSION", "9.9.9")
         ver = ZdtPaths.get_version()
         # Project root VERSION file has 4.4.6 — should take priority
-        assert ver == "4.4.6"
+        assert ver == "4.4.7"
 
     def test_get_version_from_env(self, monkeypatch):
         """Should read version from env var when VERSION file not found."""

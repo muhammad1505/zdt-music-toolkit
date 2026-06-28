@@ -611,71 +611,55 @@ Chat: {history_context}"""
                             return
                     bot.reply_to(message, _format_tg(reply_text), parse_mode="HTML")
                     
-                # Dual-key routing: prefer OpenRouter if openrouter_key exists
+                # Dual-key routing: prefer Gemini (lebih pintar), OpenRouter sebagai fallback
+                reply_text = ""
+                import urllib.error
+                
+                if gemini_key:
+                    try:
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
+                        headers = {"Content-Type": "application/json"}
+                        payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 1000}}
+                        data = json.dumps(payload).encode("utf-8")
+                        req = urllib.request.Request(url, data=data, headers=headers)
+                        with urllib.request.urlopen(req, timeout=30) as response:
+                            res = json.loads(response.read().decode())
+                        if "error" not in res:
+                            content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
+                            if content:
+                                process_reply(content.strip())
+                                return
+                    except Exception:
+                        pass
+                
                 if openrouter_key:
                     url = "https://openrouter.ai/api/v1/chat/completions"
                     headers = {"Authorization": f"Bearer {openrouter_key}", "Content-Type": "application/json"}
                     messages = [{"role": "system", "content": prompt}, {"role": "user", "content": text}]
                         
                     fallback_models = [
-                        "google/gemma-4-31b-it:free",
-                        "google/gemma-4-26b-a4b-it:free",
-                        "nvidia/nemotron-3-super-120b-a12b:free",
+                        "meta-llama/llama-3.3-70b-instruct:free",
+                        "qwen/qwen2.5-72b-instruct:free",
                     ]
-                    reply_text = ""
-                    import urllib.error
                     for model in fallback_models:
-                        payload = {"model": model, "messages": messages, "max_tokens": 400}
+                        payload = {"model": model, "messages": messages, "max_tokens": 1000}
                         data = json.dumps(payload).encode("utf-8")
                         req = urllib.request.Request(url, data=data, headers=headers)
                         try:
-                            with urllib.request.urlopen(req, timeout=20) as response:
+                            with urllib.request.urlopen(req, timeout=25) as response:
                                 res = json.loads(response.read().decode())
-                                if "error" in res:
-                                    reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
-                                else:
+                                if "error" not in res:
                                     content = res.get("choices", [{}])[0].get("message", {}).get("content")
-                                    reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip()
-                                break
-                        except urllib.error.HTTPError as e:
-                            err_msg = e.read().decode()
-                            reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {err_msg}'
+                                    if content:
+                                        process_reply(content.strip())
+                                        return
+                        except Exception:
                             continue
-                        except Exception as e:
-                            reply_text = f'Aduh otak AI gua lagi pusing bro wkwk. Error: {str(e)}'
-                            continue
-                        
-                    # OR succeeded? Process reply and return.
-                    # If all OR tiers failed ("Aduh otak" = conn/auth error), fall through to Gemini
-                    if not reply_text.startswith("Aduh otak"):
-                        process_reply(reply_text)
-                        return
-                    # OR failed silently — try Gemini below
-                    
-                if gemini_key:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
-                    headers = {"Content-Type": "application/json"}
-                    payload = {"system_instruction": {"parts": [{"text": prompt}]}, "contents": [{"role": "user", "parts": [{"text": text}]}], "generationConfig": {"maxOutputTokens": 400}}
-                    data = json.dumps(payload).encode("utf-8")
-                    req = urllib.request.Request(url, data=data, headers=headers)
-                    with urllib.request.urlopen(req, timeout=20) as response:
-                        res = json.loads(response.read().decode())
-                    if "error" in res:
-                        reply_text = f"API Error: {res['error'].get('message', 'Unknown')}"
-                    else:
-                        content = res.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
-                        reply_text = f"API Error (Kosong): {json.dumps(res)}" if content is None else content.strip()
-                    process_reply(reply_text)
-                    return
-                    
-                # OR failed and no Gemini fallback — show the actual error
-                if openrouter_key and reply_text:
-                    bot.reply_to(message, reply_text)
-                    return
-        except Exception as e:
-                import urllib.error
-                err_msg = e.read().decode() if isinstance(e, urllib.error.HTTPError) else str(e)
-                bot.reply_to(message, f"Aduh otak AI gua lagi pusing bro wkwk. Error: {err_msg}")
+                
+                bot.reply_to(message, "🤔 Maaf bos, otak AI-nya sedang error. Coba lagi nanti ya!")
+                return
+        except Exception:
+                bot.reply_to(message, "🤔 Maaf bos, otak AI-nya sedang error. Coba lagi nanti ya!")
                 return
         
         bot.reply_to(message, "🤔 Maksud lu apa nih? Kirim link media aja langsung buat disedot, atau ketik /start untuk lihat fitur!")
