@@ -187,68 +187,93 @@ main() {
             local inner_cols=$(( cols - 4 ))
             local left_width=41
             local right_width=$(( inner_cols - left_width - 1 ))
+            [ "$right_width" -lt 30 ] && right_width=30
 
-            echo -e "  ${CYAN}███████╗██████╗ ████████╗${RESET}   ${MAGENTA}ZDT v${APP_VERSION}${RESET}"
-            echo -e "  ${CYAN}╚══███╔╝██╔══██╗╚══██╔══╝${RESET}   ${CYAN}OS     :${RESET} $os_name"
-            echo -e "  ${CYAN}  ███╔╝ ██║  ██║   ██║   ${RESET}   ${CYAN}KERNEL :${RESET} $kernel_ver"
-            echo -e "  ${CYAN} ███╔╝  ██║  ██║   ██║   ${RESET}   ${CYAN}ARCH   :${RESET} $arch"
-            echo -e "  ${CYAN}███████╗██████╔╝   ██║   ${RESET}   ${CYAN}UPTIME :${RESET} $uptime_val"
-            echo -e "  ${CYAN}╚══════╝╚═════╝    ╚═╝   ${RESET}   ${CYAN}USER   :${RESET} $current_user"
-            
-            local stats_text="  CPU: ${_ZDT_CACHED_CPU}%   RAM: ${ram_pct}%   DISK: ${storage_pct}%   TEMP: ${temp}   NET: ${net_str} "
-            local stats_pad=$(_pad_str "$stats_text" $((inner_cols)))
+            # ── HEADER: Sapphire Logo + System Info ──
+            # Refined ASCII art with proper alignment
+            local logo_line1=" ${CYAN}◈ ZDT${RESET} ${GRAY}—${RESET} ${YELLOW}${BOLD}Enterprise Music Toolkit${RESET}"
+            local logo_pad=$(_pad_str "$logo_line1" $inner_cols)
             echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
-            echo -e "  ${CYAN}│${RESET}${CYAN}${stats_pad}${RESET}${CYAN}│${RESET}"
+            echo -e "  ${CYAN}│${RESET}${logo_pad}${CYAN}│${RESET}"
+            
+            # Version + Environment badge
+            local env_badge="${CYAN}v${APP_VERSION}${RESET}  ${GRAY}|${RESET}  ${CYAN}OS${RESET}: ${os_name:0:18}  ${GRAY}|${RESET}  ${CYAN}UPT${RESET}: ${uptime_val:0:12}  ${GRAY}|${RESET}  ${net_col}${net_str}${RESET}"
+            local env_pad=$(_pad_str " $env_badge" $inner_cols)
+            echo -e "  ${CYAN}│${RESET}${env_pad}${CYAN}│${RESET}"
+            
+            # ── RESOURCE BARS ──
+            echo -e "  ${CYAN}├$(_repeat_char '─' $inner_cols)┤${RESET}"
+            
+            # RAM bar
+            local ram_color="${GREEN}"
+            [ "$ram_pct" -gt 70 ] && ram_color="${YELLOW}"
+            [ "$ram_pct" -gt 90 ] && ram_color="${RED}"
+            local ram_label=$(_pad_str "${CYAN}RAM${RESET}  $(_draw_bar "$ram_pct" 15 "$ram_color")" $(( inner_cols - 2 )))
+            echo -e "  ${CYAN}│${RESET} $ram_label ${CYAN}│${RESET}"
+            
+            # CPU bar
+            local cpu_val="${_ZDT_CACHED_CPU:-0}"
+            [ "$cpu_val" = "?" ] && cpu_val=0
+            local cpu_color="${GREEN}"
+            [ "$cpu_val" -gt 70 ] && cpu_color="${YELLOW}"
+            [ "$cpu_val" -gt 90 ] && cpu_color="${RED}"
+            local cpu_label=$(_pad_str "${CYAN}CPU${RESET}  $(_draw_bar "$cpu_val" 15 "$cpu_color")" $(( inner_cols - 2 )))
+            echo -e "  ${CYAN}│${RESET} $cpu_label ${CYAN}│${RESET}"
+            
+            # Storage bar
+            local st_color="${GREEN}"
+            [ "$storage_pct" -gt 70 ] && st_color="${YELLOW}"
+            [ "$storage_pct" -gt 90 ] && st_color="${RED}"
+            local st_label=$(_pad_str "${CYAN}DSK${RESET}  $(_draw_bar "$storage_pct" 15 "$st_color")" $(( inner_cols - 2 )))
+            echo -e "  ${CYAN}│${RESET} $st_label ${CYAN}│${RESET}"
+            
             echo -e "  ${CYAN}├$(_repeat_char '─' $left_width)┬$(_repeat_char '─' $right_width)┤${RESET}"
 
             local left_lines=(
-                " ${MAGENTA}MAIN MENU${RESET}"
+                " ${YELLOW}◆ MAIN${RESET}"
                 "  ${CYAN}[1]${RESET} Setup Tools      ${CYAN}[6]${RESET} Vocal Remover"
                 "  ${CYAN}[2]${RESET} Spotify DL       ${CYAN}[7]${RESET} Sync Lyrics"
                 "  ${CYAN}[3]${RESET} YT Audio         ${CYAN}[8]${RESET} Playlist Sync"
                 "  ${CYAN}[4]${RESET} Video DL         ${CYAN}[9]${RESET} System Info"
                 "  ${CYAN}[5]${RESET} Compress"
                 "DIVIDER"
-                " ${MAGENTA}UTILITIES${RESET}"
-                "  ${YELLOW}[S]${RESET} Storage          ${YELLOW}[O]${RESET} Clean"
-                "  ${YELLOW}[W]${RESET} Watch            ${YELLOW}[T]${RESET} Telegram"
-                "  ${YELLOW}[P]${RESET} Playlist         ${YELLOW}[V]${RESET} Web UI"
-                "  ${YELLOW}[M]${RESET} Metadata         ${YELLOW}[U]${RESET} Update"
-                "  ${YELLOW}[A]${RESET} Zaki AI          ${RED}[X]${RESET} Delete All"
+                " ${YELLOW}◇ UTILITIES${RESET}"
+                "  ${CYAN}[S]${RESET} Storage          ${CYAN}[O]${RESET} Clean Files"
+                "  ${CYAN}[W]${RESET} Watch Daemon     ${CYAN}[T]${RESET} Telegram Bot"
+                "  ${CYAN}[P]${RESET} Playlist         ${CYAN}[V]${RESET} Web Dashboard"
+                "  ${CYAN}[M]${RESET} Metadata Editor  ${CYAN}[U]${RESET} Update ZDT"
+                "  ${CYAN}[A]${RESET} Zaki AI          ${RED}[X]${RESET} Delete All"
                 ""
                 "DIVIDER"
-                " ${RED}SYSTEM${RESET}"
-                "  ${RED}[R]${RESET} Uninstall ZDT   ${RED}[0]${RESET} Shutdown"
+                " ${RED}◈ SYSTEM${RESET}"
+                "  ${RED}[R]${RESET} Uninstall      ${RED}[0]${RESET} Shutdown"
             )
 
-            # Dependency status strings (cached, no command -v calls per iteration)
-            local dep_ffmpeg="$([ "$_ZDT_CACHED_FFMPEG" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-            local dep_python3="$([ "$_ZDT_CACHED_PYTHON3" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-            local dep_ytdlp="$([ "$_ZDT_CACHED_YTDLP" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-            local dep_spotdl="$([ "$_ZDT_CACHED_SPOTDL" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-            local dep_demucs="$([ "$_ZDT_CACHED_DEMUCS" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
-            local dep_mutagen="$([ "$_ZDT_CACHED_MUTAGEN" = "1" ] && echo "${GREEN}Installed${RESET}" || echo "${RED}Missing${RESET}")"
+            # Dependency status with badge-style indicators
+            local dep_ffmpeg="$([ "$_ZDT_CACHED_FFMPEG" = "1" ] && echo "${GREEN}✔${RESET}" || echo "${RED}✘${RESET}")"
+            local dep_python3="$([ "$_ZDT_CACHED_PYTHON3" = "1" ] && echo "${GREEN}✔${RESET}" || echo "${RED}✘${RESET}")"
+            local dep_ytdlp="$([ "$_ZDT_CACHED_YTDLP" = "1" ] && echo "${GREEN}✔${RESET}" || echo "${RED}✘${RESET}")"
+            local dep_spotdl="$([ "$_ZDT_CACHED_SPOTDL" = "1" ] && echo "${GREEN}✔${RESET}" || echo "${RED}✘${RESET}")"
+            local dep_demucs="$([ "$_ZDT_CACHED_DEMUCS" = "1" ] && echo "${GREEN}✔${RESET}" || echo "${RED}✘${RESET}")"
+            local dep_mutagen="$([ "$_ZDT_CACHED_MUTAGEN" = "1" ] && echo "${GREEN}✔${RESET}" || echo "${RED}✘${RESET}")"
 
             local right_lines=(
-                " ${MAGENTA}QUICK INFO${RESET}"
-                "  ${CYAN}UI Mode ${RESET}: Desktop (${cols}x${lines})"
-                "  ${CYAN}Distro  ${RESET}: ${os_name:0:22}"
-                "  ${CYAN}Storage ${RESET}: $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:22}${RESET}" || echo "${GRAY}(Default)${RESET}")"
-                "  ${CYAN}Hostname${RESET}: $(hostname)"
+                " ${YELLOW}◇ INFO${RESET}"
+                "  ${GRAY}Resolution${RESET}  ${cols}x${lines}"
+                "  ${GRAY}Storage   ${RESET}  $([ -n "$STORAGE_DIR" ] && echo "${YELLOW}${STORAGE_DIR:0:20}${RESET}" || echo "${GRAY}(Default)${RESET}")"
+                "  ${GRAY}Hostname  ${RESET}  $(hostname)"
+                "  ${GRAY}Load Avg  ${RESET}  ${_ZDT_CACHED_LOAD:0:18}"
                 ""
                 "DIVIDER"
-                " ${MAGENTA}DEPENDENCIES${RESET}"
-                "  ${CYAN}FFmpeg  ${RESET}: $dep_ffmpeg"
-                "  ${CYAN}Python3 ${RESET}: $dep_python3"
-                "  ${CYAN}YT-DLP  ${RESET}: $dep_ytdlp"
-                "  ${CYAN}SpotDL  ${RESET}: $dep_spotdl"
-                "  ${CYAN}Demucs  ${RESET}: $dep_demucs"
-                "  ${CYAN}Mutagen ${RESET}: $dep_mutagen"
+                " ${YELLOW}◇ DEPENDENCIES${RESET}"
+                "  ${GRAY}FFmpeg ${RESET}  $dep_ffmpeg    ${GRAY}Python3 ${RESET}  $dep_python3"
+                "  ${GRAY}YT-DLP ${RESET}  $dep_ytdlp    ${GRAY}SpotDL ${RESET}  $dep_spotdl"
+                "  ${GRAY}Demucs ${RESET}  $dep_demucs    ${GRAY}Mutagen${RESET}  $dep_mutagen"
                 "DIVIDER"
-                " ${MAGENTA}RECENT LOGS${RESET}"
-                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} System init"
-                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Deps checked"
-                "  [$(date +'%H:%M:%S')] ${GREEN}●${RESET} Ready"
+                " ${YELLOW}◇ RECENT${RESET}"
+                "  ${DIM}[$(date +'%H:%M')]${RESET} ${GREEN}●${RESET} System initialized"
+                "  ${DIM}[$(date +'%H:%M')]${RESET} ${GREEN}●${RESET} Dependencies checked"
+                "  ${DIM}[$(date +'%H:%M')]${RESET} ${GREEN}●${RESET} Ready"
             )
 
             local max_lines=${#left_lines[@]}
@@ -314,54 +339,66 @@ main() {
                 local header=" ${header_prefix} | RAM ${ram_pct}% | ${net_icon} "
                 local header_pad=$(_pad_str "$header" $inner_cols)
                 echo -e "  ${CYAN}${_tlc}$(_repeat_char "${_hc}" $inner_cols)${_trc}${RESET}"
-                echo -e "  ${CYAN}${_vc}${RESET}${MAGENTA}${BOLD}${header_pad}${RESET}${CYAN}${_vc}${RESET}"
+                echo -e "  ${CYAN}${_vc}${RESET}${YELLOW}${BOLD}${header_pad}${RESET}${CYAN}${_vc}${RESET}"
                 echo -e "  ${CYAN}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
 
-                local s="${_sec_bullet}" bullet="${MAGENTA}"
+                local s="${_sec_bullet}" bullet="${YELLOW}"
                 local menu_items=(
                     " ${bullet} ${s} MAIN${RESET}"
-                    "  ${GREEN}[1]${RESET} Setup Tools    ${GREEN}[6]${RESET} Vocal${RESET}"
-                    "  ${GREEN}[2]${RESET} Spotify DL     ${GREEN}[7]${RESET} Lyrics${RESET}"
-                    "  ${GREEN}[3]${RESET} YT Audio       ${GREEN}[8]${RESET} PlSync${RESET}"
-                    "  ${GREEN}[4]${RESET} Video DL       ${GREEN}[9]${RESET} System${RESET}"
-                    "  ${GREEN}[5]${RESET} Compress${RESET}"
+                    "  ${CYAN}[1]${RESET} Setup Tools    ${CYAN}[6]${RESET} Vocal${RESET}"
+                    "  ${CYAN}[2]${RESET} Spotify DL     ${CYAN}[7]${RESET} Lyrics${RESET}"
+                    "  ${CYAN}[3]${RESET} YT Audio       ${CYAN}[8]${RESET} PlSync${RESET}"
+                    "  ${CYAN}[4]${RESET} Video DL       ${CYAN}[9]${RESET} System${RESET}"
+                    "  ${CYAN}[5]${RESET} Compress${RESET}"
                     "DIVIDER"
                     " ${bullet} ${s} TOOLS${RESET}"
-                    "  ${YELLOW}[S]${RESET} Storage    ${YELLOW}[W]${RESET} Watch${RESET}"
-                    "  ${YELLOW}[P]${RESET} Playlist   ${YELLOW}[M]${RESET} Meta${RESET}"
-                    "  ${YELLOW}[O]${RESET} Clean      ${YELLOW}[T]${RESET} Telegram${RESET}"
-                    "  ${YELLOW}[V]${RESET} Web UI     ${YELLOW}[U]${RESET} Update${RESET}"
-                    "  ${YELLOW}[A]${RESET} Zaki AI    ${RED}[X]${RESET} Delete${RESET}"
+                    "  ${CYAN}[S]${RESET} Storage    ${CYAN}[W]${RESET} Watch${RESET}"
+                    "  ${CYAN}[P]${RESET} Playlist   ${CYAN}[M]${RESET} Meta${RESET}"
+                    "  ${CYAN}[O]${RESET} Clean      ${CYAN}[T]${RESET} Tele${RESET}"
+                    "  ${CYAN}[V]${RESET} Web UI     ${CYAN}[U]${RESET} Update${RESET}"
+                    "  ${CYAN}[A]${RESET} Zaki AI    ${RED}[X]${RESET} Delete${RESET}"
                     "DIVIDER"
                     " ${RED} ${s} SYSTEM${RESET}"
-                    "  ${RED}[R]${RESET} Uninstall   ${RED}[0]${RESET} Shutdown${RESET}"
+                    "  ${RED}[R]${RESET} Uninstall   ${RED}[0]${RESET} Exit${RESET}"
                 )
             else
                 # TIER 3: Medium (55-74 cols) — full layout
                 local header=" ${header_prefix} | RAM ${ram_pct}% | DSK ${storage_pct}% | UPT ${uptime_val} | ${net_icon} "
                 local header_pad=$(_pad_str "$header" $inner_cols)
                 echo -e "  ${CYAN}${_tlc}$(_repeat_char "${_hc}" $inner_cols)${_trc}${RESET}"
-                echo -e "  ${CYAN}${_vc}${RESET}${MAGENTA}${BOLD}${header_pad}${RESET}${CYAN}${_vc}${RESET}"
+                echo -e "  ${CYAN}${_vc}${RESET}${YELLOW}${BOLD}${header_pad}${RESET}${CYAN}${_vc}${RESET}"
                 echo -e "  ${CYAN}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
 
-                local s="${_sec_bullet}" bullet="${MAGENTA}"
+                # Quick resource bar (compact)
+                local bar_width=$(( (inner_cols - 10) / 3 ))
+                [ "$bar_width" -lt 5 ] && bar_width=5
+                [ "$bar_width" -gt 10 ] && bar_width=10
+                local ram_b=$(_draw_bar "$ram_pct" "$bar_width")
+                local cpu_b=$(_draw_bar "${_ZDT_CACHED_CPU:-0}" "$bar_width")
+                local st_b=$(_draw_bar "$storage_pct" "$bar_width")
+                local bars_line="${CYAN}RAM${RESET} ${ram_b}  ${CYAN}CPU${RESET} ${cpu_b}  ${CYAN}DSK${RESET} ${st_b}"
+                local bars_pad=$(_pad_str " $bars_line" $inner_cols)
+                echo -e "  ${CYAN}${_vc}${RESET}${bars_pad}${CYAN}${_vc}${RESET}"
+                echo -e "  ${CYAN}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
+
+                local s="${_sec_bullet}" bullet="${YELLOW}"
                 local menu_items=(
-                    " ${bullet} ${s} MAIN PROTOCOLS${RESET}"
-                    "  ${GREEN}[1]${RESET} Setup Tools      ${GREEN}[6]${RESET} Vocal Remover${RESET}"
-                    "  ${GREEN}[2]${RESET} Spotify DL       ${GREEN}[7]${RESET} Sync Lyrics${RESET}"
-                    "  ${GREEN}[3]${RESET} YT Audio         ${GREEN}[8]${RESET} Playlist Sync${RESET}"
-                    "  ${GREEN}[4]${RESET} Video DL         ${GREEN}[9]${RESET} System Info${RESET}"
-                    "  ${GREEN}[5]${RESET} Compress${RESET}"
+                    " ${bullet} ${s} MAIN${RESET}"
+                    "  ${CYAN}[1]${RESET} Setup Tools      ${CYAN}[6]${RESET} Vocal${RESET}"
+                    "  ${CYAN}[2]${RESET} Spotify DL       ${CYAN}[7]${RESET} Lyrics${RESET}"
+                    "  ${CYAN}[3]${RESET} YT Audio         ${CYAN}[8]${RESET} PlSync${RESET}"
+                    "  ${CYAN}[4]${RESET} Video DL         ${CYAN}[9]${RESET} System${RESET}"
+                    "  ${CYAN}[5]${RESET} Compress${RESET}"
                     "DIVIDER"
-                    " ${bullet} ${s} UTILITIES${RESET}"
-                    "  ${YELLOW}[S]${RESET} Storage          ${YELLOW}[W]${RESET} Watch Daemon${RESET}"
-                    "  ${YELLOW}[P]${RESET} Playlist         ${YELLOW}[M]${RESET} Metadata${RESET}"
-                    "  ${YELLOW}[O]${RESET} Clean Files      ${YELLOW}[T]${RESET} Telegram Bot${RESET}"
-                    "  ${YELLOW}[V]${RESET} Web Dashboard    ${YELLOW}[U]${RESET} Update ZDT${RESET}"
-                    "  ${YELLOW}[A]${RESET} Zaki AI          ${RED}[X]${RESET} Delete All${RESET}"
+                    " ${bullet} ${s} TOOLS${RESET}"
+                    "  ${CYAN}[S]${RESET} Storage     ${CYAN}[W]${RESET} Watch${RESET}"
+                    "  ${CYAN}[P]${RESET} Playlist    ${CYAN}[M]${RESET} Meta${RESET}"
+                    "  ${CYAN}[O]${RESET} Clean       ${CYAN}[T]${RESET} Tele${RESET}"
+                    "  ${CYAN}[V]${RESET} Web UI      ${CYAN}[U]${RESET} Update${RESET}"
+                    "  ${CYAN}[A]${RESET} Zaki AI     ${RED}[X]${RESET} Delete${RESET}"
                     "DIVIDER"
                     " ${RED} ${s} SYSTEM${RESET}"
-                    "  ${RED}[R]${RESET} Uninstall ZDT   ${RED}[0]${RESET} Shutdown${RESET}"
+                    "  ${RED}[R]${RESET} Uninstall    ${RED}[0]${RESET} Exit${RESET}"
                 )
             fi
 

@@ -279,7 +279,11 @@ _setup_colors() {
     if [ "${NO_COLOR:-0}" = "1" ] || [ ! -t 1 ]; then
         GREEN='' CYAN='' MAGENTA='' WHITE='' GRAY=''
         RED='' YELLOW='' BOLD='' RESET=''
+        DIM=''
     else
+        # Sapphire Elegance Palette — refined for all terminals
+        # Primary: Sapphire Cyan — readable on both light & dark backgrounds
+        # Accent: Warm Gold — for badges, highlights, headers
         GREEN='\033[1;32m'
         CYAN='\033[1;36m'
         MAGENTA='\033[1;35m'
@@ -287,6 +291,7 @@ _setup_colors() {
         GRAY='\033[0;37m'
         RED='\033[1;31m'
         YELLOW='\033[1;33m'
+        DIM='\033[2m'
         BOLD='\033[1m'
         RESET='\033[0m'
     fi
@@ -693,6 +698,37 @@ _repeat_char() {
 }
 
 # ==========================================
+# HELPER: DRAW PROGRESS BAR
+# ==========================================
+# Draw a visual ASCII progress bar
+# Usage: _draw_bar <percentage> [width] [color_var]
+# Example: _draw_bar 45 10 "$YELLOW"
+_draw_bar() {
+    local pct=$1
+    local width=${2:-10}
+    local color="${3:-$CYAN}"
+    
+    # Clamp percentage
+    [ "$pct" -lt 0 ] && pct=0
+    [ "$pct" -gt 100 ] && pct=100
+    
+    local filled=$(( pct * width / 100 ))
+    [ "$filled" -lt 0 ] && filled=0
+    [ "$filled" -gt "$width" ] && filled=$width
+    local empty=$(( width - filled ))
+
+    local bar=""
+    if [ "${NO_UNICODE:-0}" = "1" ]; then
+        bar="$(_repeat_char '#' "$filled")$(_repeat_char '-' "$empty")"
+    else
+        bar="$(_repeat_char '█' "$filled")$(_repeat_char '░' "$empty")"
+    fi
+    
+    local pct_str="$(printf '%3s' "${pct}%")"
+    echo -e "${color}${bar}${RESET} ${GRAY}${pct_str}${RESET}"
+}
+
+# ==========================================
 # HELPER: PRINT HEADER
 # ==========================================
 print_header() {
@@ -706,11 +742,21 @@ print_header() {
     [ "$width" -lt 50 ] && width=50
     [ "$width" -gt 76 ] && width=76
 
-    local title=" $1 "
-    local title_pad=$(_pad_str "$title" $width)
-
+    local title="$1"
+    local subtitle="${2:-}"
+    
+    # Top border with accent
     echo -e "  ${CYAN}╭$(_repeat_char '─' $width)╮${RESET}"
-    echo -e "  ${CYAN}│${RESET}${MAGENTA}${BOLD}${title_pad}${RESET}${CYAN}│${RESET}"
+    
+    # Title line — Sapphire gradient (CYAN → BOLD WHITE)
+    local title_disp=" ${CYAN}◆${RESET} ${YELLOW}${BOLD}${title}${RESET}"
+    if [ -n "$subtitle" ]; then
+        title_disp=" ${CYAN}◆${RESET} ${YELLOW}${BOLD}${title}${RESET} ${GRAY}— ${subtitle}${RESET}"
+    fi
+    local title_pad=$(_pad_str "$title_disp" $width)
+    echo -e "  ${CYAN}│${RESET}${title_pad}${CYAN}│${RESET}"
+    
+    # Bottom border
     echo -e "  ${CYAN}╰$(_repeat_char '─' $width)╯${RESET}"
     echo ""
 }
@@ -728,7 +774,9 @@ _print_menu_box() {
     [ "$width" -lt 50 ] && width=50
     [ "$width" -gt 76 ] && width=76
 
-    local title_pad=$(_pad_str " ${MAGENTA}${BOLD}■ ${title}${RESET}" $width)
+    # Title with gem icon
+    local title_disp=" ${CYAN}◇${RESET} ${YELLOW}${BOLD}${title}${RESET}"
+    local title_pad=$(_pad_str "$title_disp" $width)
 
     echo -e "  ${CYAN}╭$(_repeat_char '─' $width)╮${RESET}"
     echo -e "  ${CYAN}│${RESET}${title_pad}${CYAN}│${RESET}"
@@ -738,7 +786,7 @@ _print_menu_box() {
         if [ "$opt" = "DIVIDER" ]; then
             echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
         else
-            local opt_pad=$(_pad_str "   $opt" $width)
+            local opt_pad=$(_pad_str " $opt" $width)
             echo -e "  ${CYAN}│${RESET}${opt_pad}${CYAN}│${RESET}"
         fi
     done
@@ -751,7 +799,9 @@ _print_menu_box() {
 _pause() {
     echo ""
     while read -s -r -t 0.01 -n 1000 2>/dev/null; do :; done
-    echo -e -n "  ${GRAY}[ Tekan tombol apa aja untuk kembali ke menu... ]${RESET}"
+    echo -e -n "  ${CYAN}╭$(_repeat_char '─' $(( $(tput cols 2>/dev/null || echo 50) - 4 )) )╮${RESET}"
+    echo -e -n "\n  ${CYAN}│${RESET} ${DIM}Tekan tombol apa saja untuk kembali...${RESET} ${CYAN}│${RESET}"
+    echo -e -n "\n  ${CYAN}╰$(_repeat_char '─' $(( $(tput cols 2>/dev/null || echo 50) - 4 )) )╯${RESET}"
     read -s -r -n 1 2>/dev/null || read -r -n 1 2>/dev/null || true
     echo ""
 }

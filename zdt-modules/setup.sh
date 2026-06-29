@@ -171,15 +171,15 @@ system_info() {
     echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
 
     local sys_lines=(
-        " ${GRAY}OS      :${RESET} $os_name"
-        " ${GRAY}Env     :${RESET} $env"
-        " ${GRAY}RAM     :${RESET} ${YELLOW}${ram}% USED${RESET}"
-        " ${GRAY}Storage :${RESET} ${YELLOW}${storage}% FULL${RESET}"
-        " ${GRAY}Uptime  :${RESET} $uptime_val"
-        " ${GRAY}Python  :${RESET} $python_ver"
-        " ${GRAY}Bash    :${RESET} $bash_ver"
+        " ${GRAY}OS     :${RESET} $os_name"
+        " ${GRAY}Env    :${RESET} $env"
+        " ${GRAY}RAM    :${RESET} $(_draw_bar "$ram" 15) "
+        " ${GRAY}Storage:${RESET} $(_draw_bar "$storage" 15)"
+        " ${GRAY}Uptime :${RESET} $uptime_val"
+        " ${GRAY}Python :${RESET} $python_ver"
+        " ${GRAY}Bash   :${RESET} $bash_ver"
         "DIVIDER"
-        " ${MAGENTA}${BOLD}■ STATUS DEPENDENSI${RESET}"
+        " ${YELLOW}◆ DEPENDENCIES${RESET}"
     )
 
     for tool in ffmpeg python3 yt-dlp spotdl syncedlyrics mutagen flask demucs; do
