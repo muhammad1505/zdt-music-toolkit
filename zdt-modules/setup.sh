@@ -188,6 +188,8 @@ system_info() {
         if [ "$tool" = "mutagen" ]; then
             if [ -f "$ZDT_VENV_DIR/bin/python" ] && "$ZDT_VENV_DIR/bin/python" -c "import mutagen" >/dev/null 2>&1; then
                 stat="${GREEN}Installed${RESET} (VENV)"
+            elif command -v python3 >/dev/null 2>&1 && python3 -c "import mutagen" >/dev/null 2>&1; then
+                stat="${GREEN}Installed${RESET} (system)"
             else
                 stat="${RED}Missing${RESET}"
             fi

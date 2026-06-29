@@ -680,7 +680,12 @@ def trigger_spotify_sync():
 @requires_auth
 @requires_csrf
 def update_metadata():
-    if 'mutagen' not in sys.modules:
+    try:
+        import mutagen
+        from mutagen.easyid3 import EasyID3
+        from mutagen.mp4 import MP4, MP4Cover
+        from mutagen.flac import FLAC, Picture
+    except ImportError:
         return jsonify({"success": False, "message": "Mutagen belum terinstall."})
         
     data = request.json
