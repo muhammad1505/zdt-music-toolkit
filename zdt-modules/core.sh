@@ -104,7 +104,7 @@ _detect_environment() {
         echo "termux"; return
     fi
     # Cek SELinux context spesifik Android (bukan SELinux generic)
-    if [ -f /proc/self/attr/current ] && grep -q 'u:r:init:s0' /proc/self/attr/current 2>/dev/null; then
+    if [ -f /proc/self/attr/current ] && grep -q 'u:r:' /proc/self/attr/current 2>/dev/null; then
         echo "termux"; return
     fi
     # Cek uname -o untuk Android (fallback)
