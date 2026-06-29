@@ -97,6 +97,21 @@ _detect_environment() {
         echo "termux"; return
     fi
 
+    # Proot Debian: deteksi Android via karakteristik lain
+    # Beberapa proot setup tidak punya /system tapi masih Android
+    # Cek /sdcard atau /storage/emulated — khas Android, bukan Linux biasa
+    if [ -d /sdcard ] || [ -d /storage/emulated ]; then
+        echo "termux"; return
+    fi
+    # Cek SELinux context spesifik Android (bukan SELinux generic)
+    if [ -f /proc/self/attr/current ] && grep -q 'u:r:init:s0' /proc/self/attr/current 2>/dev/null; then
+        echo "termux"; return
+    fi
+    # Cek uname -o untuk Android (fallback)
+    if [ "$(uname -o 2>/dev/null)" = "Android" ]; then
+        echo "termux"; return
+    fi
+
     if [ -f /etc/alpine-release ]; then echo "alpine"; return; fi
     if grep -qi microsoft /proc/version 2>/dev/null; then echo "wsl"; return; fi
     if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then echo "container"; return; fi

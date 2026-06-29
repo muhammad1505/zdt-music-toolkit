@@ -78,6 +78,7 @@ fi
 
 MAIN_MODE=""
 DEBUG_TRAP_SET=false
+FORCE_MOBILE=0
 
 main() {
     _parse_args "$@"
@@ -182,7 +183,7 @@ main() {
         local pkgs="$_ZDT_CACHED_PKGS"
         local load_avg="$_ZDT_CACHED_LOAD"
         
-        if [ "$cols" -ge 75 ] && [ "${RUNTIME_ENV:-}" != "termux" ]; then
+        if [ "$cols" -ge 75 ] && [ "${RUNTIME_ENV:-}" != "termux" ] && [ "$FORCE_MOBILE" -ne 1 ]; then
             # DESKTOP VIEW (Gacor Graphic Dashboard)
             local inner_cols=$(( cols - 4 ))
             local left_width=41
@@ -299,6 +300,7 @@ main() {
             [ "$inner_cols" -lt 30 ] && inner_cols=30
             local _cyber=false
             [ "${RUNTIME_ENV:-}" = "termux" ] && _cyber=true
+            [ "$FORCE_MOBILE" -eq 1 ] && _cyber=true
 
             # Box chars: double-line for cyber mode
             local _tlc="╭" _trc="╮" _blc="╰" _brc="╯" _hc="─" _vc="│"

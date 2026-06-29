@@ -656,6 +656,10 @@ _parse_args() {
                 AUTO_MODE=1
                 shift
                 ;;
+            --mobile)
+                FORCE_MOBILE=1
+                shift
+                ;;
             *)
                 echo -e "Argumen tidak dikenal: $1"
                 echo "Gunakan --help untuk melihat daftar argumen."
