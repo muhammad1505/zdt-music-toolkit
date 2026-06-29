@@ -307,6 +307,10 @@ def get_target_dir():
                     if val: target_dir = os.path.expanduser(val)
     return target_dir
 
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"success": False, "message": "Endpoint tidak ditemukan"}), 404
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     logging.error(f"Unhandled Exception: {str(e)}")
@@ -1226,15 +1230,22 @@ def scheduler_save_playlists():
 @requires_csrf
 def reset_stats():
     """Reset all download statistics."""
+    import json as _json
     db_script = ZdtPaths.find_script("zdt_db.py", os.path.dirname(os.path.abspath(__file__)))
     if db_script and os.path.exists(db_script):
-        db_path = os.path.expanduser("~/.config/zdt/zdt_history.db")
+        db_path = ZdtPaths.get_db_path()
         try:
-            result = subprocess.run([sys.executable, db_script, db_path, "clear_all"],
+            result = subprocess.run([sys.executable, db_script, db_path, "clear_downloads"],
                 capture_output=True, text=True, timeout=10)
-            if result.returncode == 0:
-                return jsonify({"success": True, "message": "Semua data statistik berhasil direset!"})
-            else:
+            try:
+                output = _json.loads(result.stdout.strip())
+                if output.get("success"):
+                    return jsonify({"success": True, "message": output.get("message", "Semua data statistik berhasil direset!")})
+                else:
+                    return jsonify({"success": False, "message": "Gagal reset: " + result.stderr[:100]})
+            except (_json.JSONDecodeError, ValueError):
+                if result.returncode == 0:
+                    return jsonify({"success": True, "message": "Semua data statistik berhasil direset!"})
                 return jsonify({"success": False, "message": "Gagal reset: " + result.stderr[:100]})
         except subprocess.TimeoutExpired:
             return jsonify({"success": False, "message": "Timeout reset database!"})
