@@ -2,6 +2,12 @@
 
 Semua perubahan yang mencolok pada project ini akan didokumentasikan di file ini.
 
+## v4.4.53 (Ultimate Dashboard Redesign — Phase 1)
+- **Feat(CLI)**: **Service Status Indicators** — Tiga dot indikator (●/○) di header dashboard: WEB, TELE, WATCH. Hijau = running, abu-abu = mati. Deteksi real-time via pgrep, refresh setiap 10 detik.
+- **Feat(CLI)**: **Real Recent Downloads** — Panel RECENT di dashboard kini mengambil data nyata dari SQLite (`zdt_db.py get_recent`), bukan timestamp hardcoded. Menampilkan 3 download terakhir dengan nama file, source, dan waktu.
+- **Feat(CLI)**: **Bottom Shortcut Bar** — Bar navigasi cepat di footer dashboard: [Q] Keluar, [?] Help, [Space] Quick Actions, versi aplikasi.
+- **Refactor(CLI)**: **Service Status Cache** — `_get_service_status()` di `core.sh` dengan caching 10-detik untuk menghindari spam pgrep di main loop.
+
 ## v4.4.6 (Production Readiness & Security Hardening)
 - **Security**: **Path Traversal & RCE** — Validasi path pada penghapusan direktori (`zdt-telegram.py`) dan pembuatan direktori (`zdt-web.py`). Whitelist key di `printf -v` pada config parser (`core.sh`) untuk mencegah RCE via injeksi config.
 - **Security**: **Command Injection & Info Leak** — Tambah validasi URL untuk mencegah parameter flag spoofing, ganti output `str(e)` dengan pesan generic.
