@@ -19,7 +19,7 @@ else
         fi
     done
 fi
-readonly APP_VERSION="${_APP_VERSION:-4.4.52}"
+readonly APP_VERSION="${_APP_VERSION:-4.4.53}"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -149,6 +149,10 @@ main() {
     # Initialize UI cache (cache tool status, OS info, system stats)
     _init_ui_cache
     
+    # Service status (cached per loop iteration)
+    local _svc_cache_time=0
+    local _svc_web="OFF" _svc_tele="OFF" _svc_watch="OFF"
+    
     # Zaki AI diakses via tombol [A] di menu (tidak auto-launch biar loading cepet)
     
     while true; do
@@ -158,6 +162,16 @@ main() {
         local ram_pct="$_ZDT_CACHED_RAM"
         local uptime_val="$_ZDT_CACHED_UPTIME"
         local storage_pct="$_ZDT_CACHED_STORAGE"
+        
+        # Service status (refresh every 10s to avoid pgrep spam)
+        local svc_now=${EPOCHSECONDS:-$(date +%s 2>/dev/null || echo 0)}
+        if [ $(( svc_now - _svc_cache_time )) -ge 10 ] || [ "$_svc_cache_time" -eq 0 ]; then
+            local svc_raw
+            svc_raw=$(_get_service_status)
+            _svc_web="${svc_raw%%|*}"; svc_raw="${svc_raw#*|}"
+            _svc_tele="${svc_raw%%|*}"; _svc_watch="${svc_raw##*|}"
+            _svc_cache_time=$svc_now
+        fi
         local os_name="$_ZDT_CACHED_OS_NAME"
         local net_status=$(cat "$NET_TMP" 2>/dev/null || echo "?")
         local tools_ok="$_ZDT_CACHED_TOOLS_STR"
@@ -192,7 +206,16 @@ main() {
 
             # ── HEADER: Amber Premium Dashboard ──
             # Gold/amber theme matching the Web UI's "Warm Console"
-            local logo_line1=" ${YELLOW}◆${RESET} ${BOLD}ZDT Enterprise${RESET} ${WHITE}—${RESET} ${YELLOW}Music Toolkit${RESET}"
+            # Service status dots
+            local svc_web_dot="${GREEN}●${RESET}"
+            [ "$_svc_web" = "OFF" ] && svc_web_dot="${DIM}○${RESET}"
+            local svc_tele_dot="${GREEN}●${RESET}"
+            [ "$_svc_tele" = "OFF" ] && svc_tele_dot="${DIM}○${RESET}"
+            local svc_watch_dot="${GREEN}●${RESET}"
+            [ "$_svc_watch" = "OFF" ] && svc_watch_dot="${DIM}○${RESET}"
+            local svc_line="${svc_web_dot} WEB  ${svc_tele_dot} TELE  ${svc_watch_dot} WATCH"
+            
+            local logo_line1=" ${YELLOW}◆${RESET} ${BOLD}ZDT Enterprise${RESET} ${WHITE}—${RESET} ${YELLOW}Music Toolkit${RESET}  ${DIM}${svc_line}${RESET}"
             local logo_pad=$(_pad_str "$logo_line1" $inner_cols)
             echo -e "  ${YELLOW}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
             echo -e "  ${YELLOW}│${RESET}${logo_pad}${YELLOW}│${RESET}"
@@ -294,6 +317,13 @@ main() {
             done
 
             echo -e "  ${YELLOW}╰$(_repeat_char '─' $left_width)┴$(_repeat_char '─' $right_width)╯${RESET}"
+            
+            # ── BOTTOM SHORTCUT BAR ──
+            local shortcut_bar=" ${CYAN}[Q]${RESET} Keluar  ${CYAN}[?]${RESET} Help  ${CYAN}[Space]${RESET} Quick Actions  ${DIM}v${APP_VERSION}${RESET}"
+            local shortcut_pad=$(_pad_str "$shortcut_bar" $inner_cols)
+            echo -e "  ${CYAN}╭$(_repeat_char '─' $inner_cols)╮${RESET}"
+            echo -e "  ${CYAN}│${RESET}${shortcut_pad}${CYAN}│${RESET}"
+            echo -e "  ${CYAN}╰$(_repeat_char '─' $inner_cols)╯${RESET}"
         else
             # MOBILE VIEW — CyberTron responsive layout
             local inner_cols=$(( cols - 4 ))
