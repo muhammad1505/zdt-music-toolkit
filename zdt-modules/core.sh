@@ -659,6 +659,30 @@ _refresh_stats_cache() {
 }
 
 # ==========================================
+# SERVICE STATUS (Live process detection)
+# ==========================================
+_get_service_status() {
+    local web_stat="OFF" tele_stat="OFF" watch_stat="OFF"
+    pgrep -f "zdt-web.py" >/dev/null 2>&1 && web_stat="ON"
+    pgrep -f "zdt-telegram.py" >/dev/null 2>&1 && tele_stat="ON"
+    pgrep -f "zdt-watch.py" >/dev/null 2>&1 && watch_stat="ON"
+    echo "${web_stat}|${tele_stat}|${watch_stat}"
+}
+
+# ==========================================
+# RECENT DOWNLOADS (SQLite-backed)
+# ==========================================
+_get_recent_downloads() {
+    local db_path="${STORAGE_DIR:-$HOME/Music/ZDT}/.zdt.db"
+    local db_helper="${_MODULES_DIR:-.}/zdt_db.py"
+    if [ -f "$db_path" ] && [ -f "$db_helper" ] && command -v python3 >/dev/null 2>&1; then
+        python3 "$db_helper" "$db_path" "get_recent" "3" 2>/dev/null || echo "[]"
+    else
+        echo "[]"
+    fi
+}
+
+# ==========================================
 # ANTI-CRASH TRAP
 # ==========================================
 _trap_ctrlc() {
