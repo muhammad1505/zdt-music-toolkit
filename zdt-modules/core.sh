@@ -784,19 +784,19 @@ print_header() {
     local title="$1"
     local subtitle="${2:-}"
     
-    # Top border with accent
-    echo -e "  ${CYAN}╭$(_repeat_char '─' $width)╮${RESET}"
-    
-    # Title line — Sapphire gradient (CYAN → BOLD WHITE)
-    local title_disp=" ${CYAN}◆${RESET} ${YELLOW}${BOLD}${title}${RESET}"
+    # Top border
+    echo -e "  ${YELLOW}╔$(_repeat_char '═' $width)╗${RESET}"
+
+    # Title line
+    local title_disp=" ${BOLD}${title}${RESET}"
     if [ -n "$subtitle" ]; then
-        title_disp=" ${CYAN}◆${RESET} ${YELLOW}${BOLD}${title}${RESET} ${GRAY}— ${subtitle}${RESET}"
+        title_disp=" ${BOLD}${title}${RESET} ${GRAY}— ${subtitle}${RESET}"
     fi
     local title_pad=$(_pad_str "$title_disp" $width)
-    echo -e "  ${CYAN}│${RESET}${title_pad}${CYAN}│${RESET}"
-    
-    # Bottom border
-    echo -e "  ${CYAN}╰$(_repeat_char '─' $width)╯${RESET}"
+    echo -e "  ${YELLOW}║${RESET}${title_pad}${YELLOW}║${RESET}"
+
+    # Separator between caption and content
+    echo -e "  ${YELLOW}╠$(_repeat_char '═' $width)╣${RESET}"
     echo ""
 }
 
@@ -813,23 +813,71 @@ _print_menu_box() {
     [ "$width" -lt 50 ] && width=50
     [ "$width" -gt 76 ] && width=76
 
-    # Title with gem icon
-    local title_disp=" ${CYAN}◇${RESET} ${YELLOW}${BOLD}${title}${RESET}"
+    # Title with bullet
+    local title_disp=" ${BOLD}${title}${RESET}"
     local title_pad=$(_pad_str "$title_disp" $width)
 
-    echo -e "  ${CYAN}╭$(_repeat_char '─' $width)╮${RESET}"
-    echo -e "  ${CYAN}│${RESET}${title_pad}${CYAN}│${RESET}"
-    echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
+    echo -e "  ${YELLOW}╔$(_repeat_char '═' $width)╗${RESET}"
+    echo -e "  ${YELLOW}║${RESET}${title_pad}${YELLOW}║${RESET}"
+    echo -e "  ${YELLOW}╠$(_repeat_char '═' $width)╣${RESET}"
 
     for opt in "${options[@]}"; do
         if [ "$opt" = "DIVIDER" ]; then
-            echo -e "  ${CYAN}├$(_repeat_char '─' $width)┤${RESET}"
+            echo -e "  ${YELLOW}╠$(_repeat_char '═' $width)╣${RESET}"
         else
             local opt_pad=$(_pad_str " $opt" $width)
-            echo -e "  ${CYAN}│${RESET}${opt_pad}${CYAN}│${RESET}"
+            echo -e "  ${YELLOW}║${RESET}${opt_pad}${YELLOW}║${RESET}"
         fi
     done
-    echo -e "  ${CYAN}╰$(_repeat_char '─' $width)╯${RESET}"
+    echo -e "  ${YELLOW}╚$(_repeat_char '═' $width)╝${RESET}"
+}
+
+# ==========================================
+# SPLIT-PANE DRAWING HELPERS (double-line style)
+# ==========================================
+_draw_status_dot() {
+    local state="$1"
+    case "$state" in
+        on)   echo -e "${GREEN}●${RESET}" ;;
+        warn) echo -e "${YELLOW}●${RESET}" ;;
+        off)  echo -e "${RED}○${RESET}" ;;
+    esac
+}
+
+_draw_split_top() {
+    local lw=$1 rw=$2
+    echo -e "  ${YELLOW}╔$(_repeat_char '═' $lw)╦$(_repeat_char '═' $rw)╗${RESET}"
+}
+
+_draw_split_row() {
+    local ltxt="$1" rtxt="$2" lw=$3 rw=$4
+    local lp rp
+    lp=$(_pad_str "$ltxt" "$lw")
+    rp=$(_pad_str "$rtxt" "$rw")
+    echo -e "  ${YELLOW}║${RESET}${lp}${YELLOW}║${RESET}${rp}${YELLOW}║${RESET}"
+}
+
+_draw_split_sep() {
+    local lw=$1 rw=$2
+    echo -e "  ${YELLOW}╠$(_repeat_char '═' $lw)╬$(_repeat_char '═' $rw)╣${RESET}"
+}
+
+
+
+# ==========================================
+# OUTPUT WRAPPER — frame output menu, suppress clear biar ga kehapus
+# ==========================================
+wrap_output() {
+    local _fake_dir
+    _fake_dir=$(mktemp -d /tmp/zdt_clear_XXXXXX 2>/dev/null || echo "/tmp/zdt_clear_$$")
+    printf '#!/bin/sh\nexit 0\n' > "$_fake_dir/clear"
+    chmod +x "$_fake_dir/clear" 2>/dev/null || true
+
+    PATH="$_fake_dir:$PATH" "$@"
+    local _exit=$?
+
+    rm -rf "$_fake_dir" 2>/dev/null || true
+    return $_exit
 }
 
 # ==========================================
@@ -838,9 +886,14 @@ _print_menu_box() {
 _pause() {
     echo ""
     while read -s -r -t 0.01 -n 1000 2>/dev/null; do :; done
-    echo -e -n "  ${CYAN}╭$(_repeat_char '─' $(( $(tput cols 2>/dev/null || echo 50) - 4 )) )╮${RESET}"
-    echo -e -n "\n  ${CYAN}│${RESET} ${DIM}Tekan tombol apa saja untuk kembali...${RESET} ${CYAN}│${RESET}"
-    echo -e -n "\n  ${CYAN}╰$(_repeat_char '─' $(( $(tput cols 2>/dev/null || echo 50) - 4 )) )╯${RESET}"
+    local _pw=$(( $(tput cols 2>/dev/null || echo 50) - 4 ))
+    [ "$_pw" -gt 100 ] && _pw=100
+    [ "$_pw" -lt 50 ] && _pw=50
+    local _pm="${DIM}Tekan tombol apa saja untuk kembali...${RESET}"
+    local _pp=$(_pad_str " $_pm" "$_pw")
+    echo -e -n "  ${YELLOW}╠$(_repeat_char '═' $_pw)╣${RESET}"
+    echo -e -n "\n  ${YELLOW}║${RESET}${_pp}${YELLOW}║${RESET}"
+    echo -e -n "\n  ${YELLOW}╚$(_repeat_char '═' $_pw)╝${RESET}"
     read -s -r -n 1 2>/dev/null || read -r -n 1 2>/dev/null || true
     echo ""
 }
