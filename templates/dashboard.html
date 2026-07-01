@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* ============================================
-           DESIGN SYSTEM — "WARM CONSOLE"
+           DESIGN SYSTEM — "WARM CONSOLE" v5.0
            Inspired by audio mixing consoles, vinyl warmth,
            and VU meter glow. Amber primary, deep charcoal base.
            ============================================ */
@@ -101,12 +101,28 @@
             background-attachment: fixed;
             -webkit-font-smoothing: antialiased;
             transition: background-color 0.4s ease, color 0.3s ease;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            bottom: 0; left: 0; right: 0; z-index: -1;
+            height: 120px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' opacity='0.06'%3E%3Cpath fill='%23d97706' d='M0,60 Q100,20 200,55 T400,50 T600,65 T800,40 T1000,60 T1200,45 V120 H0 Z'/%3E%3C/svg%3E") repeat-x bottom;
+            background-size: 1200px 120px;
+            animation: waveformDrift 8s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes waveformDrift {
+            0% { background-position-x: 0; }
+            100% { background-position-x: -1200px; }
         }
         [data-theme="light"] body {
             background-image:
                 radial-gradient(circle at 20% 40%, rgba(180, 83, 9, 0.03) 0%, transparent 40%),
                 radial-gradient(circle at 80% 60%, rgba(6, 182, 212, 0.02) 0%, transparent 40%);
         }
+        [data-theme="light"] body::before { opacity: 0.4; }
 
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -814,9 +830,32 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-left: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
         }
         .badge-active { background: var(--badge-active-bg); color: var(--accent); }
+        .badge-active::before {
+            background: var(--accent);
+            box-shadow: 0 0 6px var(--accent);
+            animation: pulseDot 2s ease-in-out infinite;
+        }
         .badge-inactive { background: var(--badge-inactive-bg); color: var(--danger); }
+        .badge-inactive::before {
+            background: var(--danger);
+            opacity: 0.5;
+        }
+        @keyframes pulseDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.85); }
+        }
 
         /* ============================================
            UPDATE BADGE

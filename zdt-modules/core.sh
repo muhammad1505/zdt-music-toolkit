@@ -37,7 +37,8 @@ WEB_BIND="127.0.0.1"
 
 # Initialize UI variables to prevent unbound errors under set -u
 GREEN='' CYAN='' MAGENTA='' WHITE='' GRAY=''
-RED='' YELLOW='' BOLD='' RESET=''
+RED='' YELLOW='' BOLD='' RESET='' DIM=''
+BLUE='' ORANGE='' PURPLE=''
 ICO_OK="" ICO_FAIL="" ICO_WARN="" ICO_ARROW="" ICO_MUSIC="" ICO_GEAR=""
 ICO_SEARCH="" ICO_LIST="" ICO_CUT="" ICO_UPDATE="" ICO_DANGER="" ICO_ROCKET=""
 ICO_EXIT="" ICO_PLAY="" ICO_CHECK_OK="" ICO_CHECK_FAIL=""
@@ -290,15 +291,82 @@ _pkg_install() {
 # ==========================================
 # KONFIGURASI WARNA & FORMATTING
 # ==========================================
+# ── Terminal Color Detection ──
+_ZDT_HAS_TRUECOLOR=0
+_detect_truecolor() {
+    if [ "${NO_COLOR:-0}" = "1" ] || [ ! -t 1 ]; then
+        _ZDT_HAS_TRUECOLOR=0
+        return
+    fi
+    case "${COLORTERM:-}" in
+        truecolor|24bit) _ZDT_HAS_TRUECOLOR=1 ;;
+        *) _ZDT_HAS_TRUECOLOR=0 ;;
+    esac
+}
+
+# ── Semantic Color System ──
+# Semantic slots: define intent, not appearance
+# Usage: _clr <slot> [format]
+#   slot: fg.default, fg.muted, fg.emphasis, bg.base, bg.surface, bg.overlay,
+#         bg.selection, accent.primary, accent.secondary,
+#         status.error, status.warning, status.success, status.info,
+#         brand, brand.subtle
+#   format: --fg (default), --bg, --bold, --dim, --reset
+_ZDT_CLR_CACHE=""
+_clr() {
+    local slot="$1"
+    local fmt="${2:---fg}"
+    if [ "$fmt" = "--reset" ]; then
+        echo -ne "\033[0m"
+        return
+    fi
+    if [ "${NO_COLOR:-0}" = "1" ] || [ ! -t 1 ]; then
+        return
+    fi
+    case "$slot" in
+        fg.default)       echo -ne "\033[0;37m";;
+        fg.muted)         echo -ne "\033[2;37m";;
+        fg.emphasis)      echo -ne "\033[1;37m";;
+        bg.base)          [ "$fmt" = "--bg" ] && echo -ne "\033[40m" || echo -ne "\033[0;37m";;
+        bg.surface)       [ "$fmt" = "--bg" ] && echo -ne "\033[44m" || echo -ne "\033[0;37m";;
+        bg.overlay)       [ "$fmt" = "--bg" ] && echo -ne "\033[45m" || echo -ne "\033[0;37m";;
+        bg.selection)     [ "$fmt" = "--bg" ] && echo -ne "\033[46m" || echo -ne "\033[0;37m";;
+        accent.primary)   echo -ne "\033[1;36m";;
+        accent.secondary) echo -ne "\033[1;35m";;
+        status.error)     echo -ne "\033[1;31m";;
+        status.warning)   echo -ne "\033[1;33m";;
+        status.success)   echo -ne "\033[1;32m";;
+        status.info)      echo -ne "\033[1;34m";;
+        brand)            echo -ne "\033[1;33m";;
+        brand.subtle)     echo -ne "\033[0;33m";;
+        *)                echo -ne "\033[0m";;
+    esac
+}
+
+# ── Traditional Color Variables (backward compatible) ──
 _setup_colors() {
+    _detect_truecolor
     if [ "${NO_COLOR:-0}" = "1" ] || [ ! -t 1 ]; then
         GREEN='' CYAN='' MAGENTA='' WHITE='' GRAY=''
-        RED='' YELLOW='' BOLD='' RESET=''
-        DIM=''
+        RED='' YELLOW='' BOLD='' RESET='' DIM=''
+        BLUE='' ORANGE='' PURPLE=''
+    elif [ "$_ZDT_HAS_TRUECOLOR" = "1" ]; then
+        # Truecolor palette — Cyberpunk Neon
+        GREEN='\033[38;2;0;255;128m'
+        CYAN='\033[38;2;0;200;255m'
+        MAGENTA='\033[38;2;255;64;255m'
+        WHITE='\033[38;2;224;224;224m'
+        GRAY='\033[38;2;128;128;160m'
+        RED='\033[38;2;255;48;80m'
+        YELLOW='\033[38;2;255;220;64m'
+        BLUE='\033[38;2;64;160;255m'
+        ORANGE='\033[38;2;255;160;0m'
+        PURPLE='\033[38;2;200;128;255m'
+        DIM='\033[2m'
+        BOLD='\033[1m'
+        RESET='\033[0m'
     else
-        # Sapphire Elegance Palette — refined for all terminals
-        # Primary: Sapphire Cyan — readable on both light & dark backgrounds
-        # Accent: Warm Gold — for badges, highlights, headers
+        # 16/256 ANSI fallback — works on all terminals
         GREEN='\033[1;32m'
         CYAN='\033[1;36m'
         MAGENTA='\033[1;35m'
@@ -306,10 +374,16 @@ _setup_colors() {
         GRAY='\033[0;37m'
         RED='\033[1;31m'
         YELLOW='\033[1;33m'
+        BLUE='\033[1;34m'
+        ORANGE='\033[0;33m'
+        PURPLE='\033[1;35m'
         DIM='\033[2m'
         BOLD='\033[1m'
         RESET='\033[0m'
     fi
+    # Resolve border colors after color variables are set
+    _ZDT_BORDER_PRIMARY="${CYAN}"
+    _ZDT_BORDER_SECONDARY="${DIM}${BLUE}"
 }
 
 # Unicode/emoji support detection
@@ -704,24 +778,54 @@ _trap_ctrlc() {
 _trap_exit() {
     [ -n "$NET_PID" ] && kill -9 "$NET_PID" 2>/dev/null
     [ -n "$NET_TMP" ] && rm -f "$NET_TMP" 2>/dev/null
-    echo -ne "\033[?1049l\033[?25h"
+    echo -ne "\033[?25h"
     _release_lock
+}
+
+# SIGWINCH handler — triggered on terminal resize
+_ZDT_WINCH=0
+_trap_winch() {
+    _ZDT_WINCH=1
+}
+
+# Set up all signal traps
+_setup_traps() {
+    trap '_trap_ctrlc' SIGINT
+    trap '_trap_exit' EXIT
+    trap '_trap_winch' SIGWINCH
+    if [ "${ZDT_DEBUG:-0}" = "1" ]; then
+        set -o errtrace
+        trap '_trap_err $LINENO $?' ERR
+    fi
 }
 
 # ==========================================
 # ==========================================
 # UI HELPERS: PADDING & BORDERS
 # ==========================================
+# Normalize ANSI escapes: convert literal \033 to ESC byte
+_esc() {
+    printf '%s' "$1" | sed 's/\\033/\x1b/g'
+}
+
+_strip_ansi() {
+    sed -r 's/\x1B\[[0-9;]*[a-zA-Z]//g; s/\x1B[(][0-9;]*[a-zA-Z]//g'
+}
+
 _pad_str() {
-    local str="$1"
+    local raw="$1"
     local width="$2"
-    local plain=$(echo -e "$str" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
+    # Normalize: convert literal \033 → ESC byte so string is consistent
+    local str
+    str=$(_esc "$raw")
+    local plain
+    plain=$(printf '%s' "$str" | _strip_ansi)
     local len=${#plain}
     local pad=$((width - len))
-    if [ $pad -lt 0 ]; then
-        printf "%s" "${plain:0:$width}"
+    if [ "$pad" -lt 0 ]; then
+        printf '%s' "${plain:0:$width}"
     else
-        printf "%b%*s" "$str" "$pad" ""
+        printf '%s%*s' "$str" "$pad" ""
     fi
 }
 
@@ -737,34 +841,125 @@ _repeat_char() {
 }
 
 # ==========================================
-# HELPER: DRAW PROGRESS BAR
+# HELPER: DRAW PROGRESS BAR (Enhanced)
 # ==========================================
-# Draw a visual ASCII progress bar
-# Usage: _draw_bar <percentage> [width] [color_var]
-# Example: _draw_bar 45 10 "$YELLOW"
+# Draw a visual progress bar with optional color gradient
+# Usage: _draw_bar <percentage> [width] [color_var] [show_label]
+# Example: _draw_bar 45 10 "$YELLOW" true
 _draw_bar() {
     local pct=$1
     local width=${2:-10}
-    local color="${3:-$CYAN}"
+    local color="${3:-}"
+    local show_label="${4:-true}"
     
     # Clamp percentage
     [ "$pct" -lt 0 ] && pct=0
     [ "$pct" -gt 100 ] && pct=100
+    
+    # Auto-color by threshold if no color specified
+    if [ -z "$color" ]; then
+        if [ "$pct" -gt 90 ]; then color="$RED"
+        elif [ "$pct" -gt 70 ]; then color="$YELLOW"
+        elif [ "$pct" -gt 40 ]; then color="$CYAN"
+        else color="${GREEN}"
+        fi
+    fi
     
     local filled=$(( pct * width / 100 ))
     [ "$filled" -lt 0 ] && filled=0
     [ "$filled" -gt "$width" ] && filled=$width
     local empty=$(( width - filled ))
 
-    local bar=""
+    local bar_chars=""
     if [ "${NO_UNICODE:-0}" = "1" ]; then
-        bar="$(_repeat_char '#' "$filled")$(_repeat_char '-' "$empty")"
+        bar_chars="$(_repeat_char '#' "$filled")$(_repeat_char '-' "$empty")"
     else
-        bar="$(_repeat_char '█' "$filled")$(_repeat_char '░' "$empty")"
+        # Gradient blocks: █ for high, ▓ for mid, ▒ for low, ░ for empty
+        local g=""
+        local i
+        for ((i=0; i<filled; i++)); do
+            local rel=$(( (i + 1) * 100 / width ))
+            if [ "$rel" -gt 75 ]; then g="${g}█"
+            elif [ "$rel" -gt 50 ]; then g="${g}▓"
+            elif [ "$rel" -gt 25 ]; then g="${g}▒"
+            else g="${g}░"
+            fi
+        done
+        bar_chars="$g$(_repeat_char '░' "$empty")"
     fi
     
     local pct_str="$(printf '%3s' "${pct}%")"
-    echo -e "${color}${bar}${RESET} ${GRAY}${pct_str}${RESET}"
+    # Use printf to avoid echo -e inconsistencies with captured output
+    printf '%s%s%s %s%s%s' "$color" "$bar_chars" "$RESET" "$DIM" "$pct_str" "$RESET"
+}
+
+# ==========================================
+# HELPER: ANIMATED SPINNER (Enhanced)
+# ==========================================
+# Usage: _zdt_spinner <pid> [message]
+# Enhanced version with multiple frame sets
+_zdt_spinner() {
+    local pid=$1
+    local msg="${2:-Processing...}"
+    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    local i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        printf "\r  %s %s  " "${frames[$i]}" "$msg"
+        i=$(( (i + 1) % ${#frames[@]} ))
+        sleep 0.12
+    done
+    printf "\r%*s\r" "$(( ${#msg} + 6 ))" ""
+}
+
+# ==========================================
+# HELPER: TOAST NOTIFICATION
+# ==========================================
+# Display a brief auto-dismissing notification
+# Usage: _toast <type> <message>
+# type: ok, fail, warn, info
+_toast() {
+    local type="$1"
+    shift
+    local msg="$*"
+    local icon=""
+    local color=""
+    case "$type" in
+        ok)   icon="${ICO_OK}"; color="${GREEN}" ;;
+        fail) icon="${ICO_FAIL}"; color="${RED}" ;;
+        warn) icon="${ICO_WARN}"; color="${YELLOW}" ;;
+        info) icon="${ICO_ARROW}"; color="${CYAN}" ;;
+        *)    icon="*"; color="${WHITE}" ;;
+    esac
+    echo -e "  ${color}${icon}${RESET} ${msg}"
+}
+
+# ==========================================
+# HELPER: SECTION HEADER
+# ==========================================
+# Draw a section header with optional accent color
+# Usage: _draw_section <title> [color]
+_draw_section() {
+    local title="$1"
+    local color="${2:-$YELLOW}"
+    local cols=$(tput cols 2>/dev/null || echo 80)
+    local width=$(( cols - 4 ))
+    [ "$width" -lt 30 ] && width=30
+    [ "$width" -gt 80 ] && width=80
+    local title_str=" ${color}${BOLD}■${RESET} ${BOLD}${title}${RESET}"
+    local pad=$(_pad_str "$title_str" "$width")
+    echo -e "  ${DIM}${color}╭${RESET}${pad}${DIM}${color}╮${RESET}"
+}
+
+# ==========================================
+# HELPER: BADGE
+# ==========================================
+# Draw a labeled badge
+# Usage: _draw_badge <label> <value> [value_color]
+_draw_badge() {
+    local label="$1"
+    local value="$2"
+    local vcolor="${3:-$WHITE}"
+    echo -n "${DIM}${label}${RESET} ${vcolor}${value}${RESET}"
 }
 
 # ==========================================
@@ -833,20 +1028,48 @@ _print_menu_box() {
 }
 
 # ==========================================
-# SPLIT-PANE DRAWING HELPERS (double-line style)
+# SPLIT-PANE DRAWING HELPERS (Enhanced)
 # ==========================================
+# Status dot: on/warn/off with semantic colors
 _draw_status_dot() {
     local state="$1"
+    local size="${2:-normal}"
+    local on_char="●"
+    local off_char="○"
+    local warn_char="●"
+    # Use same chars for both sizes — avoids ambiguous-width rendering
+    :
     case "$state" in
-        on)   echo -e "${GREEN}●${RESET}" ;;
-        warn) echo -e "${YELLOW}●${RESET}" ;;
-        off)  echo -e "${RED}○${RESET}" ;;
+        on)   echo -e "${GREEN}${on_char}${RESET}" ;;
+        warn) echo -e "${YELLOW}${warn_char}${RESET}" ;;
+        off)  echo -e "${RED}${off_char}${RESET}" ;;
     esac
 }
 
+# Status badge: colored pill label
+_draw_status_badge() {
+    local label="$1"
+    local state="$2"
+    local color
+    case "$state" in
+        on)    color="$GREEN" ;;
+        warn)  color="$YELLOW" ;;
+        off)   color="$RED" ;;
+        info)  color="$CYAN" ;;
+        brand) color="$YELLOW" ;;
+        *)     color="$GRAY" ;;
+    esac
+    echo -e "${DIM}[${RESET}${color}${label}${RESET}${DIM}]${RESET}"
+}
+
+# Split-pane frame characters — resolved via function so they reflect the
+# current value of YELLOW/DIM/WHITE after _setup_colors() is called.
+_ZDT_BORDER_PRIMARY=""  # placeholder, reassigned in _setup_colors
+_ZDT_BORDER_SECONDARY=""  # placeholder, reassigned in _setup_colors
+
 _draw_split_top() {
     local lw=$1 rw=$2
-    echo -e "  ${YELLOW}╔$(_repeat_char '═' $lw)╦$(_repeat_char '═' $rw)╗${RESET}"
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╔$(_repeat_char '═' $lw)╦$(_repeat_char '═' $rw)╗${RESET}"
 }
 
 _draw_split_row() {
@@ -854,12 +1077,119 @@ _draw_split_row() {
     local lp rp
     lp=$(_pad_str "$ltxt" "$lw")
     rp=$(_pad_str "$rtxt" "$rw")
-    echo -e "  ${YELLOW}║${RESET}${lp}${YELLOW}║${RESET}${rp}${YELLOW}║${RESET}"
+    echo -e "  ${_ZDT_BORDER_PRIMARY}║${RESET}${lp}${_ZDT_BORDER_PRIMARY}║${RESET}${rp}${_ZDT_BORDER_PRIMARY}║${RESET}"
 }
 
 _draw_split_sep() {
     local lw=$1 rw=$2
-    echo -e "  ${YELLOW}╠$(_repeat_char '═' $lw)╬$(_repeat_char '═' $rw)╣${RESET}"
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╠$(_repeat_char '═' $lw)╬$(_repeat_char '═' $rw)╣${RESET}"
+}
+
+_draw_split_bottom() {
+    local lw=$1 rw=$2
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╚$(_repeat_char '═' $lw)╩$(_repeat_char '═' $rw)╝${RESET}"
+}
+
+# ==========================================
+# SINGLE BOX DRAWING HELPERS
+# ==========================================
+_draw_box_top() {
+    local width=$1
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╔$(_repeat_char '═' $width)╗${RESET}"
+}
+
+_draw_box_row() {
+    local text="$1" width=$2
+    local pad=$(_pad_str "$text" "$width")
+    echo -e "  ${_ZDT_BORDER_PRIMARY}║${RESET}${pad}${_ZDT_BORDER_PRIMARY}║${RESET}"
+}
+
+_draw_box_sep() {
+    local width=$1
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╠$(_repeat_char '═' $width)╣${RESET}"
+}
+
+_draw_box_bottom() {
+    local width=$1
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╚$(_repeat_char '═' $width)╝${RESET}"
+}
+
+# ==========================================
+# HELP OVERLAY
+# ==========================================
+# Draw a contextual help overlay (triggered by ? key)
+_draw_help_overlay() {
+    local cols=$(tput cols 2>/dev/null || echo 80)
+    local lines=$(tput lines 2>/dev/null || echo 24)
+    local width=$(( cols - 8 ))
+    [ "$width" -lt 50 ] && width=50
+    [ "$width" -gt 70 ] && width=70
+    local height=16
+    local top_pad=$(( (lines - height) / 2 ))
+    
+    # Clear area and position overlay in center
+    local i
+    for ((i=0; i<top_pad; i++)); do echo ""; done
+    
+    _draw_box_top $width
+    _draw_box_row " ${BOLD}${YELLOW}◈${RESET} ${BOLD}ZDT Help${RESET} ${DIM}— Keyboard Shortcuts${RESET}" $width
+    _draw_box_sep $width
+    
+    local keys=(
+        "${CYAN}[1-9]${RESET} Main menu actions"
+        "${CYAN}[A]${RESET}    Zaki AI assistant"
+        "${CYAN}[S]${RESET}    Storage setup"
+        "${CYAN}[W]${RESET}    Watch daemon"
+        "${CYAN}[T]${RESET}    Telegram bot"
+        "${CYAN}[V]${RESET}    Web dashboard"
+        "${CYAN}[P]${RESET}    Playlist manager"
+        "${CYAN}[M]${RESET}    Metadata editor"
+        "${CYAN}[O]${RESET}    Clean file names"
+        "${CYAN}[R]${RESET}    Uninstall"
+        "${CYAN}[U]${RESET}    Update"
+        "${CYAN}[X]${RESET}    Delete all"
+        "${CYAN}[0]${RESET}    Exit / Quit"
+        "${CYAN}[?]${RESET}    This help overlay"
+    )
+    for key_entry in "${keys[@]}"; do
+        _draw_box_row "  ${key_entry}" $width
+    done
+    
+    _draw_box_sep $width
+    _draw_box_row " ${DIM}Press any key to close${RESET}" $width
+    _draw_box_bottom $width
+    
+    read -s -r -n 1 2>/dev/null || read -r -n 1 2>/dev/null || true
+}
+
+# ==========================================
+# FOOTER DRAWING (Context-sensitive)
+# ==========================================
+# Draw a compact footer bar showing available shortcuts
+# Usage: _draw_footer <inner_width> [shortcut pairs...]
+# Example: _draw_footer 50 "0" "Exit" "?" "Help"
+_draw_footer() {
+    local width=$1
+    shift
+    local shortcuts=("$@")
+    local items=()
+    local total_len=0
+    
+    for ((i=0; i<${#shortcuts[@]}; i+=2)); do
+        local key="${shortcuts[i]}"
+        local label="${shortcuts[i+1]}"
+        local item=" ${CYAN}[${key}]${RESET} ${label} "
+        items+=("$item")
+    done
+    
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╠$(_repeat_char '═' $width)╣${RESET}"
+    local footer_line=""
+    for item in "${items[@]}"; do
+        footer_line="${footer_line}${item}"
+    done
+    local pad=$(_pad_str "$footer_line" "$width")
+    echo -e "  ${_ZDT_BORDER_PRIMARY}║${RESET}${pad}${_ZDT_BORDER_PRIMARY}║${RESET}"
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╚$(_repeat_char '═' $width)╝${RESET}"
 }
 
 
@@ -886,14 +1216,14 @@ wrap_output() {
 _pause() {
     echo ""
     while read -s -r -t 0.01 -n 1000 2>/dev/null; do :; done
-    local _pw=$(( $(tput cols 2>/dev/null || echo 50) - 4 ))
-    [ "$_pw" -gt 100 ] && _pw=100
-    [ "$_pw" -lt 50 ] && _pw=50
-    local _pm="${DIM}Tekan tombol apa saja untuk kembali...${RESET}"
-    local _pp=$(_pad_str " $_pm" "$_pw")
-    echo -e -n "  ${YELLOW}╠$(_repeat_char '═' $_pw)╣${RESET}"
-    echo -e -n "\n  ${YELLOW}║${RESET}${_pp}${YELLOW}║${RESET}"
-    echo -e -n "\n  ${YELLOW}╚$(_repeat_char '═' $_pw)╝${RESET}"
+    local _pw=$(( $(tput cols 2>/dev/null || echo 50) - 8 ))
+    [ "$_pw" -gt 60 ] && _pw=60
+    [ "$_pw" -lt 30 ] && _pw=30
+    local _pm="${DIM}Press any key to return...${RESET}"
+    local _pp=$(_pad_str " ${_pm}" "$_pw")
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╭$(_repeat_char '─' $_pw)╮${RESET}"
+    echo -e "  ${_ZDT_BORDER_PRIMARY}│${RESET}${_pp}${_ZDT_BORDER_PRIMARY}│${RESET}"
+    echo -e "  ${_ZDT_BORDER_PRIMARY}╰$(_repeat_char '─' $_pw)╯${RESET}"
     read -s -r -n 1 2>/dev/null || read -r -n 1 2>/dev/null || true
     echo ""
 }

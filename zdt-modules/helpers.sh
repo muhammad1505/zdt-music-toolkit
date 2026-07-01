@@ -305,22 +305,6 @@ bersih_nama_otomatis() {
 }
 
 # ==========================================
-# HELPER: SPINNER (untuk background tasks)
-# ==========================================
-_zdt_spinner() {
-    local pid=$1
-    local msg="${2:-Memproses...}"
-    local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-    local i=0
-    while kill -0 "$pid" 2>/dev/null; do
-        printf "\r  %s %s  " "${frames[$i]}" "$msg"
-        i=$(( (i + 1) % ${#frames[@]} ))
-        sleep 0.12
-    done
-    printf "\r%*s\r" "$(( ${#msg} + 6 ))" ""
-}
-
-# ==========================================
 # HELPER: SCAN MEDIA FILES (DRY)
 # ==========================================
 # _find_media_files <target_dir> <type> [extra_find_args...]
