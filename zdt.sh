@@ -19,7 +19,7 @@ else
         fi
     done
 fi
-readonly APP_VERSION="${_APP_VERSION:-4.4.53}"
+readonly APP_VERSION="${_APP_VERSION:-4.4.54}"
 export ZDT_VERSION="$APP_VERSION"
 
 SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
@@ -121,13 +121,9 @@ main() {
         cd "$ROOT_DIR" || echo -e "  ${YELLOW}${ICO_WARN} Gagal pindah ke $ROOT_DIR. Menggunakan $(pwd)${RESET}"
     fi
     if ! _acquire_lock; then exit 1; fi
-    trap '_trap_ctrlc' SIGINT
-    trap '_trap_exit' EXIT
-    if [ "${ZDT_DEBUG:-0}" = "1" ] && [ "$DEBUG_TRAP_SET" = false ]; then
-        set -o errtrace
-        trap '_trap_err $LINENO $?' ERR
-        DEBUG_TRAP_SET=true
-    fi
+    _setup_traps
+    DEBUG_TRAP_SET=true
+    if [ "${ZDT_DEBUG:-0}" = "1" ]; then trap 'echo "==ERR at line $LINENO (rc=$?)" >&2' ERR; fi
     # Use mktemp with validation; fallback creates a proper file, not a string
     NET_TMP=$(mktemp "${TMPDIR:-/tmp}/zdt_net_XXXXXX" 2>/dev/null || { touch "/tmp/.zdt_net_$$" 2>/dev/null && echo "/tmp/.zdt_net_$$"; } || echo "")
     NET_PID=""
@@ -199,19 +195,20 @@ main() {
         
         if [ "$cols" -ge 75 ] && [ "${RUNTIME_ENV:-}" != "termux" ] && [ "$FORCE_MOBILE" -ne 1 ]; then
             # ──────────────────────────────────────────────────────────
-            # DESKTOP VIEW — "ZDT Studio Console" (Audiophile v5)
-            # Split-pane layout with brand identity, status, and grid menu
+            # DESKTOP VIEW — "ZDT Studio Console" v5.0
+            # Split-pane layout with brand identity, resource bars,
+            # categorized menu grid, and system info panel
             # ──────────────────────────────────────────────────────────
             local inner_cols=$(( cols - 4 ))
-            [ "$inner_cols" -gt 100 ] && inner_cols=100
+            [ "$inner_cols" -gt 106 ] && inner_cols=106
             [ "$inner_cols" -lt 56 ] && inner_cols=56
-            local left_width=38
+            local left_width=44
             local right_width=$(( inner_cols - left_width - 1 ))
             if [ "$right_width" -lt 30 ]; then
                 right_width=30
                 left_width=$(( inner_cols - right_width - 1 ))
             fi
-            [ "$left_width" -lt 28 ] && left_width=28
+            [ "$left_width" -lt 30 ] && left_width=30
 
             # ── Service status dots ──
             local svc_web_state="off"
@@ -220,98 +217,77 @@ main() {
             [ "$_svc_tele" = "ON" ] && svc_tele_state="on"
             local svc_watch_state="off"
             [ "$_svc_watch" = "ON" ] && svc_watch_state="on"
-            local svc_web_dot=$(_draw_status_dot "$svc_web_state")
-            local svc_tele_dot=$(_draw_status_dot "$svc_tele_state")
-            local svc_watch_dot=$(_draw_status_dot "$svc_watch_state")
+            local svc_web_dot=$(_draw_status_dot "$svc_web_state" "small")
+            local svc_tele_dot=$(_draw_status_dot "$svc_tele_state" "small")
+            local svc_watch_dot=$(_draw_status_dot "$svc_watch_state" "small")
 
-            # Storage status dot
             local st_dot_state="on"
             [ "$storage_pct" -gt 85 ] && st_dot_state="warn"
             [ "$storage_pct" -gt 95 ] && st_dot_state="off"
-            local st_dot=$(_draw_status_dot "$st_dot_state")
+            local st_dot=$(_draw_status_dot "$st_dot_state" "small")
+            local _st_dot_small=$(_draw_status_dot "$st_dot_state" "small")
 
-            # AI status dot
             local ai_dot_state="off"
             [ -f "$HOME/.config/zdt/gemini_key" ] && ai_dot_state="on"
-            local ai_dot=$(_draw_status_dot "$ai_dot_state")
-
-            # Daemon status dot
-            local dm_state="off"
-            [ "$_svc_watch" = "ON" ] || [ "$_svc_web" = "ON" ] || [ "$_svc_tele" = "ON" ] && dm_state="on"
-            local dm_dot=$(_draw_status_dot "$dm_state")
+            local ai_dot=$(_draw_status_dot "$ai_dot_state" "small")
+            local _ai_dot_small=$(_draw_status_dot "$ai_dot_state" "small")
+            local _net_small=$(_draw_status_dot "$([ "$net_status" = "1" ] && echo "on" || echo "off")")
 
             # ── TOP HEADER ──
             _draw_split_top $left_width $right_width
 
-            # Row 1: Brand on left, STORAGE/AI/DAEMON on right
-            local logo_text=" ${BOLD}${YELLOW}ZDT${RESET} ${WHITE}Music Toolkit${RESET} ${DIM}v${APP_VERSION}${RESET}"
-            local status_text=" ${st_dot} ${WHITE}STORAGE${RESET}  ${ai_dot} ${WHITE}AI${RESET}  ${dm_dot} ${WHITE}DAEMON${RESET}"
+            # Row 1: Brand identity
+            local logo_text=" ${BOLD}${WHITE}ZDT${RESET} ${CYAN}Music Toolkit${RESET} ${DIM}v${APP_VERSION}${RESET}"
+            local _dm_dot=$(_draw_status_dot "$([ "$_svc_watch" = "ON" ] || [ "$_svc_web" = "ON" ] || [ "$_svc_tele" = "ON" ] && echo "on" || echo "off")" "small")
+            local status_text=" ${_st_dot_small} ${DIM}STORAGE${RESET}  ${_ai_dot_small} ${DIM}AI${RESET}  ${_dm_dot} ${DIM}DM${RESET}  ${_net_small} ${DIM}NET${RESET}"
             _draw_split_row "$logo_text" "$status_text" $left_width $right_width
 
-            # Row 2: Environment + uptime on left, WEB/TELE/WATCH on right
-            local env_text=" ${GRAY}${os_name:0:20}${RESET} ${DIM}|${RESET} ${GRAY}UPT${RESET} ${uptime_val:0:10}"
-            local svc_details=" ${svc_web_dot} ${DIM}WEB${RESET}  ${svc_tele_dot} ${DIM}TELE${RESET}  ${svc_watch_dot} ${DIM}WATCH${RESET}"
-            _draw_split_row "$env_text" "$svc_details" $left_width $right_width
+            # Row 2: Environment + services
+            local env_text=" ${DIM}${os_name:0:22}${RESET} ${DIM}│${RESET} ${DIM}UPT${RESET} ${uptime_val:0:10}"
+            local svc_text=" ${svc_web_dot} ${DIM}WEB${RESET}  ${svc_tele_dot} ${DIM}TELE${RESET}  ${svc_watch_dot} ${DIM}WATCH${RESET}"
+            _draw_split_row "$env_text" "$svc_text" $left_width $right_width
 
             # ── RESOURCE BARS ──
             _draw_split_sep $left_width $right_width
-            local ram_color="${GREEN}"; [ "$ram_pct" -gt 70 ] && ram_color="${YELLOW}"; [ "$ram_pct" -gt 90 ] && ram_color="${RED}"
             local cpu_val="${_ZDT_CACHED_CPU:-0}"; [ "$cpu_val" = "?" ] && cpu_val=0
-            local cpu_color="${GREEN}"; [ "$cpu_val" -gt 70 ] && cpu_color="${YELLOW}"; [ "$cpu_val" -gt 90 ] && cpu_color="${RED}"
-            local st_color="${GREEN}"; [ "$storage_pct" -gt 70 ] && st_color="${YELLOW}"; [ "$storage_pct" -gt 90 ] && st_color="${RED}"
-            local ram_bar="${YELLOW}RAM${RESET} $(_draw_bar "$ram_pct" 7 "$ram_color")"
-            local cpu_bar="${YELLOW}CPU${RESET} $(_draw_bar "$cpu_val" 7 "$cpu_color")"
-            local st_bar="${YELLOW}DSK${RESET} $(_draw_bar "$storage_pct" 15 "$st_color")"
-            _draw_split_row "${ram_bar}  ${cpu_bar}" "${st_bar}" $left_width $right_width
+            local left_bars=" ${DIM}RAM${RESET} $(_draw_bar "$ram_pct" 12)  ${DIM}CPU${RESET} $(_draw_bar "$cpu_val" 12)"
+            local right_bars=" ${DIM}DSK${RESET} $(_draw_bar "$storage_pct" 16)"
+            _draw_split_row "$left_bars" "$right_bars" $left_width $right_width
 
             # ── MIDDLE DIVIDER ──
             _draw_split_sep $left_width $right_width
 
-            # ── BUILD LEFT (Menu) and RIGHT (System + Recent) content arrays ──
+            # ── BUILD LEFT (Menu categories) and RIGHT (System info) ──
+            # __SEP__ markers insert ═ separators; per-section boundary alignment
+            # is handled at render time (full split when both sides are SEP,
+            # mixed content+SEP when only one side needs a boundary).
 
-            # LEFT: Menu grid
-            local left_items=()
-            local menu_rows=(
-                "${YELLOW}[1]${RESET} ${BOLD}Spotify${RESET}"
-                "${YELLOW}[2]${RESET} ${BOLD}YT Audio${RESET}"
-                "${YELLOW}[3]${RESET} ${BOLD}Video DL${RESET}"
-                "${YELLOW}[4]${RESET} ${BOLD}Compress${RESET}"
-                "${YELLOW}[5]${RESET} ${BOLD}Vocal${RESET}"
-                "${YELLOW}[6]${RESET} ${BOLD}Lyrics${RESET}"
-                "${YELLOW}[7]${RESET} ${BOLD}Playlist${RESET}"
-                "${YELLOW}[8]${RESET} ${BOLD}Sync${RESET}"
-                "${YELLOW}[9]${RESET} ${BOLD}System${RESET}"
-                "${YELLOW}[A]${RESET} ${BOLD}Zaki AI${RESET}"
-            )
-            local menu2_rows=(
-                "${YELLOW}[S]${RESET} ${BOLD}Storage${RESET}"
-                "${YELLOW}[W]${RESET} ${BOLD}Watch${RESET}"
-                "${YELLOW}[T]${RESET} ${BOLD}Telegram${RESET}"
-                "${YELLOW}[V]${RESET} ${BOLD}Web UI${RESET}"
-                "${YELLOW}[U]${RESET} ${BOLD}Update${RESET}"
-                "${YELLOW}[R]${RESET} ${BOLD}Uninstall${RESET}"
-                "${YELLOW}[M]${RESET} ${BOLD}Metadata${RESET}"
-                "${YELLOW}[O]${RESET} ${BOLD}Clean${RESET}"
-                "${YELLOW}[P]${RESET} ${BOLD}Playlist${RESET}"
-                "${YELLOW}[X]${RESET} ${BOLD}Delete${RESET}"
-            )
-            left_items+=(" ${BOLD}${YELLOW}MENU${RESET}")
-            left_items+=("__HSEP__")
-            local half_w=$(( (left_width - 3) / 2 ))
-            [ "$half_w" -lt 14 ] && half_w=14
-            for ((mi=0; mi<10; mi++)); do
-                local c1="${menu_rows[mi]}"
-                local c2="${menu2_rows[mi]}"
-                local c1_pad=$(_pad_str "$c1" "$half_w")
-                left_items+=("${c1_pad} ${c2}")
-            done
-            local left_count=${#left_items[@]}
+            local _ci=18 _sepl="$_ZDT_BORDER_PRIMARY$(_repeat_char '═' $left_width)${RESET}"
+            local _sepr="$_ZDT_BORDER_PRIMARY$(_repeat_char '═' $right_width)${RESET}"
+            local left_items=() right_items=()
 
-            # RIGHT: System Info + Recent
-            local right_items=()
-            right_items+=(" ${BOLD}${YELLOW}SYSTEM${RESET}")
-            right_items+=("__HSEP__")
-            local _dot_on="${GREEN}●${RESET}" _dot_off="${RED}○${RESET}"
+            # ── LEFT: DOWNLOAD ──
+            left_items+=(" ${BOLD}${CYAN}▸${RESET} DOWNLOAD")
+            left_items+=("__SEP__")
+            left_items+=("$(_pad_str " ${CYAN}[1]${RESET} Spotify" $_ci) $(_pad_str " ${CYAN}[5]${RESET} Vocal" 25)")
+            left_items+=("$(_pad_str " ${CYAN}[2]${RESET} YT Audio" $_ci) $(_pad_str " ${CYAN}[6]${RESET} Lyrics" 25)")
+            left_items+=("$(_pad_str " ${CYAN}[3]${RESET} Video DL" $_ci) $(_pad_str " ${CYAN}[7]${RESET} Playlist" 25)")
+            left_items+=("$(_pad_str " ${CYAN}[4]${RESET} Compress" $_ci) $(_pad_str " ${CYAN}[8]${RESET} Sync" 25)")
+            left_items+=("__SEP__")
+            left_items+=(" ${BOLD}${MAGENTA}▸${RESET} TOOLS")
+            left_items+=("__SEP__")
+            left_items+=("$(_pad_str " ${BLUE}[S]${RESET} Storage" $_ci) $(_pad_str " ${BLUE}[W]${RESET} Watch" 25)")
+            left_items+=("$(_pad_str " ${BLUE}[T]${RESET} Telegram" $_ci) $(_pad_str " ${BLUE}[V]${RESET} Web UI" 25)")
+            left_items+=("$(_pad_str " ${BLUE}[P]${RESET} Playlist" $_ci) $(_pad_str " ${BLUE}[M]${RESET} Metadata" 25)")
+            left_items+=("$(_pad_str " ${BLUE}[O]${RESET} Clean" $_ci) $(_pad_str " ${BLUE}[A]${RESET} Zaki AI" 25)")
+            left_items+=("__SEP__")
+            left_items+=(" ${BOLD}${YELLOW}▸${RESET} SETTINGS")
+            left_items+=("__SEP__")
+            left_items+=("$(_pad_str " ${GREEN}[9]${RESET} System" $_ci) $(_pad_str " ${RED}[X]${RESET} Delete" 25)")
+            left_items+=("$(_pad_str " ${GREEN}[U]${RESET} Update" $_ci) $(_pad_str " ${RED}[R]${RESET} Uninstall" 25)")
+
+            # ── RIGHT: TOOLS STATUS + ENVIRONMENT ──
+            local _dot_on="${GREEN}•${RESET}" _dot_off="${RED}∘${RESET}" _d="${DIM}"
             local _ico_ff=$([ "$_ZDT_CACHED_FFMPEG" = "1" ] && echo "$_dot_on" || echo "$_dot_off")
             local _ico_py=$([ "$_ZDT_CACHED_PYTHON3" = "1" ] && echo "$_dot_on" || echo "$_dot_off")
             local _ico_yt=$([ "$_ZDT_CACHED_YTDLP" = "1" ] && echo "$_dot_on" || echo "$_dot_off")
@@ -324,175 +300,176 @@ main() {
                 [ -f "$_tb_p" ] && { _ico_tb="$_dot_on"; break; }
             done 2>/dev/null
             local _ico_wd="$_dot_off"
-            local _ico_wd="$_dot_off"
             for _wd_p in "${ZDT_VENV_DIR:-$HOME/.local/share/zdt/venv}/lib/python3."*/site-packages/watchdog/__init__.py; do
                 [ -f "$_wd_p" ] && { _ico_wd="$_dot_on"; break; }
             done 2>/dev/null
-            right_items+=(" ${_ico_ff} ${BOLD}ffmpeg${RESET}")
-            right_items+=(" ${_ico_py} ${BOLD}Python 3${RESET}")
-            right_items+=(" ${_ico_yt} ${BOLD}yt-dlp${RESET}")
-            right_items+=(" ${_ico_sp} ${BOLD}spotdl${RESET}")
-            right_items+=(" ${_ico_dm} ${BOLD}Demucs${RESET}")
-            right_items+=(" ${_ico_mu} ${BOLD}Mutagen${RESET}")
-            right_items+=(" ${_ico_fl} ${BOLD}Flask${RESET}")
-            right_items+=(" ${_ico_tb} ${BOLD}Telebot${RESET}")
-            right_items+=(" ${_ico_wd} ${BOLD}Watchdog${RESET}")
-            # Spacer biar sejajar dengan [A] Zaki AI
-            right_items+=("")
-
-
-            local right_count=${#right_items[@]}
-            # Balance rows so both panels have equal height
-            if [ "$left_count" -lt "$right_count" ]; then
-                for ((_i=left_count; _i<right_count; _i++)); do left_items+=(""); done
-                left_count=$right_count
-            elif [ "$right_count" -lt "$left_count" ]; then
-                for ((_i=right_count; _i<left_count; _i++)); do right_items+=(""); done
-                right_count=$left_count
+            local _tc1=11
+            local _tc2=$(( right_width - _tc1 - 2 ))
+            right_items+=(" ${BOLD}${GREEN}▸${RESET} ${BOLD}${GREEN}TOOLS STATUS${RESET}")
+            right_items+=("__SEP__")
+            right_items+=(" $(_pad_str "${_ico_ff} ${_d}ffmpeg${RESET}" $_tc1) $(_pad_str "${_ico_py} ${_d}Python 3${RESET}" $_tc2)")
+            right_items+=(" $(_pad_str "${_ico_yt} ${_d}yt-dlp${RESET}" $_tc1) $(_pad_str "${_ico_sp} ${_d}spotdl${RESET}" $_tc2)")
+            right_items+=(" $(_pad_str "${_ico_dm} ${_d}Demucs${RESET}" $_tc1) $(_pad_str "${_ico_mu} ${_d}Mutagen${RESET}" $_tc2)")
+            right_items+=(" $(_pad_str "${_ico_fl} ${_d}Flask${RESET}" $_tc1) $(_pad_str "${_ico_tb} ${_d}Telebot${RESET}" $_tc2)")
+            right_items+=(" $(_pad_str "${_ico_wd} ${_d}Watchdog${RESET}" $(( right_width - 1 )))")
+            right_items+=("__SEP__")
+            local _ew=8
+            right_items+=(" ${BOLD}${CYAN}▸${RESET} ${BOLD}${CYAN}ENVIRONMENT${RESET}")
+            right_items+=("__SEP__")
+            right_items+=(" $(_pad_str "${DIM}Kernel${RESET}" $_ew) ${DIM}:${RESET} ${kernel_ver:0:18}")
+            right_items+=(" $(_pad_str "${DIM}Arch${RESET}" $_ew) ${DIM}:${RESET} ${arch}")
+            right_items+=(" $(_pad_str "${DIM}Packages${RESET}" $_ew) ${DIM}:${RESET} ${pkgs}")
+            right_items+=(" $(_pad_str "${DIM}Load${RESET}" $_ew) ${DIM}:${RESET} ${load_avg:0:20}")
+            [ "$temp" != "N/A" ] && right_items+=(" $(_pad_str "${DIM}Temp${RESET}" $_ew) ${DIM}:${RESET} ${temp}") || right_items+=("")
+            # Balance row counts
+            local lc=${#left_items[@]} rc=${#right_items[@]}
+            if [ "$lc" -lt "$rc" ]; then
+                for ((_i=lc; _i<rc; _i++)); do left_items+=(""); done
+            elif [ "$rc" -lt "$lc" ]; then
+                for ((_i=rc; _i<lc; _i++)); do right_items+=(""); done
             fi
-            local max_rows=$left_count
+            local mx=${#left_items[@]}; [ "${#right_items[@]}" -gt "$mx" ] && mx=${#right_items[@]}
 
-            for ((ri=0; ri<max_rows; ri++)); do
-                local ltxt="${left_items[ri]:-}"
-                local rtxt="${right_items[ri]:-}"
-                if [ "$rtxt" = "__HSEP__" ] || [ "$ltxt" = "__HSEP__" ]; then
+            # Render — handle __SEP__ for per-panel ═ dividers
+            for ((ri=0; ri<mx; ri++)); do
+                local lv="${left_items[ri]:-}" rv="${right_items[ri]:-}"
+                [ -z "$lv" ] && [ -z "$rv" ] && continue
+                if [ "$lv" = "__SEP__" ] && [ "$rv" = "__SEP__" ]; then
                     _draw_split_sep $left_width $right_width
+                elif [ "$lv" = "__SEP__" ]; then
+                    _draw_split_row "$_sepl" "$rv" $left_width $right_width
+                elif [ "$rv" = "__SEP__" ]; then
+                    _draw_split_row "$lv" "$_sepr" $left_width $right_width
                 else
-                    _draw_split_row "$ltxt" "$rtxt" $left_width $right_width
+                    _draw_split_row "$lv" "$rv" $left_width $right_width
                 fi
             done
 
-            # ── BOTTOM SHORTCUT BAR ──
-            echo -e "  ${YELLOW}╠$(_repeat_char '═' $left_width)╩$(_repeat_char '═' $right_width)╣${RESET}"
-            local shortcut_bar=" ${CYAN}[0]${RESET} Keluar  ${CYAN}[?]${RESET} Help"
-            local sc_pad=$(_pad_str "$shortcut_bar" $inner_cols)
-            echo -e "  ${YELLOW}║${RESET}${sc_pad}${YELLOW}║${RESET}"
-            echo -e "  ${YELLOW}╚$(_repeat_char '═' $inner_cols)╝${RESET}"
+            # ── BOTTOM SHORTCUT BAR with context-sensitive shortcuts ──
+            _draw_footer $inner_cols "0" "Exit" "?" "Help" "T" "Telegram" "V" "Web UI"
         else
-            # MOBILE VIEW — CyberTron responsive layout
+            # MOBILE VIEW — Responsive compact layout with 3 tiers
             local inner_cols=$(( cols - 4 ))
-            [ "$inner_cols" -lt 30 ] && inner_cols=30
-            local _cyber=false
-            [ "${RUNTIME_ENV:-}" = "termux" ] && _cyber=true
-            [ "$FORCE_MOBILE" -eq 1 ] && _cyber=true
-
-            # Box chars: double-line for cyber mode
+            [ "$inner_cols" -lt 28 ] && inner_cols=28
+            # Cyberpunk mode for mobile
             local _tlc="╭" _trc="╮" _blc="╰" _brc="╯" _hc="─" _vc="│"
-            local _sec_bullet="■"
-            $_cyber && { _tlc="╔" _trc="╗" _blc="╚" _brc="╝" _hc="═" _vc="║"; _sec_bullet="◉"; }
+            local _sec_bullet="▸" _brand_color="$CYAN"
 
-            local net_icon="${net_col}${ICO_WIFI:-NET}${RESET} ${net_str}"
-            local cyber_badge=""
-            $_cyber && cyber_badge="${MAGENTA}⚡${RESET} "
-            local header_prefix="${cyber_badge}${MAGENTA}${BOLD}ZDT v${APP_VERSION}${RESET}"
+            local header_prefix=" ${_brand_color}${BOLD}◈${RESET} ${_brand_color}ZDT${RESET} ${DIM}v${APP_VERSION}${RESET}"
 
+            # ── TIER 1: Ultra-narrow (<42 cols) ──
             if [ "$inner_cols" -lt 42 ]; then
-                # TIER 1: Ultra-narrow
-                local header=" ${header_prefix} ${net_icon} "
-                local header_pad=$(_pad_str "$header" $inner_cols)
-                echo -e "  ${CYAN}${_tlc}$(_repeat_char "${_hc}" $inner_cols)${_trc}${RESET}"
-                echo -e "  ${CYAN}${_vc}${RESET}${MAGENTA}${BOLD}${header_pad}${RESET}${CYAN}${_vc}${RESET}"
-                echo -e "  ${CYAN}${_blc}$(_repeat_char "${_hc}" $inner_cols)${_brc}${RESET}"
+                local hdr=" ${header_prefix} ${DIM}|${RESET} ${DIM}RAM${RESET} ${ram_pct}% "
+                local hdr_pad=$(_pad_str "$hdr" $inner_cols)
+                echo -e "  ${_brand_color}${_tlc}$(_repeat_char "${_hc}" $inner_cols)${_trc}${RESET}"
+                echo -e "  ${_brand_color}${_vc}${RESET}${hdr_pad}${_brand_color}${_vc}${RESET}"
+                echo -e "  ${_brand_color}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
 
-                local s="${_sec_bullet}" bullet="${MAGENTA}"
                 local menu_items=(
-                    " ${bullet}[1]${RESET} Setup    ${bullet}[6]${RESET} Vocal${RESET}"
-                    " ${bullet}[2]${RESET} Spotify  ${bullet}[7]${RESET} Lyrics${RESET}"
-                    " ${bullet}[3]${RESET} YT Aud   ${bullet}[8]${RESET} PlSync${RESET}"
-                    " ${bullet}[4]${RESET} Video    ${bullet}[9]${RESET} Info${RESET}"
-                    " ${bullet}[5]${RESET} Compress${RESET}"
+                    " ${BOLD}${CYAN}${_sec_bullet}${RESET} ${BOLD}${CYAN}MAIN${RESET}"
                     "DIVIDER"
-                    " ${YELLOW}[S]${RESET} Storage  ${YELLOW}[W]${RESET} Watch${RESET}"
-                    " ${YELLOW}[P]${RESET} Playlist ${YELLOW}[M]${RESET} Meta${RESET}"
-                    " ${YELLOW}[O]${RESET} Clean    ${YELLOW}[T]${RESET} Telegram${RESET}"
-                    " ${YELLOW}[V]${RESET} Web UI   ${YELLOW}[U]${RESET} Update${RESET}"
-                    " ${YELLOW}[A]${RESET} Zaki AI  ${RED}[X]${RESET} Delete${RESET}"
+                    " ${CYAN}[1]${RESET} Setup    ${CYAN}[6]${RESET} Vocal${RESET}"
+                    " ${CYAN}[2]${RESET} Spotify  ${CYAN}[7]${RESET} Lyrics${RESET}"
+                    " ${CYAN}[3]${RESET} YT Aud   ${CYAN}[8]${RESET} PlSync${RESET}"
+                    " ${CYAN}[4]${RESET} Video    ${CYAN}[9]${RESET} Info${RESET}"
+                    " ${CYAN}[5]${RESET} Compress${RESET}"
                     "DIVIDER"
-                    " ${RED}[R]${RESET} Uninstall ${RED}[0]${RESET} Exit${RESET}"
+                    " ${BOLD}${MAGENTA}${_sec_bullet}${RESET} ${BOLD}${MAGENTA}TOOLS${RESET}"
+                    "DIVIDER"
+                    " ${BLUE}[S]${RESET} Storage  ${BLUE}[W]${RESET} Watch${RESET}"
+                    " ${BLUE}[P]${RESET} Playlist ${BLUE}[M]${RESET} Meta${RESET}"
+                    " ${BLUE}[O]${RESET} Clean    ${BLUE}[T]${RESET} Tele${RESET}"
+                    " ${BLUE}[V]${RESET} Web UI   ${BLUE}[U]${RESET} Update${RESET}"
+                    " ${BLUE}[A]${RESET} Zaki AI  ${RED}[X]${RESET} Delete${RESET}"
+                    "DIVIDER"
+                    " ${MAGENTA}[R]${RESET} Uninstall  ${RED}[0]${RESET} Exit${RESET}"
                 )
-            elif [ "$inner_cols" -lt 55 ]; then
-                # TIER 2: Narrow
-                local header=" ${header_prefix} | RAM ${ram_pct}% | ${net_icon} "
-                local header_pad=$(_pad_str "$header" $inner_cols)
-                echo -e "  ${CYAN}${_tlc}$(_repeat_char "${_hc}" $inner_cols)${_trc}${RESET}"
-                echo -e "  ${CYAN}${_vc}${RESET}${YELLOW}${BOLD}${header_pad}${RESET}${CYAN}${_vc}${RESET}"
-                echo -e "  ${CYAN}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
 
-                local s="${_sec_bullet}" bullet="${YELLOW}"
+            # ── TIER 2: Narrow (42-54 cols) ──
+            elif [ "$inner_cols" -lt 55 ]; then
+                local hdr=" ${header_prefix} ${DIM}|${RESET} ${DIM}RAM${RESET} ${ram_pct}% ${DIM}CPU${RESET} ${cpu_val}% "
+                local hdr_pad=$(_pad_str "$hdr" $inner_cols)
+                echo -e "  ${_brand_color}${_tlc}$(_repeat_char "${_hc}" $inner_cols)${_trc}${RESET}"
+                echo -e "  ${_brand_color}${_vc}${RESET}${hdr_pad}${_brand_color}${_vc}${RESET}"
+                echo -e "  ${_brand_color}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
+
                 local menu_items=(
-                    " ${bullet} ${s} MAIN${RESET}"
-                    "  ${CYAN}[1]${RESET} Setup Tools    ${CYAN}[6]${RESET} Vocal${RESET}"
-                    "  ${CYAN}[2]${RESET} Spotify DL     ${CYAN}[7]${RESET} Lyrics${RESET}"
-                    "  ${CYAN}[3]${RESET} YT Audio       ${CYAN}[8]${RESET} PlSync${RESET}"
-                    "  ${CYAN}[4]${RESET} Video DL       ${CYAN}[9]${RESET} System${RESET}"
+                    " ${BOLD}${CYAN}${_sec_bullet}${RESET} ${BOLD}${CYAN}DOWNLOAD${RESET}"
+                    "DIVIDER"
+                    "  ${CYAN}[1]${RESET} Setup    ${CYAN}[6]${RESET} Vocal${RESET}"
+                    "  ${CYAN}[2]${RESET} Spotify  ${CYAN}[7]${RESET} Lyrics${RESET}"
+                    "  ${CYAN}[3]${RESET} YT Audio ${CYAN}[8]${RESET} PlSync${RESET}"
+                    "  ${CYAN}[4]${RESET} Video DL ${CYAN}[9]${RESET} System${RESET}"
                     "  ${CYAN}[5]${RESET} Compress${RESET}"
                     "DIVIDER"
-                    " ${bullet} ${s} TOOLS${RESET}"
-                    "  ${CYAN}[S]${RESET} Storage    ${CYAN}[W]${RESET} Watch${RESET}"
-                    "  ${CYAN}[P]${RESET} Playlist   ${CYAN}[M]${RESET} Meta${RESET}"
-                    "  ${CYAN}[O]${RESET} Clean      ${CYAN}[T]${RESET} Tele${RESET}"
-                    "  ${CYAN}[V]${RESET} Web UI     ${CYAN}[U]${RESET} Update${RESET}"
-                    "  ${CYAN}[A]${RESET} Zaki AI    ${RED}[X]${RESET} Delete${RESET}"
+                    " ${BOLD}${MAGENTA}${_sec_bullet}${RESET} ${BOLD}${MAGENTA}TOOLS${RESET}"
                     "DIVIDER"
-                    " ${RED} ${s} SYSTEM${RESET}"
-                    "  ${RED}[R]${RESET} Uninstall   ${RED}[0]${RESET} Exit${RESET}"
+                    "  ${BLUE}[S]${RESET} Storage  ${BLUE}[W]${RESET} Watch${RESET}"
+                    "  ${BLUE}[P]${RESET} Playlist ${BLUE}[M]${RESET} Meta${RESET}"
+                    "  ${BLUE}[O]${RESET} Clean    ${BLUE}[T]${RESET} Tele${RESET}"
+                    "  ${BLUE}[V]${RESET} Web UI   ${BLUE}[U]${RESET} Update${RESET}"
+                    "  ${BLUE}[A]${RESET} Zaki AI  ${RED}[X]${RESET} Delete${RESET}"
+                    "DIVIDER"
+                    " ${MAGENTA}[R]${RESET} Uninstall   ${RED}[0]${RESET} Exit${RESET}"
                 )
-            else
-                # TIER 3: Medium (55-74 cols) — full layout
-                local header=" ${header_prefix} | RAM ${ram_pct}% | DSK ${storage_pct}% | UPT ${uptime_val} | ${net_icon} "
-                local header_pad=$(_pad_str "$header" $inner_cols)
-                echo -e "  ${CYAN}${_tlc}$(_repeat_char "${_hc}" $inner_cols)${_trc}${RESET}"
-                echo -e "  ${CYAN}${_vc}${RESET}${YELLOW}${BOLD}${header_pad}${RESET}${CYAN}${_vc}${RESET}"
-                echo -e "  ${CYAN}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
 
-                # Quick resource bar (compact)
+            # ── TIER 3: Medium (55-74 cols) — full layout with resource bars ──
+            else
+                local hdr=" ${header_prefix} ${DIM}|${RESET} ${DIM}RAM${RESET} ${ram_pct}% ${DIM}DSK${RESET} ${storage_pct}% ${DIM}UPT${RESET} ${uptime_val} "
+                local hdr_pad=$(_pad_str "$hdr" $inner_cols)
+                echo -e "  ${_brand_color}${_tlc}$(_repeat_char "${_hc}" $inner_cols)${_trc}${RESET}"
+                echo -e "  ${_brand_color}${_vc}${RESET}${hdr_pad}${_brand_color}${_vc}${RESET}"
+                echo -e "  ${_brand_color}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
+
+                # Quick resource bar (compact, auto-colored)
                 local bar_width=$(( (inner_cols - 10) / 3 ))
                 [ "$bar_width" -lt 5 ] && bar_width=5
                 [ "$bar_width" -gt 10 ] && bar_width=10
-                local ram_b=$(_draw_bar "$ram_pct" "$bar_width")
-                local cpu_b=$(_draw_bar "${_ZDT_CACHED_CPU:-0}" "$bar_width")
-                local st_b=$(_draw_bar "$storage_pct" "$bar_width")
-                local bars_line="${CYAN}RAM${RESET} ${ram_b}  ${CYAN}CPU${RESET} ${cpu_b}  ${CYAN}DSK${RESET} ${st_b}"
+                local ram_b=$(_draw_bar "$ram_pct" "$bar_width" "" false)
+                local cpu_b=$(_draw_bar "$cpu_val" "$bar_width" "" false)
+                local st_b=$(_draw_bar "$storage_pct" "$bar_width" "" false)
+                local bars_line="${DIM}RAM${RESET} ${ram_b}  ${DIM}CPU${RESET} ${cpu_b}  ${DIM}DSK${RESET} ${st_b}"
                 local bars_pad=$(_pad_str " $bars_line" $inner_cols)
-                echo -e "  ${CYAN}${_vc}${RESET}${bars_pad}${CYAN}${_vc}${RESET}"
-                echo -e "  ${CYAN}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
+                echo -e "  ${_brand_color}${_vc}${RESET}${bars_pad}${_brand_color}${_vc}${RESET}"
+                echo -e "  ${_brand_color}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
 
-                local s="${_sec_bullet}" bullet="${YELLOW}"
                 local menu_items=(
-                    " ${bullet} ${s} MAIN${RESET}"
-                    "  ${CYAN}[1]${RESET} Setup Tools      ${CYAN}[6]${RESET} Vocal${RESET}"
-                    "  ${CYAN}[2]${RESET} Spotify DL       ${CYAN}[7]${RESET} Lyrics${RESET}"
-                    "  ${CYAN}[3]${RESET} YT Audio         ${CYAN}[8]${RESET} PlSync${RESET}"
-                    "  ${CYAN}[4]${RESET} Video DL         ${CYAN}[9]${RESET} System${RESET}"
+                    " ${BOLD}${CYAN}${_sec_bullet}${RESET} ${BOLD}${CYAN}DOWNLOAD${RESET}"
+                    "DIVIDER"
+                    "  ${CYAN}[1]${RESET} Setup      ${CYAN}[6]${RESET} Vocal${RESET}"
+                    "  ${CYAN}[2]${RESET} Spotify    ${CYAN}[7]${RESET} Lyrics${RESET}"
+                    "  ${CYAN}[3]${RESET} YT Audio   ${CYAN}[8]${RESET} PlSync${RESET}"
+                    "  ${CYAN}[4]${RESET} Video DL   ${CYAN}[9]${RESET} System${RESET}"
                     "  ${CYAN}[5]${RESET} Compress${RESET}"
                     "DIVIDER"
-                    " ${bullet} ${s} TOOLS${RESET}"
-                    "  ${CYAN}[S]${RESET} Storage     ${CYAN}[W]${RESET} Watch${RESET}"
-                    "  ${CYAN}[P]${RESET} Playlist    ${CYAN}[M]${RESET} Meta${RESET}"
-                    "  ${CYAN}[O]${RESET} Clean       ${CYAN}[T]${RESET} Tele${RESET}"
-                    "  ${CYAN}[V]${RESET} Web UI      ${CYAN}[U]${RESET} Update${RESET}"
-                    "  ${CYAN}[A]${RESET} Zaki AI     ${RED}[X]${RESET} Delete${RESET}"
+                    " ${BOLD}${MAGENTA}${_sec_bullet}${RESET} ${BOLD}${MAGENTA}TOOLS${RESET}"
                     "DIVIDER"
-                    " ${RED} ${s} SYSTEM${RESET}"
-                    "  ${RED}[R]${RESET} Uninstall    ${RED}[0]${RESET} Exit${RESET}"
+                    "  ${BLUE}[S]${RESET} Storage   ${BLUE}[W]${RESET} Watch${RESET}"
+                    "  ${BLUE}[P]${RESET} Playlist  ${BLUE}[M]${RESET} Meta${RESET}"
+                    "  ${BLUE}[O]${RESET} Clean     ${BLUE}[T]${RESET} Tele${RESET}"
+                    "  ${BLUE}[V]${RESET} Web UI    ${BLUE}[U]${RESET} Update${RESET}"
+                    "  ${BLUE}[A]${RESET} Zaki AI   ${RED}[X]${RESET} Delete${RESET}"
+                    "DIVIDER"
+                    " ${MAGENTA}[R]${RESET} Uninstall    ${RED}[0]${RESET} Exit${RESET}"
                 )
             fi
 
-            # Print the menu box
+            # Print menu box rows
             for item in "${menu_items[@]}"; do
                 if [ "$item" = "DIVIDER" ]; then
-                    echo -e "  ${CYAN}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
+                    echo -e "  ${_brand_color}${_vc}$(_repeat_char "${_hc}" $inner_cols)${_vc}${RESET}"
                 else
                     local item_pad=$(_pad_str "$item" $inner_cols)
-                    echo -e "  ${CYAN}${_vc}${RESET}${item_pad}${CYAN}${_vc}${RESET}"
+                    echo -e "  ${_brand_color}${_vc}${RESET}${item_pad}${_brand_color}${_vc}${RESET}"
                 fi
             done
 
-            echo -e "  ${CYAN}╰$(_repeat_char '─' $inner_cols)╯${RESET}"
+            # Footer
+            echo -e "  ${_brand_color}${_blc}$(_repeat_char "${_hc}" $inner_cols)${_brc}${RESET}"
         fi
 
         echo ""
-        echo -e -n "  ${CYAN}► Pilih menu:${RESET} "
+        echo -e -n "  ${CYAN}▸${RESET} ${BOLD}Pilih menu:${RESET} "
         local pilihan=""
         IFS= read -r -n 1 pilihan 2>/dev/null || IFS= read -r pilihan || true
         echo ""
@@ -518,7 +495,7 @@ main() {
             u) wrap_output update_zdt_script ;;
             a) zaki_assistant ;;
             x) wrap_output hapus_semua ;;
-            h|\?) wrap_output echo -e "  ${YELLOW}MENU UTAMA${RESET}\n  ${CYAN}[1]${RESET} Setup Tools     ${CYAN}[2]${RESET} Spotify DL   ${CYAN}[3]${RESET} YT Audio\n  ${CYAN}[4]${RESET} Video DL       ${CYAN}[5]${RESET} Compress      ${CYAN}[6]${RESET} Vocal\n  ${CYAN}[7]${RESET} Sync Lirik     ${CYAN}[8]${RESET} PlSync        ${CYAN}[9]${RESET} System\n  ${YELLOW}LAINNYA${RESET}\n  ${CYAN}[S]${RESET} Storage        ${CYAN}[W]${RESET} Watch Daemon  ${CYAN}[P]${RESET} Playlist\n  ${CYAN}[M]${RESET} Metadata       ${CYAN}[O]${RESET} Bersih Nama   ${CYAN}[T]${RESET} Telegram\n  ${CYAN}[V]${RESET} Web Dashboard  ${CYAN}[R]${RESET} Uninstall     ${CYAN}[U]${RESET} Update\n  ${CYAN}[A]${RESET} Zaki AI        ${CYAN}[X]${RESET} Hapus Semua   ${CYAN}[0]${RESET} Keluar";;
+            h|\?) _draw_help_overlay ;;
             *) wrap_output echo -e "  ${RED}Pilihan tidak valid!${RESET}"; sleep 1 ;;
         esac
         if [ "${pilihan,,}" != "0" ]; then
